@@ -37,7 +37,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       {children}
-      <Toaster position="top-center" offset={36} mobileOffset={36} theme="system" toastOptions={{ style: { background: "var(--surface-2)", color: "var(--ink)", border: "1px solid var(--line-strong)" } }} />
+      <Toaster position="top-center" theme="system" toastOptions={{ style: { background: "var(--surface-2)", color: "var(--ink)", border: "1px solid var(--line-strong)" } }} />
     </QueryClientProvider>
   );
 }

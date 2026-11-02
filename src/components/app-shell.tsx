@@ -177,7 +177,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
       </aside>
 
       <div data-side-content className="side-content min-w-0">
-        <header className="sticky top-[var(--banner-h)] z-30 flex h-14 items-center justify-between border-b border-line bg-surface pr-2 pl-4 lg:hidden" style={{ paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}>
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface pr-2 pl-4 lg:hidden" style={{ paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}>
           <Link href={items[0].href} aria-label="Início"><Logo size={22} /></Link>
           <div className="flex items-center">
             <ThemeToggle />

@@ -1,2 +1,2 @@
-/** Ligado por padrão; em produção real, NEXT_PUBLIC_DEMO_MODE=false tira o banner e o reset. */
-export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
+/** Desligado por padrão. NEXT_PUBLIC_DEMO_MODE=true (lido no build) mostra o reset dos dados em Admin > Parâmetros. */
+export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";

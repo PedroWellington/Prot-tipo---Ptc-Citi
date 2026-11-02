@@ -139,7 +139,7 @@ As coordenadas do dispositivo ficam só na sessão do navegador e nunca vão par
 - Sem processo contínuo, lembretes, atrasos e expirações só rodam quando `GET /api/cron/tick` é chamado, com `Authorization: Bearer <CRON_SECRET>`. No plano Hobby o cron da Vercel é diário: para o fluxo de atraso em tempo real, aponte um agendador externo para essa rota a cada minuto.
 - Envio de arquivo pela fisioterapeuta fica desligado, porque o disco é efêmero. Links funcionam.
 
-O botão **Resetar dados de demonstração** fica em Admin > Parâmetros. Com `NEXT_PUBLIC_DEMO_MODE=false`, o banner e o reset somem.
+O botão **Resetar dados de demonstração** fica em Admin > Parâmetros e só aparece com `NEXT_PUBLIC_DEMO_MODE=true` no build.
 
 ## Produção
 

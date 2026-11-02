@@ -31,7 +31,7 @@ export default function CadastroPage() {
   if (step === "dados")
     return (
       <AuthFrame title="Vamos começar" subtitle="Só precisamos do seu CPF e e-mail, e de alguns dados para cuidar bem de você.">
-        <PatientForm submitLabel="Continuar" consentLabel={CONSENT} onSubmit={async (data) => {
+        <PatientForm submitLabel="Continuar" consentLabel={CONSENT} cpfHint="Ambiente de demonstração: use um CPF de gerador, não o seu" onSubmit={async (data) => {
           const r = await api<{ verificationId: string }>("/auth/register/start", { body: data });
           setId(r.verificationId); setEmail(String(data.email)); setStep("codigo");
         }} />

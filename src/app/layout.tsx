@@ -3,7 +3,6 @@ import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import type { ReactNode } from "react";
 import { Providers } from "@/components/providers";
 import { ScrollProgress } from "@/components/scroll-progress";
-import { DEMO_MODE } from "@/lib/demo";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "@/styles/globals.css";
 
@@ -33,7 +32,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body>
         <ScrollProgress />
-        {DEMO_MODE && <p role="note" className="demo-banner">Ambiente de demonstração — dados fictícios, não use CPF real</p>}
         <Providers>{children}</Providers>
       </body>
     </html>
