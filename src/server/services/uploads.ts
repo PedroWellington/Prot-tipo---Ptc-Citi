@@ -13,6 +13,8 @@ const MIME = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [v, k]));
 const dir = () => path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR ?? "./uploads");
 
 export async function saveUpload(file: File) {
+  // shortcut: o disco da Vercel é efêmero; para arquivos lá, use armazenamento de objetos
+  if (process.env.VERCEL) throw new AppError(501, "UPLOAD", "Envio de arquivo indisponível nesta demonstração. Use um link.");
   const ext = TYPES[file.type];
   if (!ext) throw new AppError(415, "TIPO_ARQUIVO", "Envie vídeo MP4/WebM, PDF, JPG ou PNG.");
   if (file.size > MAX_BYTES) throw new AppError(413, "ARQUIVO_GRANDE", "O arquivo passa do limite de 50 MB.");

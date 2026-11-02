@@ -7,7 +7,7 @@ export async function setSessionCookie(claims: Claims) {
   (await cookies()).set(COOKIE, await signSession(claims), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: process.env.APP_URL?.startsWith("https://") ?? false,
     path: "/",
     maxAge: SESSION_DAYS * 86400,
   });

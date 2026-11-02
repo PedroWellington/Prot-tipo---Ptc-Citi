@@ -35,6 +35,7 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql://movimento:movimento@postgres:5432/movimento
+      DIRECT_URL: postgresql://movimento:movimento@postgres:5432/movimento
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       UPLOAD_DIR: /data/uploads

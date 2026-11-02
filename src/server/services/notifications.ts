@@ -29,7 +29,6 @@ export async function notify(userId: string, n: Notice, db: Db = prisma) {
     },
     db,
   );
-  if (wantsEmail) scheduleFlush();
 }
 
 const physioHref = (href?: string) => (href === "/recepcao" ? "/fisio" : href === "/recepcao/pacientes" ? "/fisio/pacientes" : href);
@@ -42,13 +41,6 @@ export async function notifyDesk(unitId: string | null, physioId: string | null,
   if (physio) return notify(physio, { ...n, email: false, href: physioHref(n.href) }, db);
   const admins = await repo.usersByRole("ADMIN", null, db);
   await Promise.all(admins.map((u) => notify(u.id, { ...n, email: false }, db)));
-}
-
-let flushTimer: ReturnType<typeof setTimeout> | undefined;
-// Espera o commit da transação; se ainda não tiver commitado, o próximo tick pega
-function scheduleFlush() {
-  clearTimeout(flushTimer);
-  flushTimer = setTimeout(() => void processQueue().catch(console.error), 1500);
 }
 
 let running = false;

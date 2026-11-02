@@ -12,7 +12,10 @@ import { patientProfileType } from "../repositories/patients";
 import * as usersRepo from "../repositories/users";
 import { createGuidance, findTreatment, updateTreatment } from "../repositories/treatments";
 import { allWaitlist, patientRequests } from "../repositories/requests";
+import { purgeRateLimits } from "../repositories/rate-limit";
 import * as auth from "../services/auth";
+import { tick } from "../services/cron";
+import { resetDemoStep, RESET_STEPS } from "../services/demo";
 import * as late from "../services/late";
 import * as metrics from "../services/metrics";
 import * as notifications from "../services/notifications";
@@ -39,6 +42,8 @@ const PATIENT: Role[] = ["PACIENTE"];
 const ADMIN: Role[] = ["ADMIN"];
 
 const AUTH_RATE = { limit: 10, windowSec: 60 };
+const LOGIN_RATE = { limit: 20, windowSec: 60, perEmail: 8 };
+const CODE_RATE = { limit: 5, windowSec: 300, perEmail: 3 };
 
 export const MISS_REASONS = ["ALIVIO_DOR", "HORARIO", "TRANSPORTE", "CONVENIO", "SAUDE", "FINANCEIRO", "ESQUECIMENTO", "ATRASO", "OUTRO"] as const;
 
@@ -99,18 +104,18 @@ route("GET", "/auth/me", { roles: "public", summary: "Usuário da sessão atual"
   const u = await currentUser();
   return u ? { id: u.id, name: u.name, role: u.role, home: homeFor(u.role), onboarded: !!u.onboardedAt } : { id: null };
 });
-route("POST", "/auth/login", { roles: "public", rate: AUTH_RATE, body: z.object({ email, password: z.string().min(1).max(72) }), summary: "Entrar com e-mail e senha" }, async ({ body }) => {
+route("POST", "/auth/login", { roles: "public", rate: LOGIN_RATE, body: z.object({ email, password: z.string().min(1).max(72) }), summary: "Entrar com e-mail e senha" }, async ({ body }) => {
   const r = await auth.login(body.email, body.password);
   return { ...r, home: r.mustChangePassword ? "/trocar-senha" : homeFor(r.role) };
 });
 route("POST", "/auth/logout", { roles: "public", summary: "Sair" }, () => auth.logout());
-route("POST", "/auth/register/start", { roles: "public", rate: { limit: 5, windowSec: 300 }, body: patientData, summary: "Valida dados e envia o código por e-mail" },
+route("POST", "/auth/register/start", { roles: "public", rate: CODE_RATE, body: patientData, summary: "Valida dados e envia o código por e-mail" },
   ({ body }) => auth.startRegistration(body));
 route("POST", "/auth/register/verify", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, code }), summary: "Confere o código de 6 dígitos" },
   ({ body }) => auth.verifyRegistration(body.id, body.code));
 route("POST", "/auth/register/complete", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, password }), summary: "Define a senha e cria a conta" },
   ({ body }) => auth.completeRegistration(body.id, body.password));
-route("POST", "/auth/forgot", { roles: "public", rate: { limit: 5, windowSec: 300 }, body: z.object({ email }), summary: "Envia código de redefinição" },
+route("POST", "/auth/forgot", { roles: "public", rate: CODE_RATE, body: z.object({ email }), summary: "Envia código de redefinição" },
   ({ body }) => auth.forgotPassword(body.email));
 route("POST", "/auth/reset", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, code, password }), summary: "Redefine a senha com o código" },
   ({ body }) => auth.resetPassword(body.id, body.code, body.password));
@@ -273,6 +278,14 @@ route("POST", "/physio/treatments/:id/guidance", { roles: PHYSIO, raw: true, sum
   await cfg.audit(user.id, "ORIENTACAO_ENVIADA", "Treatment", t.id);
 });
 
+// ── Agendador: na Vercel não há processo contínuo, algo externo chama esta rota ──
+route("GET", "/cron/tick", { roles: "public", summary: "Lembretes, atrasos, expirações e fila de e-mail (Bearer CRON_SECRET)" }, async ({ req }) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) throw forbidden();
+  await tick();
+  await purgeRateLimits();
+});
+
 // ── Webhooks (autenticados por assinatura) ───────────────────
 route("POST", "/webhooks/pix", { roles: "public", raw: true, summary: "Confirmação automática do PSP (exige PIX_PROVIDER=psp e assinatura)" }, async ({ req }) => {
   await payments.handleWebhook(await req.text(), req.headers.get("x-webhook-signature"));
@@ -368,5 +381,6 @@ route("PATCH", "/admin/messages/:id", { roles: ADMIN, body: z.object({ text: tex
   await cfg.saveProgressMessage(params.id, body.text);
   await cfg.audit(user.id, "TEXTO_ALTERADO", "ProgressMessage", params.id);
 });
+route("POST", "/admin/demo/reset", { roles: ADMIN, body: z.object({ step: z.number().int().min(0).max(RESET_STEPS) }), summary: "Reseta os dados de demonstração, uma etapa por chamada" }, ({ body, user }) => resetDemoStep(body.step, user.id));
 route("GET", "/admin/audit", { roles: ADMIN, query: page, summary: "Log de auditoria" }, ({ query }) => cfg.listAudit(query.take, query.skip));
 

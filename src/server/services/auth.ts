@@ -30,6 +30,8 @@ async function sendCode(purpose: VerificationPurpose, email: string, payload?: o
   await emailChannel.send({
     to: email, subject: `${title}: ${code}`,
     text: `Use o código ${code} para continuar. Ele vale por 15 minutos.\nSe não foi você, pode ignorar este e-mail.`,
+  }).catch(() => {
+    throw new AppError(503, "EMAIL", "Não conseguimos enviar o e-mail agora. Tente de novo em instantes.");
   });
   return id;
 }

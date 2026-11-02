@@ -1,9 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { DemoReset } from "@/components/demo-reset";
 import { useAction } from "@/components/providers";
 import { Button, Card, ErrorState, Input, ListSkeleton, PageTitle, Toggle } from "@/components/ui";
 import { api } from "@/lib/api";
+import { DEMO_MODE } from "@/lib/demo";
 import { q } from "@/lib/queries";
 import type { Settings } from "@/server/repositories/config";
 
@@ -49,6 +51,7 @@ export default function Page() {
         </Card>
         <Button type="submit" variant="brand" className="lg:col-span-2 xl:col-span-3" loading={save.isPending}>Salvar parâmetros</Button>
       </form>
+      {DEMO_MODE && <div className="mt-4"><DemoReset /></div>}
     </>
   );
 }

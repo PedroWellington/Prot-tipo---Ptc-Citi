@@ -1,8 +1,11 @@
 import { Prisma, type Role } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { currentUser, type CurrentUser } from "../auth/session";
 import { AppError, forbidden } from "../errors";
+import { hitRateLimit } from "../repositories/rate-limit";
+import { processQueue } from "../services/notifications";
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
@@ -19,7 +22,8 @@ type Options<B extends z.ZodType, Q extends z.ZodType> = {
   roles?: Role[] | "public";
   body?: B;
   query?: Q;
-  rate?: { limit: number; windowSec: number };
+  /** Por IP; perEmail limita também por e-mail do corpo, contra abuso distribuído em uma conta. */
+  rate?: { limit: number; windowSec: number; perEmail?: number };
   /** multipart/form-data: o handler lê o corpo por conta própria. */
   raw?: boolean;
   summary: string;
@@ -54,16 +58,13 @@ function match(method: string, parts: string[]) {
   return null;
 }
 
-// shortcut: janela fixa em memória, vale para uma instância; use Redis ao escalar horizontalmente
-const hits = new Map<string, { count: number; resetAt: number }>();
-function rateLimit(key: string, limit: number, windowSec: number) {
-  const now = Date.now();
-  if (hits.size > 10_000) for (const [k, v] of hits) if (v.resetAt < now) hits.delete(k);
-  const h = hits.get(key);
-  if (!h || h.resetAt < now) return void hits.set(key, { count: 1, resetAt: now + windowSec * 1000 });
-  if (++h.count > limit) throw new AppError(429, "MUITAS_TENTATIVAS", "Muitas tentativas. Aguarde um pouco.");
+async function rateLimit(key: string, limit: number, windowSec: number) {
+  // Hash: a tabela não guarda IP nem e-mail
+  const id = createHash("sha256").update(key).digest("base64url");
+  if ((await hitRateLimit(id, windowSec)) > limit) throw new AppError(429, "MUITAS_TENTATIVAS", "Muitas tentativas. Aguarde um pouco.");
 }
 
+// Na Vercel o x-forwarded-for é definido pela plataforma, não pelo cliente
 const clientIp = (req: Request) => req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
 
 /** CSRF: além do SameSite=Lax, escrita só aceita a própria origem. */
@@ -86,7 +87,7 @@ export async function dispatch(req: Request, parts: string[]) {
     const { roles, body: bodySchema, query: querySchema, rate, raw } = r.options;
 
     checkOrigin(req);
-    if (rate) rateLimit(`${r.path}:${clientIp(req)}`, rate.limit, rate.windowSec);
+    if (rate) await rateLimit(`${r.path}:${clientIp(req)}`, rate.limit, rate.windowSec);
 
     const user = roles === "public" ? null : await currentUser();
     if (roles !== "public") {
@@ -99,6 +100,8 @@ export async function dispatch(req: Request, parts: string[]) {
       const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
       if (!parsed.success) throw new AppError(422, "VALIDACAO", "Confira os campos destacados.", fieldErrors(parsed.error));
       body = parsed.data;
+      const email = (body as { email?: string }).email;
+      if (rate?.perEmail && email) await rateLimit(`${r.path}:email:${email}`, rate.perEmail, rate.windowSec);
     }
     let query: unknown;
     if (querySchema) {
@@ -108,6 +111,8 @@ export async function dispatch(req: Request, parts: string[]) {
     }
 
     const result = await r.handler({ req, params, body, query, user: user! } as never);
+    // Depois da resposta e do commit; no serverless um setTimeout morreria com a função
+    if (req.method !== "GET") after(() => processQueue().catch(console.error));
     if (result instanceof Response) return result;
     return NextResponse.json(result ?? { ok: true });
   } catch (err) {

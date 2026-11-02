@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -477,6 +478,15 @@ model WhatsAppMessage {
 
   @@index([createdAt])
   @@index([externalId])
+}
+
+// Janela fixa no banco: no serverless cada instância tem a própria memória
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
 }
 
 model Setting {

@@ -13,8 +13,9 @@ export async function tick() {
 }
 
 export function startCron() {
+  // Serverless não mantém processo: lá quem dispara é GET /api/cron/tick
   const g = globalThis as unknown as { cronStarted?: boolean };
-  if (g.cronStarted) return;
+  if (g.cronStarted || process.env.VERCEL) return;
   g.cronStarted = true;
   const ms = Number(process.env.CRON_INTERVAL_MS ?? 60_000);
   setInterval(() => void tick().catch((e) => console.error("Cron falhou:", (e as Error).message)), ms);

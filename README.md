@@ -37,14 +37,14 @@ npm run dev
 
 ## Credenciais de demonstração
 
-Senhas lidas do `.env` (`DEMO_PASSWORD`, `ADMIN_PASSWORD`); o código não contém nenhuma. Os valores abaixo são os exemplos do `.env.example`, fictícios e públicos: nunca use em produção.
+Nenhuma senha fica no repositório. Copie `.env.example` para `.env` e defina `ADMIN_PASSWORD` e `DEMO_PASSWORD` antes de subir.
 
 | Perfil | E-mail | Senha |
 |---|---|---|
-| Administrador | admin@exemplo.test | Movimento@2026 |
-| Recepção (Boa Viagem) | recepcao.bv@exemplo.test | Exemplo@2026 |
-| Fisioterapeutas | fisio1 a fisio3 (BV), fisio4 e fisio5 (CF) @exemplo.test | Exemplo@2026 |
-| Pacientes | paciente01 a paciente25 @exemplo.test | Exemplo@2026 |
+| Administrador | admin@exemplo.test | `ADMIN_PASSWORD` |
+| Recepção (Boa Viagem) | recepcao.bv@exemplo.test | `DEMO_PASSWORD` |
+| Fisioterapeutas | fisio1 a fisio3 (BV), fisio4 e fisio5 (CF) @exemplo.test | `DEMO_PASSWORD` |
+| Pacientes | paciente01 a paciente25 @exemplo.test | `DEMO_PASSWORD` |
 
 Pontos de partida: `paciente01` (onboarding, particular), `paciente04` (convênio na 3ª sessão), `paciente06` (convênio com troca em andamento), `paciente09` (lista de espera).
 
@@ -127,9 +127,23 @@ As coordenadas do dispositivo ficam só na sessão do navegador e nunca vão par
 - **Gráficos:** barras em CSS, sem biblioteca. Framer Motion, Leaflet e bairros só carregam quando usados.
 - **Bcrypt:** `bcryptjs`, mesmo algoritmo sem compilação nativa.
 
+## Deploy na Vercel com Neon
+
+1. Importe o repositório na Vercel. O `vercel.json` coloca as funções em São Paulo, perto do banco.
+2. Cadastre as variáveis de ambiente do `.env.example`. Em `DATABASE_URL` use a string com pooler da Neon; em `DIRECT_URL`, a direta.
+3. Aplique migrations e seed a partir da sua máquina, com as variáveis da Neon no ambiente do comando. A Vercel não roda nada disso sozinha.
+4. E-mail: qualquer SMTP serve (na Brevo, `smtp-relay.brevo.com`, porta 587, com o remetente verificado).
+
+**Limites na Vercel:**
+
+- Sem processo contínuo, lembretes, atrasos e expirações só rodam quando `GET /api/cron/tick` é chamado, com `Authorization: Bearer <CRON_SECRET>`. No plano Hobby o cron da Vercel é diário: para o fluxo de atraso em tempo real, aponte um agendador externo para essa rota a cada minuto.
+- Envio de arquivo pela fisioterapeuta fica desligado, porque o disco é efêmero. Links funcionam.
+
+O botão **Resetar dados de demonstração** fica em Admin > Parâmetros. Com `NEXT_PUBLIC_DEMO_MODE=false`, o banner e o reset somem.
+
 ## Produção
 
-Com `APP_ENV=production`: sem dados demo, cookie `Secure`, troca de senha obrigatória no primeiro login do admin e sessões só podem ser marcadas como realizadas no próprio dia. Gere um `JWT_SECRET` novo, use HTTPS e criptografe o CPF em repouso antes de lidar com dados reais.
+Com `APP_ENV=production`: sem dados demo, troca de senha obrigatória no primeiro login do admin e sessões só podem ser marcadas como realizadas no próprio dia. O cookie é `Secure` sempre que `APP_URL` for HTTPS. Gere um `JWT_SECRET` novo, use HTTPS e criptografe o CPF em repouso antes de lidar com dados reais.
 
 ## Qualidade
 

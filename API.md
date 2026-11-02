@@ -10,7 +10,7 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | Método | Rota | Perfis | Descrição |
 |---|---|---|---|
 | GET | `/api/auth/me` | público | Usuário da sessão atual |
-| POST | `/api/auth/login` | público | Entrar com e-mail e senha (limite 10/60s) |
+| POST | `/api/auth/login` | público | Entrar com e-mail e senha (limite 20/60s) |
 | POST | `/api/auth/logout` | público | Sair |
 | POST | `/api/auth/register/start` | público | Valida dados e envia o código por e-mail (limite 5/300s) |
 | POST | `/api/auth/register/verify` | público | Confere o código de 6 dígitos (limite 10/60s) |
@@ -75,6 +75,7 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | POST | `/api/physio/treatments/:id/abandon` | ADMIN, FISIOTERAPEUTA | Registra abandono |
 | POST | `/api/physio/treatments/:id/script` | ADMIN, FISIOTERAPEUTA | Conclui o roteiro de 1 minuto |
 | POST | `/api/physio/treatments/:id/guidance` | ADMIN, FISIOTERAPEUTA | Envia orientação (texto, link ou arquivo em multipart) |
+| GET | `/api/cron/tick` | público | Lembretes, atrasos, expirações e fila de e-mail (Bearer CRON_SECRET) |
 | POST | `/api/webhooks/pix` | público | Confirmação automática do PSP (exige PIX_PROVIDER=psp e assinatura) |
 | GET | `/api/webhooks/whatsapp` | público | Verificação do webhook pela Meta |
 | POST | `/api/webhooks/whatsapp` | público | Respostas dos botões do WhatsApp (assinatura da Meta) |
@@ -93,4 +94,5 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | PATCH | `/api/admin/settings` | ADMIN | Atualiza parâmetros |
 | GET | `/api/admin/messages` | ADMIN | Textos educativos |
 | PATCH | `/api/admin/messages/:id` | ADMIN | Edita texto (incrementa a versão) |
+| POST | `/api/admin/demo/reset` | ADMIN | Reseta os dados de demonstração, uma etapa por chamada |
 | GET | `/api/admin/audit` | ADMIN | Log de auditoria |
