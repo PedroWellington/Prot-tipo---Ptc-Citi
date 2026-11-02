@@ -1,0 +1,496 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  RECEPCAO
+  FISIOTERAPEUTA
+  PACIENTE
+}
+
+enum PatientType {
+  PARTICULAR
+  CONVENIO
+}
+
+enum TreatmentStatus {
+  ATIVO
+  CONCLUIDO
+  ABANDONADO
+}
+
+enum SessionStatus {
+  AGENDADA
+  CONFIRMADA
+  REALIZADA
+  FALTA
+  DESMARCADA
+  REAGENDADA
+}
+
+enum RescheduleStatus {
+  PENDENTE
+  APROVADA
+  RECUSADA
+  CANCELADA
+}
+
+enum RenewalStatus {
+  NAO_INICIADA
+  SOLICITADA
+  EM_ANALISE
+  LIBERADA
+  NEGADA
+}
+
+enum WaitlistStatus {
+  ATIVA
+  OFERTADA
+  ACEITA
+  EXPIRADA
+  CANCELADA
+}
+
+enum DeliveryStatus {
+  PENDENTE
+  ENVIADO
+  FALHOU
+  IGNORADO
+}
+
+enum PaymentStatus {
+  AGUARDANDO
+  PAGO
+  EXPIRADO
+}
+
+enum LateStatus {
+  AGUARDANDO
+  A_CAMINHO
+  DESISTIU
+  OFERTADA
+  PREENCHIDA
+  CHEGOU
+  ENCERRADA
+}
+
+enum LateOfferStatus {
+  ENVIADA
+  ACEITA
+  RECUSADA
+  ENCERRADA
+}
+
+enum VerificationPurpose {
+  CADASTRO
+  SENHA
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String
+  name               String
+  role               Role
+  unitId             String?
+  unit               Unit?     @relation(fields: [unitId], references: [id])
+  mustChangePassword Boolean   @default(false)
+  failedLogins       Int       @default(0)
+  lockedUntil        DateTime?
+  tokenVersion       Int       @default(0)
+  onboardedAt        DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+
+  patient       PatientProfile?
+  physio        Physiotherapist?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([role, unitId])
+}
+
+model PatientProfile {
+  id                String      @id @default(cuid())
+  userId            String      @unique
+  user              User        @relation(fields: [userId], references: [id])
+  cpf               String      @unique
+  phone             String
+  type              PatientType
+  insurer           String?
+  cardNumber        String?
+  secondContactName String?
+  secondContactPhone String?
+  preferredUnitId   String?
+  preferredUnit     Unit?       @relation(fields: [preferredUnitId], references: [id])
+  consentAt         DateTime
+  notifyEmail       Boolean     @default(true)
+  notifyEducational Boolean     @default(true)
+  bairro            String?
+  whatsappOptIn     Boolean     @default(false)
+  whatsappOptInAt   DateTime?
+
+  treatments Treatment[]
+  sessions   Session[]
+  reschedule RescheduleRequest[]
+  waitlist   WaitlistEntry[]
+  payments   Payment[]
+  lateOffers LateOffer[]
+}
+
+model Unit {
+  id              String  @id @default(cuid())
+  code            String  @unique
+  name            String
+  address         String
+  phone           String
+  lat             Float
+  lng             Float
+  openHour        Int     @default(7)
+  closeHour       Int     @default(20)
+  saturdayEnabled Boolean @default(false)
+  satOpenHour     Int     @default(8)
+  satCloseHour    Int     @default(12)
+  chairs          Int     @default(4)
+  lateToleranceMin Int    @default(10)
+  slotHoldMin     Int     @default(10)
+  active          Boolean @default(true)
+
+  users      User[]
+  physios    Physiotherapist[]
+  treatments Treatment[]
+  sessions   Session[]
+  patients   PatientProfile[]
+  holidays   Holiday[]
+  waitlist   WaitlistEntry[]
+  requests   RescheduleRequest[]
+  lateEvents LateEvent[]
+}
+
+model Physiotherapist {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation(fields: [userId], references: [id])
+  unitId  String
+  unit    Unit    @relation(fields: [unitId], references: [id])
+  crefito String
+  active  Boolean @default(true)
+
+  sessions   Session[]
+  treatments Treatment[]
+  guidances  Guidance[]
+
+  @@index([unitId])
+}
+
+model Treatment {
+  id                String          @id @default(cuid())
+  patientId         String
+  patient           PatientProfile  @relation(fields: [patientId], references: [id])
+  unitId            String
+  unit              Unit            @relation(fields: [unitId], references: [id])
+  physioId          String?
+  physio            Physiotherapist? @relation(fields: [physioId], references: [id])
+  totalSessions     Int             @default(10)
+  completedSessions Int             @default(0)
+  status            TreatmentStatus @default(ATIVO)
+  endReason         String?
+  scriptDoneAt      DateTime?
+  startedAt         DateTime        @default(now())
+  endedAt           DateTime?
+
+  sessions  Session[]
+  renewal   InsuranceRenewal?
+  guidances Guidance[]
+  payments  Payment[]
+
+  @@index([patientId, status])
+  @@index([status])
+}
+
+model Session {
+  id                 String        @id @default(cuid())
+  treatmentId        String
+  treatment          Treatment     @relation(fields: [treatmentId], references: [id])
+  patientId          String
+  patient            PatientProfile @relation(fields: [patientId], references: [id])
+  unitId             String
+  unit               Unit          @relation(fields: [unitId], references: [id])
+  physioId           String
+  physio             Physiotherapist @relation(fields: [physioId], references: [id])
+  number             Int
+  startsAt           DateTime
+  status             SessionStatus @default(AGENDADA)
+  provisional        Boolean       @default(false)
+  isReplacement      Boolean       @default(false)
+  rescheduledFromId  String?
+  reason             String?
+  reasonNote         String?
+  noticeHours        Float?
+  confirmedAt        DateTime?
+  doneAt             DateTime?
+  unconfirmedAlertAt DateTime?
+  paymentId          String?
+  payment            Payment?      @relation(fields: [paymentId], references: [id])
+  checkedInAt        DateTime?
+  lateAt             DateTime?
+  createdAt          DateTime      @default(now())
+
+  requests RescheduleRequest[]
+  tokens   ConfirmationToken[]
+  late     LateEvent?
+
+  @@index([paymentId])
+  @@index([unitId, startsAt])
+  @@index([physioId, startsAt])
+  @@index([treatmentId, startsAt])
+  @@index([patientId, startsAt])
+  @@index([status, startsAt])
+  // índices únicos parciais anti-dupla-reserva estão na migration init (Prisma não os modela)
+}
+
+model RescheduleRequest {
+  id             String           @id @default(cuid())
+  sessionId      String
+  session        Session          @relation(fields: [sessionId], references: [id])
+  patientId      String
+  patient        PatientProfile   @relation(fields: [patientId], references: [id])
+  targetStartsAt DateTime
+  targetUnitId   String
+  targetUnit     Unit             @relation(fields: [targetUnitId], references: [id])
+  reason         String?
+  status         RescheduleStatus @default(PENDENTE)
+  response       String?
+  suggestion     String?
+  decidedById    String?
+  decidedAt      DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([sessionId])
+  @@index([status, createdAt])
+  @@index([patientId, createdAt])
+}
+
+model InsuranceRenewal {
+  id            String        @id @default(cuid())
+  treatmentId   String        @unique
+  treatment     Treatment     @relation(fields: [treatmentId], references: [id])
+  status        RenewalStatus @default(NAO_INICIADA)
+  requestedAt   DateTime?
+  expectedAt    DateTime?
+  decidedAt     DateTime?
+  note          String?
+  attachment    String?
+  alertedAt     DateTime?
+  remindedAt    DateTime?
+  heldReleasedAt DateTime?
+
+  @@index([status])
+}
+
+model WaitlistEntry {
+  id               String         @id @default(cuid())
+  patientId        String
+  patient          PatientProfile @relation(fields: [patientId], references: [id])
+  unitId           String
+  unit             Unit           @relation(fields: [unitId], references: [id])
+  weekday          Int
+  hour             Int
+  status           WaitlistStatus @default(ATIVA)
+  offeredStartsAt  DateTime?
+  offeredPhysioId  String?
+  holdUntil        DateTime?
+  createdAt        DateTime       @default(now())
+
+  @@index([patientId, status])
+  @@index([unitId, weekday, hour, status])
+  @@index([status, holdUntil])
+}
+
+model Notification {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  type          String
+  title         String
+  body          String
+  href          String?
+  // HTML pronto quando a mensagem exige botões próprios (lembrete interativo)
+  actions       Json?
+  emailStatus   DeliveryStatus @default(IGNORADO)
+  attempts      Int            @default(0)
+  nextAttemptAt DateTime?
+  readAt        DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([emailStatus, nextAttemptAt])
+}
+
+model EmailVerification {
+  id          String              @id @default(uuid())
+  purpose     VerificationPurpose
+  email       String
+  codeHash    String
+  payload     Json?
+  attempts    Int                 @default(0)
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  consumedAt  DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([email, purpose])
+}
+
+model ConfirmationToken {
+  id            String    @id @default(cuid())
+  tokenHash     String    @unique
+  sessionId     String
+  session       Session   @relation(fields: [sessionId], references: [id])
+  reminderHours Int
+  expiresAt     DateTime
+  usedAt        DateTime?
+
+  @@unique([sessionId, reminderHours])
+}
+
+model ProgressMessage {
+  id            String   @id @default(cuid())
+  sessionNumber Int
+  totalSessions Int      @default(10)
+  text          String
+  version       Int      @default(1)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([sessionNumber, totalSessions])
+}
+
+model Guidance {
+  id          String          @id @default(cuid())
+  treatmentId String
+  treatment   Treatment       @relation(fields: [treatmentId], references: [id])
+  physioId    String
+  physio      Physiotherapist @relation(fields: [physioId], references: [id])
+  title       String
+  message     String?
+  url         String?
+  fileName    String?
+  createdAt   DateTime        @default(now())
+
+  @@index([treatmentId, createdAt])
+  @@index([fileName])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
+
+// Não guarda nada sensível: o código PIX é recalculado a partir do txid e da configuração
+model Payment {
+  id               String         @id @default(cuid())
+  patientId        String
+  patient          PatientProfile @relation(fields: [patientId], references: [id])
+  treatmentId      String?
+  treatment        Treatment?     @relation(fields: [treatmentId], references: [id], onDelete: SetNull)
+  createdTreatment Boolean        @default(false)
+  amountCents      Int
+  sessionCount     Int
+  status           PaymentStatus  @default(AGUARDANDO)
+  provider         String
+  txid             String         @unique
+  expiresAt        DateTime
+  paidAt           DateTime?
+  confirmedById    String?
+  createdAt        DateTime       @default(now())
+
+  sessions Session[]
+
+  @@index([status, expiresAt])
+  @@index([patientId, createdAt])
+}
+
+model LateEvent {
+  id                String      @id @default(cuid())
+  sessionId         String      @unique
+  session           Session     @relation(fields: [sessionId], references: [id])
+  unitId            String
+  unit              Unit        @relation(fields: [unitId], references: [id])
+  status            LateStatus  @default(AGUARDANDO)
+  etaMinutes        Int?
+  deadlineAt        DateTime
+  offerEndsAt       DateTime?
+  filledBySessionId String?
+  createdAt         DateTime    @default(now())
+  closedAt          DateTime?
+
+  offers LateOffer[]
+
+  @@index([status, deadlineAt])
+}
+
+model LateOffer {
+  id              String          @id @default(cuid())
+  lateEventId     String
+  lateEvent       LateEvent       @relation(fields: [lateEventId], references: [id])
+  waitlistEntryId String
+  patientId       String
+  patient         PatientProfile  @relation(fields: [patientId], references: [id])
+  status          LateOfferStatus @default(ENVIADA)
+  respondedAt     DateTime?
+
+  @@unique([lateEventId, waitlistEntryId])
+  @@index([patientId, status])
+}
+
+// Registro de toda mensagem de WhatsApp; no modo simulado é também a própria "entrega"
+model WhatsAppMessage {
+  id         String    @id @default(cuid())
+  userId     String?
+  contact    String
+  phone      String
+  text       String
+  buttons    Json?
+  kind       String
+  refId      String?
+  simulated  Boolean   @default(true)
+  externalId String?
+  reply      String?
+  repliedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([externalId])
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+model Holiday {
+  id     String   @id @default(cuid())
+  date   DateTime @db.Date
+  name   String
+  // null = vale para todas as unidades
+  unitId String?
+  unit   Unit?    @relation(fields: [unitId], references: [id])
+
+  @@index([date])
+}
