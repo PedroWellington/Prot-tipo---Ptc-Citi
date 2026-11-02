@@ -1,0 +1,62 @@
+/* ÚNICO arquivo de cor da marca. Para trocar o verde, altere --green-* aqui (e o theme_color em src/app/manifest.ts). */
+:root {
+  --green-950: #052e1f;
+  --green-900: #07422c;
+  --green-700: #0f6b46;
+  --green-500: #1fa86a;
+  --green-300: #6ee7a8;
+
+  /* Só para linhas finas, anel de progresso e CTAs principais */
+  --brand-gradient: linear-gradient(100deg, #1fa86a 0%, #2f8fd8 55%, #8b5cf6 100%);
+  --ring-a: #1fa86a;
+  --ring-b: #2f8fd8;
+  --ring-c: #8b5cf6;
+}
+
+/* Tema escuro */
+:root, :root[data-theme="dark"] {
+  --bg: #050b09;
+  --surface: #0b1a14;
+  --surface-2: #122a20;
+  --sidebar: #0a1812;
+  --line: rgb(255 255 255 / 0.09);
+  --line-strong: rgb(255 255 255 / 0.2);
+  --ink: #eaf5ef;
+  --ink-2: #a9c2b6;
+  --ink-3: #84a093;
+  --accent: var(--green-300);
+  --accent-soft: rgb(110 231 168 / 0.13);
+  --on-accent: #04261a;
+  --warn: #f2c063;
+  --danger: #ff9b8a;
+  --ok: var(--green-300);
+  --mesh-a: rgb(15 107 70 / 0.22);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  --chart-1: #27a96c;
+  --chart-2: #6f8ff0;
+  color-scheme: dark;
+}
+
+/* Tema claro */
+:root[data-theme="light"] {
+  --bg: #f3f8f5;
+  --surface: #ffffff;
+  --surface-2: #e8f1ec;
+  --sidebar: #e4efe9;
+  --line: rgb(5 46 31 / 0.11);
+  --line-strong: rgb(5 46 31 / 0.24);
+  --ink: #062318;
+  --ink-2: #33524a;
+  --ink-3: #4f6b62;
+  --accent: var(--green-700);
+  --accent-soft: rgb(15 107 70 / 0.1);
+  --on-accent: #ffffff;
+  --warn: #8a5a00;
+  --danger: #b3321f;
+  --ok: var(--green-700);
+  --mesh-a: rgb(31 168 106 / 0.1);
+  --shadow: 0 1px 2px rgb(5 46 31 / 0.07);
+  --chart-1: #0f6b46;
+  --chart-2: #4a6fd4;
+  color-scheme: light;
+}
