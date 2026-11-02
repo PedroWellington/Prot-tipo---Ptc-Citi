@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: movimento
+      POSTGRES_PASSWORD: movimento
+      POSTGRES_DB: movimento
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U movimento"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    env_file:
+      # O último vence: .env sobrescreve os valores de demonstração
+      - .env.example
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://movimento:movimento@postgres:5432/movimento
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      UPLOAD_DIR: /data/uploads
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/data/uploads
+
+volumes:
+  pgdata:
+  uploads:

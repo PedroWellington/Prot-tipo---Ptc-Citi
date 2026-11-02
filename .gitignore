@@ -1,0 +1,40 @@
+# Dependências e builds
+node_modules
+.next
+out
+build
+dist
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Segredos: só o .env.example, com valores fictícios, vai para o repositório
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dados locais
+uploads
+pgdata
+*.sql.gz
+*.dump
+
+# Logs
+*.log
+npm-debug.log*
+lighthouse-*.json
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode
+.idea
+*.swp
+
+# Ferramentas locais
+.playwright-mcp
+.claude
+graphify-out
