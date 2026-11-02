@@ -24,6 +24,8 @@ const DESK: Item[] = [
   { href: "/recepcao/pacientes", label: "Pacientes", icon: Users },
 ];
 
+const DESK_FOR_PHYSIO = DESK.filter((d) => ["/recepcao/trocas", "/recepcao/renovacoes", "/recepcao/pagamentos"].includes(d.href));
+
 export const NAV: Record<string, Item[]> = {
   PACIENTE: [
     { href: "/app", label: "Tratamento", icon: HeartPulse },
@@ -62,7 +64,7 @@ const SideNav = memo(function SideNav({ items, path }: { items: Item[]; path: st
     <nav aria-label="Principal" className="side-nav flex flex-1 flex-col gap-0.5 overflow-y-auto">
       {items.map((i) => (
         <Link key={i.href} href={i.href} prefetch aria-label={i.label} aria-current={isActive(path, i.href) ? "page" : undefined}
-          className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] px-3 text-[15px]", isActive(path, i.href) ? "border-accent bg-accent-soft font-semibold text-accent" : "row-hover border-transparent text-ink-2")}>
+          className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] pl-[13px] text-[15px]", isActive(path, i.href) ? "border-accent bg-nav-active font-semibold text-nav-active-ink" : "row-hover border-transparent text-ink-2")}>
           <i.icon strokeWidth={1.5} className="size-5 shrink-0" />
           <span className="nav-label truncate">{i.label}</span>
           <span aria-hidden className="nav-tip">{i.label}</span>
@@ -117,9 +119,10 @@ function usePreloadData(role: string, path: string) {
   }, [qc, role]);
 }
 
-export function AppShell({ role, name, children }: { role: string; name: string; children: ReactNode }) {
+export function AppShell({ role, name, deskless, children }: { role: string; name: string; deskless?: boolean; children: ReactNode }) {
   const path = usePathname();
-  const items = NAV[role];
+  // Unidade sem recepção: a fisioterapeuta assume as filas dos próprios pacientes
+  const items = deskless ? [...NAV.FISIOTERAPEUTA, ...DESK_FOR_PHYSIO] : NAV[role];
   const sideBell = useRef<HTMLButtonElement>(null);
   // Guardar a rota em vez de um booleano: navegar fecha o painel e nada além do clique no sino abre
   const [notesAt, setNotesAt] = useState<string | null>(null);
@@ -148,31 +151,34 @@ export function AppShell({ role, name, children }: { role: string; name: string;
   };
 
   return (
-    <div className="side-grid min-h-dvh">
-      <aside className="sticky top-0 z-20 hidden h-dvh flex-col gap-1 border-r border-line-strong bg-sidebar px-3 py-5 lg:flex">
-        <div className="side-top mb-5 flex min-h-11 items-center gap-1">
-          <button type="button" onClick={onLogo} aria-label="Movimento: início ou expandir menu" className="flex min-h-11 min-w-11 items-center gap-1.5 rounded-xl pl-2.5">
-            <span data-logo-mark className="inline-block"><LogoMark className="h-8 w-6" /></span>
-            <span className="nav-label font-display text-2xl leading-none text-ink">Movimento</span>
-          </button>
-          <button type="button" onClick={toggleSidebar} aria-label="Recolher ou expandir menu (atalho: [)" title="Recolher ou expandir menu ( [ )" className="ml-auto flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-ink">
+    <div className="min-h-dvh">
+      <aside className="side-panel border-r border-line-strong bg-sidebar">
+        <div className="side-inner">
+          <div className="mb-5 flex min-h-11 items-center">
+            <button type="button" onClick={onLogo} aria-label="Movimento: início ou expandir menu" className="flex min-h-11 items-center rounded-xl pl-3.5">
+              <span data-logo-mark className="inline-block"><LogoMark className="h-8 w-6" /></span>
+              <span aria-hidden className="nav-label font-display text-2xl leading-none text-ink">ovimento</span>
+            </button>
+          </div>
+          <button type="button" onClick={toggleSidebar} aria-label="Recolher ou expandir menu (atalho: [)" title="Recolher ou expandir menu ( [ )" className="side-toggle flex size-11 items-center justify-center rounded-full bg-accent-soft text-ink">
             <PanelLeftClose strokeWidth={1.5} className="collapse-icon size-5" />
           </button>
-        </div>
-        <SideNav items={items} path={path} />
-        <div className="border-t border-line pt-3">
-          <p className="nav-label truncate px-3 pb-1 text-sm text-ink-2">{name}</p>
-          <div className="side-foot flex">
-            <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
-            <ThemeToggle />
-            <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
+          <SideNav items={items} path={path} />
+          <div className="pt-3">
+            <div className="side-divider border-t border-line pb-2" />
+            <p className="nav-label truncate px-4 pb-1 text-sm text-ink-2">{name}</p>
+            <div className="side-foot flex pl-1">
+              <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
+              <ThemeToggle />
+              <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
+            </div>
           </div>
         </div>
       </aside>
 
-      <div className="min-w-0">
+      <div data-side-content className="side-content min-w-0">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface pr-2 pl-4 lg:hidden" style={{ paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}>
-          <Link href={items[0].href} aria-label="Início"><Logo className="h-6 text-ink" /></Link>
+          <Link href={items[0].href} aria-label="Início"><Logo size={22} /></Link>
           <div className="flex items-center">
             <ThemeToggle />
             <BellButton onOpen={openFromHeader} />

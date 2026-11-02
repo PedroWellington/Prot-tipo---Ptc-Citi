@@ -37,14 +37,14 @@ npm run dev
 
 ## Credenciais de demonstração
 
-Valores do `.env.example`. São fictícios e públicos: nunca use em produção.
+Senhas lidas do `.env` (`DEMO_PASSWORD`, `ADMIN_PASSWORD`); o código não contém nenhuma. Os valores abaixo são os exemplos do `.env.example`, fictícios e públicos: nunca use em produção.
 
 | Perfil | E-mail | Senha |
 |---|---|---|
 | Administrador | admin@exemplo.test | Movimento@2026 |
-| Recepção | recepcao.bv@exemplo.test, recepcao.cf@exemplo.test | Demo@2026 |
-| Fisioterapeutas | fisio1 a fisio3 (BV), fisio4 e fisio5 (CF) @exemplo.test | Demo@2026 |
-| Pacientes | paciente01 a paciente25 @exemplo.test | Demo@2026 |
+| Recepção (Boa Viagem) | recepcao.bv@exemplo.test | Exemplo@2026 |
+| Fisioterapeutas | fisio1 a fisio3 (BV), fisio4 e fisio5 (CF) @exemplo.test | Exemplo@2026 |
+| Pacientes | paciente01 a paciente25 @exemplo.test | Exemplo@2026 |
 
 Pontos de partida: `paciente01` (onboarding, particular), `paciente04` (convênio na 3ª sessão), `paciente06` (convênio com troca em andamento), `paciente09` (lista de espera).
 
@@ -60,9 +60,15 @@ Os telefones do seed começam com `81 00000`: assinantes iniciados em 0 não exi
 | Fisioterapeuta | `/fisio`, `/fisio/pacientes`, `/fisio/pacientes/[id]` |
 | Admin | `/admin` (métricas), `/admin/usuarios`, `/admin/unidades`, `/admin/parametros`, `/admin/textos`, `/admin/auditoria`, e as telas da recepção |
 
+## Unidade sem recepção
+
+Casa Forte começa sem recepção. Enquanto for assim, trocas, renovações, confirmação de PIX e alertas dos pacientes de lá vão para a fisioterapeuta responsável, que ganha essas filas no menu e faz o check-in na própria agenda. Basta cadastrar uma recepcionista na unidade (Admin > Equipe) para tudo voltar a ela, sem nenhuma configuração. Pode haver mais de uma por unidade.
+
+Em Admin > Equipe, "Novo" envia um convite por e-mail para a pessoa criar a própria senha (válido por 7 dias). Desativar e reativar ficam no log de auditoria.
+
 ## Interface
 
-Tema claro e escuro com botão em todos os perfis; a primeira visita segue o sistema. A sidebar recolhe pelo botão, pelo logo ou pela tecla `[`.
+Tema claro e escuro com botão em todos os perfis; a primeira visita segue o sistema. A sidebar recolhe pelo botão ou pela tecla `[`, e o M do logo também expande.
 
 ## Trocar a cor verde
 

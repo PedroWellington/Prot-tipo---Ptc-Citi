@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 import { AuthFrame } from "@/components/auth-frame";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 
-export default function RecuperarPage() {
-  const [id, setId] = useState("");
+function Recuperar() {
+  // Link de convite já traz a verificação: a pessoa vai direto ao código
+  const invite = useSearchParams().get("id");
+  const [id, setId] = useState(invite ?? "");
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +36,7 @@ export default function RecuperarPage() {
     );
 
   return (
-    <AuthFrame title="Recuperar acesso" subtitle={id ? "Se o e-mail estiver cadastrado, você recebeu um código de 6 dígitos." : "Informe seu e-mail e enviaremos um código."}>
+    <AuthFrame title={invite ? "Crie sua senha" : "Recuperar acesso"} subtitle={invite ? "Use o código de 6 dígitos que veio no convite." : id ? "Se o e-mail estiver cadastrado, você recebeu um código de 6 dígitos." : "Informe seu e-mail e enviaremos um código."}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {!id ? <Input label="E-mail" name="email" type="email" required autoComplete="email" /> : (
           <>
@@ -47,4 +50,8 @@ export default function RecuperarPage() {
       <Link href="/login" className="mt-4 flex min-h-11 items-center justify-center text-sm text-ink-2">Voltar para o login</Link>
     </AuthFrame>
   );
+}
+
+export default function RecuperarPage() {
+  return <Suspense><Recuperar /></Suspense>;
 }

@@ -1,10 +1,12 @@
 import type { RenewalStatus } from "@prisma/client";
 import { DAY } from "@/lib/time";
 import { prisma } from "../db";
+import type { CurrentUser } from "../auth/session";
 import { conflict, notFound } from "../errors";
 import { audit, getSettings } from "../repositories/config";
 import * as repo from "../repositories/requests";
 import { activeFutureSessions, cancelSessions, clearProvisional } from "../repositories/sessions";
+import { assertDeskAccess, deskScope } from "./access";
 import { notify } from "./notifications";
 import { offerFreedSlot } from "./waitlist";
 
@@ -16,11 +18,16 @@ const NEXT: Record<RenewalStatus, RenewalStatus[]> = {
   NEGADA: [],
 };
 
+const guard = (user: CurrentUser, r: { treatment: { unitId: string; physioId: string | null } }) =>
+  assertDeskAccess(user, r.treatment.unitId, r.treatment.physioId ?? "");
+
 type Update = { status: RenewalStatus; note?: string; attachment?: string; expectedAt?: Date };
 
-export async function updateRenewalStatus(id: string, input: Update, actorId: string) {
+export async function updateRenewalStatus(id: string, input: Update, user: CurrentUser) {
   const r = await repo.findRenewal(id);
   if (!r) throw notFound("Renovação");
+  await guard(user, r);
+  const actorId = user.id;
   if (!NEXT[r.status].includes(input.status)) throw conflict("Essa mudança de status não é permitida.");
   const cfg = await getSettings();
   const now = new Date();
@@ -49,9 +56,11 @@ export async function updateRenewalStatus(id: string, input: Update, actorId: st
 }
 
 /** Renovação negada ou expirada: a recepção decide soltar os horários pré-reservados. */
-export async function releaseHeldSessions(id: string, actorId: string) {
+export async function releaseHeldSessions(id: string, user: CurrentUser) {
   const r = await repo.findRenewal(id);
   if (!r) throw notFound("Renovação");
+  await guard(user, r);
+  const actorId = user.id;
   if (r.status === "LIBERADA") throw conflict("Renovação liberada: não há horários provisórios.");
   const held = await activeFutureSessions(r.treatmentId, prisma, true);
   await prisma.$transaction(async (tx) => {
@@ -63,4 +72,7 @@ export async function releaseHeldSessions(id: string, actorId: string) {
   return { released: held.length };
 }
 
-export const renewalQueue = repo.renewalQueue;
+export async function renewalQueue(user: CurrentUser) {
+  const scope = await deskScope(user);
+  return scope ? repo.renewalQueue(scope) : [];
+}

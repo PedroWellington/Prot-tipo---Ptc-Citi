@@ -27,7 +27,7 @@ export function BellButton({ onOpen, buttonRef }: { onOpen: () => void; buttonRe
       className="relative flex size-11 items-center justify-center rounded-full text-ink-2">
       <Bell strokeWidth={1.5} className="size-5" />
       {!!data?.unread && (
-        <span className="absolute top-1 right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-on-accent">
+        <span className="absolute top-1 right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent-fill px-1 text-[11px] font-bold text-on-accent">
           {data.unread > 9 ? "9+" : data.unread}
         </span>
       )}

@@ -10,7 +10,7 @@ import { activeFutureSessions, cancelSessions, listTreatmentSessions } from "../
 import { findActiveTreatment, latestTreatment, treatmentDetail, updateTreatment } from "../repositories/treatments";
 import * as users from "../repositories/users";
 import type { CurrentUser } from "../auth/session";
-import { hashPassword, sendPasswordSetup, type RegisterPayload } from "./auth";
+import { hashPassword, sendInvite, type RegisterPayload } from "./auth";
 import { notify } from "./notifications";
 import { patientLate } from "./late";
 import { offerFreedSlot } from "./waitlist";
@@ -121,7 +121,7 @@ export async function createPatientByStaff(actorId: string, data: RegisterPayloa
     profile: { ...profileData, consentAt: new Date() },
   });
   await audit(actorId, "PACIENTE_CADASTRADO", "User", user.id);
-  await sendPasswordSetup(email);
-  await notify(user.id, { type: "BOAS_VINDAS", title: "Bem-vindo à Clínica Movimento", body: "Sua conta foi criada pela recepção. Use a opção de recuperar senha para definir seu acesso.", href: "/recuperar" });
+  await sendInvite(email, name);
+  await notify(user.id, { type: "BOAS_VINDAS", title: "Bem-vindo à Clínica Movimento", body: "Sua conta foi criada pela recepção. Use o link do e-mail de convite para criar sua senha.", href: "/app" });
   return { id: user.id };
 }

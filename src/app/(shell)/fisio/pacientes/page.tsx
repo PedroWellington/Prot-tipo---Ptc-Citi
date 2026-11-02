@@ -73,7 +73,7 @@ export default function Page() {
           <div role="radiogroup" aria-label="Filtrar por fase" className="flex flex-wrap gap-1.5">
             {PHASES.map((f) => (
               <button key={f.value} type="button" role="radio" aria-checked={phase === f.value} onClick={() => setPhase(f.value)}
-                className={cx("min-h-9 rounded-full px-3 text-sm font-semibold", phase === f.value ? "bg-accent text-on-accent" : "bg-surface-2 text-ink-2")}>{f.label}</button>
+                className={cx("min-h-9 rounded-full px-3 text-sm font-semibold", phase === f.value ? "bg-accent-fill text-on-accent" : "bg-surface-2 text-ink-2")}>{f.label}</button>
             ))}
           </div>
           {isLoading && <ListSkeleton />}

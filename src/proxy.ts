@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE, homeFor, verifySession, type Role } from "./server/auth/jwt";
 
+const DESK_WITH_PHYSIO: Role[] = ["ADMIN", "RECEPCAO", "FISIOTERAPEUTA"];
+
+// A mais específica vem antes. As filas abertas à fisioterapeuta são filtradas e checadas na API
 const AREAS: [string, Role[]][] = [
+  ["/recepcao/trocas", DESK_WITH_PHYSIO],
+  ["/recepcao/renovacoes", DESK_WITH_PHYSIO],
+  ["/recepcao/pagamentos", DESK_WITH_PHYSIO],
   ["/admin", ["ADMIN"]],
   ["/recepcao", ["ADMIN", "RECEPCAO"]],
   ["/fisio", ["ADMIN", "FISIOTERAPEUTA"]],

@@ -108,7 +108,7 @@ function Guidances({ items }: { items: Full["treatment"]["guidances"] }) {
 }
 
 const DOT: Record<string, string> = {
-  REALIZADA: "bg-ok text-on-accent", CONFIRMADA: "ring-1 ring-accent text-accent", AGENDADA: "ring-1 ring-line-strong text-ink-3",
+  REALIZADA: "bg-accent-fill text-on-accent", CONFIRMADA: "ring-1 ring-accent text-accent", AGENDADA: "ring-1 ring-line-strong text-ink-3",
   FALTA: "ring-1 ring-danger text-danger", DESMARCADA: "ring-1 ring-warn text-warn", REAGENDADA: "ring-1 ring-line text-ink-3",
 };
 

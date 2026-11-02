@@ -6,6 +6,9 @@ export const createNotification = (data: Prisma.NotificationUncheckedCreateInput
 export const usersByRole = (role: Role, unitId?: string | null, db: Db = prisma) =>
   db.user.findMany({ where: { role, deletedAt: null, ...(unitId ? { unitId } : {}) }, select: { id: true } });
 
+export const physioUserId = async (physioId: string, db: Db = prisma) =>
+  (await db.physiotherapist.findUnique({ where: { id: physioId }, select: { userId: true } }))?.userId ?? null;
+
 export const patientNotifyPrefs = (userId: string, db: Db = prisma) =>
   db.patientProfile.findUnique({ where: { userId }, select: { notifyEmail: true, notifyEducational: true } });
 

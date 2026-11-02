@@ -22,9 +22,9 @@ export const patientRequests = (patientId: string) =>
 export const countUsedRequests = (treatmentId: string) =>
   prisma.rescheduleRequest.count({ where: { session: { treatmentId }, status: { in: ["PENDENTE", "APROVADA"] } } });
 
-export const pendingRequests = (unitId?: string) =>
+export const pendingRequests = ({ unitId, physioId }: { unitId?: string; physioId?: string }) =>
   prisma.rescheduleRequest.findMany({
-    where: { status: "PENDENTE", ...(unitId ? { targetUnitId: unitId } : {}) },
+    where: { status: "PENDENTE", ...(unitId ? { targetUnitId: unitId } : {}), ...(physioId ? { session: { physioId } } : {}) },
     orderBy: { createdAt: "asc" },
     select: { ...requestView, patient: { select: { type: true, user: { select: { name: true } } } } },
   });
@@ -47,9 +47,9 @@ export const findRenewal = (id: string, db: Db = prisma) =>
 export const updateRenewal = (id: string, data: Prisma.InsuranceRenewalUpdateInput, db: Db = prisma) =>
   db.insuranceRenewal.update({ where: { id }, data });
 
-export const renewalQueue = (unitId?: string) =>
+export const renewalQueue = ({ unitId, physioId }: { unitId?: string; physioId?: string }) =>
   prisma.insuranceRenewal.findMany({
-    where: { treatment: { status: "ATIVO", ...(unitId ? { unitId } : {}) }, OR: [{ status: { notIn: ["LIBERADA", "NEGADA"] } }, { status: "NEGADA", heldReleasedAt: null }] },
+    where: { treatment: { status: "ATIVO", ...(unitId ? { unitId } : {}), ...(physioId ? { physioId } : {}) }, OR: [{ status: { notIn: ["LIBERADA", "NEGADA"] } }, { status: "NEGADA", heldReleasedAt: null }] },
     orderBy: { treatment: { completedSessions: "desc" } },
     select: {
       id: true, status: true, requestedAt: true, expectedAt: true, note: true, attachment: true, alertedAt: true,

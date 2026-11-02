@@ -1,4 +1,4 @@
-import type { Prisma, Role } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { emailChannel, whatsAppCloudChannel, type Message } from "../channels";
 import { prisma, type Db } from "../db";
 import * as repo from "../repositories/notifications";
@@ -32,9 +32,16 @@ export async function notify(userId: string, n: Notice, db: Db = prisma) {
   if (wantsEmail) scheduleFlush();
 }
 
-export async function notifyStaff(role: Role, unitId: string | null, n: Notice, db: Db = prisma) {
-  const users = await repo.usersByRole(role, unitId, db);
-  await Promise.all(users.map((u) => notify(u.id, { ...n, email: false }, db)));
+const physioHref = (href?: string) => (href === "/recepcao" ? "/fisio" : href === "/recepcao/pacientes" ? "/fisio/pacientes" : href);
+
+/** Avisos da recepção da unidade. Sem recepção, vão à fisioterapeuta do paciente; sem ela, à administração. */
+export async function notifyDesk(unitId: string | null, physioId: string | null, n: Notice, db: Db = prisma) {
+  const desk = await repo.usersByRole("RECEPCAO", unitId, db);
+  if (desk.length) return void (await Promise.all(desk.map((u) => notify(u.id, { ...n, email: false }, db))));
+  const physio = physioId ? await repo.physioUserId(physioId, db) : null;
+  if (physio) return notify(physio, { ...n, email: false, href: physioHref(n.href) }, db);
+  const admins = await repo.usersByRole("ADMIN", null, db);
+  await Promise.all(admins.map((u) => notify(u.id, { ...n, email: false }, db)));
 }
 
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
@@ -92,7 +99,7 @@ async function trySecondContact(item: Awaited<ReturnType<typeof repo.dueEmails>>
   }
   // Sem canal automático para telefone: a recepção recebe a tarefa de ligar
   const contact = p.secondContactPhone ? `Segundo contato: ${p.secondContactName ?? ""} ${p.secondContactPhone}.` : "Sem segundo contato cadastrado.";
-  await notifyStaff("RECEPCAO", p.preferredUnitId, {
+  await notifyDesk(p.preferredUnitId, null, {
     type: "CONTATO_FALHOU", title: `Não conseguimos avisar ${item.user.name}`,
     body: `O aviso "${item.title}" falhou por e-mail. Telefone: ${p.phone}. ${contact}`,
   });

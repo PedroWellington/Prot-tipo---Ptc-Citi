@@ -11,7 +11,7 @@ import { useAction } from "@/components/providers";
 import { Button, Empty, ErrorState, ListSkeleton, PageTitle, Stat } from "@/components/ui";
 import { api } from "@/lib/api";
 
-export function AgendaPhysio({ initial, day: firstDay, serverAt }: { initial: AgendaItem[]; day: number; serverAt: number }) {
+export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless }: { initial: AgendaItem[]; day: number; serverAt: number; deskless: boolean }) {
   const [day, setDay] = useState(firstDay);
   const [miss, setMiss] = useState<string | null>(null);
   const key = ["physio-agenda", day];
@@ -27,6 +27,11 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt }: { initial: Ag
     run: (id: string) => api<{ done: number; total: number }>(`/physio/sessions/${id}/done`, { body: {} }),
     optimistic: { key, update: (old: AgendaItem[], id: string) => patch(old, id, "REALIZADA") },
     invalidate: [["treatment"], ["physio-patients"]],
+  });
+  const checkIn = useAction({
+    run: (id: string) => api(`/desk/sessions/${id}/checkin`, { body: {} }),
+    optimistic: { key, update: (old: AgendaItem[], id: string) => old.map((s) => (s.id === id ? { ...s, checkedInAt: new Date() } : s)) },
+    success: "Check-in feito",
   });
   const missed = useAction({
     run: ({ id, ...body }: MissInput & { id: string }) => api(`/physio/sessions/${id}/miss`, { body }),
@@ -59,6 +64,7 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt }: { initial: Ag
                   <AgendaRow s={s} subtitle={`Sessão ${s.number} de ${s.treatment.totalSessions}`}>
                     {isOpen(s) && (
                       <>
+                        {deskless && !s.checkedInAt && <Button variant="ghost" className="flex-1" onClick={() => checkIn.mutate(s.id)}>Check-in</Button>}
                         <Button className="flex-1" onClick={() => done.mutate(s.id)}><Check strokeWidth={1.5} className="size-4" />Realizada</Button>
                         <Button variant="line" className="flex-1" onClick={() => setMiss(s.id)}>Ausência</Button>
                       </>

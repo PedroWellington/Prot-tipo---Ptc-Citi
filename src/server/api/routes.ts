@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { BOOKING_SIZES } from "@/lib/schedule";
@@ -30,6 +31,8 @@ import { route, type Ctx } from "./router";
 const BAIRROS = new Set(bairrosRecife.bairros.map((b) => b.nome));
 
 const FRONT_DESK: Role[] = ["ADMIN", "RECEPCAO"];
+// A fisioterapeuta só entra onde a unidade não tem recepção: o serviço confere e recorta
+const DESK_OR_PHYSIO: Role[] = ["ADMIN", "RECEPCAO", "FISIOTERAPEUTA"];
 const CLINICAL: Role[] = ["ADMIN", "RECEPCAO", "FISIOTERAPEUTA"];
 const PHYSIO: Role[] = ["ADMIN", "FISIOTERAPEUTA"];
 const PATIENT: Role[] = ["PACIENTE"];
@@ -199,18 +202,18 @@ route("GET", "/files/:name", { summary: "Baixa arquivo enviado (restrito ao paci
 const deskUnit = (c: Ctx) => (c.user.role === "RECEPCAO" ? (c.user.unitId ?? undefined) : undefined);
 
 route("GET", "/desk/agenda", { roles: FRONT_DESK, query: dayQuery, summary: "Agenda do dia por unidade" }, ({ query }) => sessions.unitAgenda(query.unitId, query.from, query.to));
-route("GET", "/desk/requests", { roles: FRONT_DESK, summary: "Fila de solicitações com conflitos e alternativas" }, (c) => reschedule.requestQueue(deskUnit(c)));
-route("POST", "/desk/requests/:id/approve", { roles: FRONT_DESK, summary: "Aprova a troca" }, ({ params, user }) => reschedule.approveRequest(params.id, user.id));
+route("GET", "/desk/requests", { roles: DESK_OR_PHYSIO, summary: "Fila de solicitações com conflitos e alternativas" }, ({ user }) => reschedule.requestQueue(user));
+route("POST", "/desk/requests/:id/approve", { roles: DESK_OR_PHYSIO, summary: "Aprova a troca" }, ({ params, user }) => reschedule.approveRequest(params.id, user));
 route("POST", "/desk/requests/:id/reject", {
-  roles: FRONT_DESK, body: z.object({ response: text(300), suggestion: optText(200) }), summary: "Recusa com justificativa e sugestão",
-}, ({ params, user, body }) => reschedule.rejectRequest(params.id, user.id, body));
-route("GET", "/desk/renewals", { roles: FRONT_DESK, summary: "Fila de renovações de convênio" }, (c) => renewals.renewalQueue(deskUnit(c)));
+  roles: DESK_OR_PHYSIO, body: z.object({ response: text(300), suggestion: optText(200) }), summary: "Recusa com justificativa e sugestão",
+}, ({ params, user, body }) => reschedule.rejectRequest(params.id, user, body));
+route("GET", "/desk/renewals", { roles: DESK_OR_PHYSIO, summary: "Fila de renovações de convênio" }, ({ user }) => renewals.renewalQueue(user));
 route("PATCH", "/desk/renewals/:id", {
-  roles: FRONT_DESK,
+  roles: DESK_OR_PHYSIO,
   body: z.object({ status: z.enum(["SOLICITADA", "EM_ANALISE", "LIBERADA", "NEGADA"]), note: optText(500), expectedAt: z.coerce.date().optional() }),
   summary: "Atualiza status, prazo e observação",
-}, ({ params, user, body }) => renewals.updateRenewalStatus(params.id, body, user.id));
-route("POST", "/desk/renewals/:id/release", { roles: FRONT_DESK, summary: "Solta os horários pré-reservados" }, ({ params, user }) => renewals.releaseHeldSessions(params.id, user.id));
+}, ({ params, user, body }) => renewals.updateRenewalStatus(params.id, body, user));
+route("POST", "/desk/renewals/:id/release", { roles: DESK_OR_PHYSIO, summary: "Solta os horários pré-reservados" }, ({ params, user }) => renewals.releaseHeldSessions(params.id, user));
 route("GET", "/desk/waitlist", { roles: FRONT_DESK, summary: "Lista de espera" }, (c) => allWaitlist(deskUnit(c)));
 route("DELETE", "/desk/waitlist/:id", { roles: FRONT_DESK, summary: "Remove da lista de espera" }, ({ params }) => waitlist.leaveWaitlist(params.id, null));
 route("GET", "/desk/patients", { roles: CLINICAL, query: page.extend({ ativos: z.literal("1").optional() }), summary: "Busca de pacientes" }, ({ user, query }) => patients.staffSearch(user, query.q, query.take, query.skip, !!query.ativos));
@@ -219,9 +222,9 @@ route("POST", "/desk/patients", { roles: FRONT_DESK, rate: { limit: 20, windowSe
 route("POST", "/desk/patients/:id/treatment", {
   roles: FRONT_DESK, body: booking, summary: "Agenda em nome do paciente",
 }, ({ params, user, body }) => schedule.bookTreatment({ ...body, patientId: params.id }, user.id));
-route("GET", "/desk/payments", { roles: FRONT_DESK, summary: "Pagamentos aguardando confirmação" }, (c) => payments.pendingPayments(deskUnit(c)));
-route("POST", "/desk/payments/:id/confirm", { roles: FRONT_DESK, summary: "Confirma o PIX manualmente" }, ({ params, user }) => payments.confirmManually(params.id, user.id));
-route("POST", "/desk/sessions/:id/checkin", { roles: FRONT_DESK, summary: "Check-in; cancela ofertas de vaga pendentes" }, ({ params, user }) => late.checkIn(params.id, user.id));
+route("GET", "/desk/payments", { roles: DESK_OR_PHYSIO, summary: "Pagamentos aguardando confirmação" }, ({ user }) => payments.pendingPayments(user));
+route("POST", "/desk/payments/:id/confirm", { roles: DESK_OR_PHYSIO, summary: "Confirma o PIX manualmente" }, ({ params, user }) => payments.confirmManually(params.id, user));
+route("POST", "/desk/sessions/:id/checkin", { roles: DESK_OR_PHYSIO, summary: "Check-in; cancela ofertas de vaga pendentes" }, ({ params, user }) => late.checkIn(params.id, user));
 route("POST", "/desk/sessions/:id/late", { roles: FRONT_DESK, summary: "Paciente atrasado: inicia o fluxo manualmente" }, ({ params, user }) => late.startLate(params.id, user.id));
 route("GET", "/desk/sessions/:id/late", { roles: FRONT_DESK, summary: "Linha do tempo do atraso" }, ({ params }) => late.lateTimeline(params.id));
 route("GET", "/desk/whatsapp", { roles: FRONT_DESK, summary: "Caixa do WhatsApp" }, async () => ({ simulated: !whatsapp.usingCloud(), messages: await whatsapp.inbox() }));
@@ -296,21 +299,27 @@ route("GET", "/admin/export.csv", { roles: ADMIN, query: period, summary: "Relat
 route("GET", "/admin/users", { roles: ADMIN, query: page, summary: "Equipe" }, ({ query }) => usersRepo.listStaff(query.take, query.skip, query.q));
 route("POST", "/admin/users", {
   roles: ADMIN,
-  body: z.object({ email, name: text(120), role: z.enum(["ADMIN", "RECEPCAO", "FISIOTERAPEUTA"]), unitId: z.string().optional(), crefito: optText(20), password }),
-  summary: "Cria usuário da equipe (troca de senha no 1º acesso)",
+  body: z.object({ email, name: text(120), role: z.enum(["RECEPCAO", "FISIOTERAPEUTA"]), unitId: z.string().min(1, "Escolha a unidade"), crefito: optText(20) }),
+  summary: "Cria recepção ou fisioterapeuta e envia convite por e-mail",
 }, async ({ body, user }) => {
-  if (body.role !== "ADMIN" && !body.unitId) throw badRequest("Escolha a unidade.");
   if (await usersRepo.findUserByEmail(body.email)) throw new AppError(409, "CONFLITO", "Já existe uma conta com este e-mail.");
-  const { password: pw, ...data } = body;
-  const created = await usersRepo.createStaffUser({ ...data, passwordHash: await auth.hashPassword(pw) });
+  // Senha aleatória que ninguém conhece: o acesso nasce do convite
+  const created = await usersRepo.createStaffUser({ ...body, passwordHash: await auth.hashPassword(randomBytes(24).toString("hex")) });
   await cfg.audit(user.id, "USUARIO_CRIADO", "User", created.id, { role: body.role });
   cfg.invalidate("units");
-  return { id: created.id };
+  const inviteSent = await auth.sendInvite(body.email, body.name).then(() => true, () => false);
+  await cfg.audit(user.id, inviteSent ? "CONVITE_ENVIADO" : "CONVITE_FALHOU", "User", created.id);
+  return { id: created.id, inviteSent };
 });
 route("DELETE", "/admin/users/:id", { roles: ADMIN, summary: "Desativa usuário da equipe" }, async ({ params, user }) => {
   if (params.id === user.id) throw badRequest("Você não pode desativar a própria conta.");
   await usersRepo.updateUser(params.id, { deletedAt: new Date(), tokenVersion: { increment: 1 } });
   await cfg.audit(user.id, "USUARIO_DESATIVADO", "User", params.id);
+  cfg.invalidate("units");
+});
+route("POST", "/admin/users/:id/reactivate", { roles: ADMIN, summary: "Reativa usuário da equipe" }, async ({ params, user }) => {
+  await usersRepo.updateUser(params.id, { deletedAt: null });
+  await cfg.audit(user.id, "USUARIO_REATIVADO", "User", params.id);
   cfg.invalidate("units");
 });
 route("GET", "/admin/units", { roles: ADMIN, summary: "Unidades completas" }, () => cfg.listUnits());

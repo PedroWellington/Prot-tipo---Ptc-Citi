@@ -9,7 +9,7 @@ import { badRequest, conflict, forbidden, notFound } from "../errors";
 import { audit, getSettings, getUnit, listProgressMessages } from "../repositories/config";
 import * as sessions from "../repositories/sessions";
 import { findTreatment, incrementCompleted, updateTreatment } from "../repositories/treatments";
-import { notify, notifyStaff } from "./notifications";
+import { notify, notifyDesk } from "./notifications";
 import { AUTHORIZED_BATCH, withSlotLock } from "./schedule";
 import { offerFreedSlot } from "./waitlist";
 
@@ -56,14 +56,14 @@ export async function markDone(id: string, user: CurrentUser) {
       const unitId = s.unitId;
       if (done === cfg.renewal_alert_session && !r.alertedAt) {
         await tx.insuranceRenewal.update({ where: { id: r.id }, data: { alertedAt: new Date() } });
-        await notifyStaff("RECEPCAO", unitId, {
+        await notifyDesk(unitId, s.physioId, {
           type: "RENOVACAO", title: `Pedir renovação: ${s.patient.user.name}`,
           body: `Concluiu a ${done}ª sessão. Dê entrada na liberação das próximas ${AUTHORIZED_BATCH} sessões.`, href: "/recepcao/renovacoes",
         }, tx);
       }
       if (done === cfg.renewal_reminder_session && !r.remindedAt) {
         await tx.insuranceRenewal.update({ where: { id: r.id }, data: { remindedAt: new Date() } });
-        await notifyStaff("RECEPCAO", unitId, {
+        await notifyDesk(unitId, s.physioId, {
           type: "RENOVACAO", title: `Lembrete de renovação: ${s.patient.user.name}`,
           body: `Já está na ${done}ª sessão e a renovação ainda não foi solicitada.`, href: "/recepcao/renovacoes",
         }, tx);
@@ -92,7 +92,7 @@ export async function appendReplacement(s: NonNullable<Awaited<ReturnType<typeof
   const [date] = planSessions([{ weekday, hour }], from, 1, (d) =>
     !closed.has(dayKey(d)) && freePhysiosAt(d, [s.physioId], busy, unit.chairs).length > 0);
   if (!date) {
-    await notifyStaff("RECEPCAO", s.unitId, {
+    await notifyDesk(s.unitId, s.physioId, {
       type: "REPOSICAO", title: `Reposição manual: ${s.patient.user.name}`,
       body: "Não encontramos horário automático para a sessão de reposição.", href: "/recepcao",
     }, tx);
@@ -135,7 +135,7 @@ export async function abandonTreatment(treatmentId: string, reason: string, note
     await updateTreatment(treatmentId, { status: "ABANDONADO", endedAt: new Date(), endReason: reason }, tx);
     await sessions.cancelSessions(future.map((s) => s.id), reason, tx, note);
     await audit(user.id, "TRATAMENTO_ABANDONADO", "Treatment", treatmentId, { reason }, tx);
-    await notifyStaff("RECEPCAO", t.unitId, {
+    await notifyDesk(t.unitId, t.physioId, {
       type: "ABANDONO", title: `Abandono: ${t.patient.user.name}`, body: `Parou na sessão ${t.completedSessions} de ${t.totalSessions}.`, href: "/recepcao/pacientes",
     }, tx);
   });
@@ -172,7 +172,7 @@ export async function runReminders(now = new Date()) {
   const alertWindow = Math.min(...hours);
   const pending = await sessions.unconfirmedSessions(now, new Date(now.getTime() + alertWindow * HOUR));
   for (const s of pending) {
-    await notifyStaff("RECEPCAO", s.unitId, {
+    await notifyDesk(s.unitId, s.physioId, {
       type: "NAO_CONFIRMOU", title: `Sem confirmação: ${s.patient.user.name}`,
       body: `Sessão às ${fmtTime(s.startsAt)}. Telefone: ${s.patient.phone}.`, href: "/recepcao",
     });

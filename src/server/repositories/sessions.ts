@@ -92,7 +92,7 @@ export const sessionsNeedingReminder = (from: Date, to: Date, reminderHours: num
 export const unconfirmedSessions = (from: Date, to: Date) =>
   prisma.session.findMany({
     where: { status: "AGENDADA", unconfirmedAlertAt: null, startsAt: { gt: from, lte: to }, ...settled },
-    select: { id: true, unitId: true, startsAt: true, patient: { select: { phone: true, user: { select: { name: true } } } } },
+    select: { id: true, unitId: true, physioId: true, startsAt: true, patient: { select: { phone: true, user: { select: { name: true } } } } },
   });
 
 export const markUnconfirmedAlerted = (ids: string[]) =>

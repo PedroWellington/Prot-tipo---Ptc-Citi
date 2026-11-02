@@ -1,10 +1,12 @@
 import { rescheduleBlock } from "@/lib/schedule";
 import { fmtLong, fmtTime } from "@/lib/time";
+import type { CurrentUser } from "../auth/session";
 import { conflict, forbidden, notFound } from "../errors";
 import { audit, getSettings } from "../repositories/config";
 import * as repo from "../repositories/requests";
 import { createSession, findSession, updateSession } from "../repositories/sessions";
-import { notify, notifyStaff } from "./notifications";
+import { assertDeskAccess, deskScope } from "./access";
+import { notify, notifyDesk } from "./notifications";
 import { availableSlots, withSlotLock } from "./schedule";
 import { offerFreedSlot } from "./waitlist";
 
@@ -29,7 +31,7 @@ export async function createRequest(patientId: string, input: CreateInput) {
   if (!(await slotFree(input.targetUnitId, input.targetStartsAt))) throw conflict("Esse horário não está mais livre.");
   try {
     const req = await repo.createRequest({ ...input, patientId });
-    await notifyStaff("RECEPCAO", input.targetUnitId, {
+    await notifyDesk(input.targetUnitId, s.physioId, {
       type: "TROCA", title: `Pedido de troca: ${s.patient.user.name}`,
       body: `Da sessão ${s.number} para ${fmtLong(input.targetStartsAt)} às ${fmtTime(input.targetStartsAt)}.`, href: "/recepcao/trocas",
     });
@@ -52,9 +54,11 @@ export async function cancelRequest(id: string, patientId: string) {
   await repo.updateRequest(id, { status: "CANCELADA", decidedAt: new Date() });
 }
 
-export async function approveRequest(id: string, actorId: string) {
+export async function approveRequest(id: string, user: CurrentUser) {
   const r = await repo.findRequest(id);
   if (!r) throw notFound("Solicitação");
+  await assertDeskAccess(user, r.targetUnitId, r.session.physioId);
+  const actorId = user.id;
   if (r.status !== "PENDENTE") throw conflict("Esta solicitação já foi respondida.");
 
   const old = r.session;
@@ -78,9 +82,11 @@ export async function approveRequest(id: string, actorId: string) {
   await offerFreedSlot(old.unitId, old.startsAt, old.physioId);
 }
 
-export async function rejectRequest(id: string, actorId: string, input: { response: string; suggestion?: string }) {
+export async function rejectRequest(id: string, user: CurrentUser, input: { response: string; suggestion?: string }) {
   const r = await repo.findRequest(id);
   if (!r) throw notFound("Solicitação");
+  await assertDeskAccess(user, r.targetUnitId, r.session.physioId);
+  const actorId = user.id;
   if (r.status !== "PENDENTE") throw conflict("Esta solicitação já foi respondida.");
   await repo.updateRequest(id, { status: "RECUSADA", ...input, decidedById: actorId, decidedAt: new Date() });
   await audit(actorId, "TROCA_RECUSADA", "RescheduleRequest", id);
@@ -92,8 +98,10 @@ export async function rejectRequest(id: string, actorId: string, input: { respon
 }
 
 /** Fila da recepção com conflito atual e alternativas; uma consulta de agenda por unidade, não por pedido. */
-export async function requestQueue(unitId?: string) {
-  const rows = await repo.pendingRequests(unitId);
+export async function requestQueue(user: CurrentUser) {
+  const scope = await deskScope(user);
+  if (!scope) return [];
+  const rows = await repo.pendingRequests(scope);
   const now = new Date();
   const units = [...new Set(rows.map((r) => r.targetUnit.id))];
   const slotsByUnit = new Map(await Promise.all(units.map(async (id) => [id, await availableSlots(id, now, 30)] as const)));

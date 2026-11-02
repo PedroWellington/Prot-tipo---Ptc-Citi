@@ -48,20 +48,20 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | POST | `/api/notifications/read` | autenticado | Marca como lida (uma ou todas) |
 | GET | `/api/files/:name` | autenticado | Baixa arquivo enviado (restrito ao paciente dono e à equipe) |
 | GET | `/api/desk/agenda` | ADMIN, RECEPCAO | Agenda do dia por unidade |
-| GET | `/api/desk/requests` | ADMIN, RECEPCAO | Fila de solicitações com conflitos e alternativas |
-| POST | `/api/desk/requests/:id/approve` | ADMIN, RECEPCAO | Aprova a troca |
-| POST | `/api/desk/requests/:id/reject` | ADMIN, RECEPCAO | Recusa com justificativa e sugestão |
-| GET | `/api/desk/renewals` | ADMIN, RECEPCAO | Fila de renovações de convênio |
-| PATCH | `/api/desk/renewals/:id` | ADMIN, RECEPCAO | Atualiza status, prazo e observação |
-| POST | `/api/desk/renewals/:id/release` | ADMIN, RECEPCAO | Solta os horários pré-reservados |
+| GET | `/api/desk/requests` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Fila de solicitações com conflitos e alternativas |
+| POST | `/api/desk/requests/:id/approve` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Aprova a troca |
+| POST | `/api/desk/requests/:id/reject` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Recusa com justificativa e sugestão |
+| GET | `/api/desk/renewals` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Fila de renovações de convênio |
+| PATCH | `/api/desk/renewals/:id` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Atualiza status, prazo e observação |
+| POST | `/api/desk/renewals/:id/release` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Solta os horários pré-reservados |
 | GET | `/api/desk/waitlist` | ADMIN, RECEPCAO | Lista de espera |
 | DELETE | `/api/desk/waitlist/:id` | ADMIN, RECEPCAO | Remove da lista de espera |
 | GET | `/api/desk/patients` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Busca de pacientes |
 | POST | `/api/desk/patients` | ADMIN, RECEPCAO | Cadastra paciente (CPF + e-mail) (limite 20/60s) |
 | POST | `/api/desk/patients/:id/treatment` | ADMIN, RECEPCAO | Agenda em nome do paciente |
-| GET | `/api/desk/payments` | ADMIN, RECEPCAO | Pagamentos aguardando confirmação |
-| POST | `/api/desk/payments/:id/confirm` | ADMIN, RECEPCAO | Confirma o PIX manualmente |
-| POST | `/api/desk/sessions/:id/checkin` | ADMIN, RECEPCAO | Check-in; cancela ofertas de vaga pendentes |
+| GET | `/api/desk/payments` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Pagamentos aguardando confirmação |
+| POST | `/api/desk/payments/:id/confirm` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Confirma o PIX manualmente |
+| POST | `/api/desk/sessions/:id/checkin` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Check-in; cancela ofertas de vaga pendentes |
 | POST | `/api/desk/sessions/:id/late` | ADMIN, RECEPCAO | Paciente atrasado: inicia o fluxo manualmente |
 | GET | `/api/desk/sessions/:id/late` | ADMIN, RECEPCAO | Linha do tempo do atraso |
 | GET | `/api/desk/whatsapp` | ADMIN, RECEPCAO | Caixa do WhatsApp |
@@ -81,8 +81,9 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | GET | `/api/admin/dashboard` | ADMIN | Métricas por período e unidade |
 | GET | `/api/admin/export.csv` | ADMIN | Relatório de sessões em CSV (sem dados pessoais) |
 | GET | `/api/admin/users` | ADMIN | Equipe |
-| POST | `/api/admin/users` | ADMIN | Cria usuário da equipe (troca de senha no 1º acesso) |
+| POST | `/api/admin/users` | ADMIN | Cria recepção ou fisioterapeuta e envia convite por e-mail |
 | DELETE | `/api/admin/users/:id` | ADMIN | Desativa usuário da equipe |
+| POST | `/api/admin/users/:id/reactivate` | ADMIN | Reativa usuário da equipe |
 | GET | `/api/admin/units` | ADMIN | Unidades completas |
 | PATCH | `/api/admin/units/:id` | ADMIN | Edita unidade, cadeiras, horários e sábado |
 | GET | `/api/admin/holidays` | ADMIN | Feriados |

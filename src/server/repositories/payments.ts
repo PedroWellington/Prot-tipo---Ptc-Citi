@@ -37,8 +37,11 @@ export const patientPayments = (patientId: string) =>
     select: { id: true, status: true, amountCents: true, sessionCount: true, createdAt: true, paidAt: true, expiresAt: true },
   });
 
-export const pendingPayments = (unitId?: string) =>
+export const firstSessionOf = (paymentId: string) =>
+  prisma.session.findFirst({ where: { paymentId }, select: { unitId: true, physioId: true } });
+
+export const pendingPayments = (scope: { unitId?: string; physioId?: string }) =>
   prisma.payment.findMany({
-    where: { status: "AGUARDANDO", ...(unitId ? { sessions: { some: { unitId } } } : {}) }, orderBy: { expiresAt: "asc" },
+    where: { status: "AGUARDANDO", ...(scope.unitId || scope.physioId ? { sessions: { some: scope } } : {}) }, orderBy: { expiresAt: "asc" },
     select: { id: true, amountCents: true, sessionCount: true, expiresAt: true, createdAt: true, patient: { select: { phone: true, user: { select: { name: true } } } } },
   });

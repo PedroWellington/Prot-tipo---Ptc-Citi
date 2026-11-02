@@ -27,16 +27,15 @@ export const createStaffUser = (data: {
   prisma.user.create({
     data: {
       email: data.email, name: data.name, passwordHash: data.passwordHash, role: data.role, unitId: data.unitId,
-      mustChangePassword: true,
       physio: data.role === "FISIOTERAPEUTA" ? { create: { unitId: data.unitId!, crefito: data.crefito ?? "" } } : undefined,
     },
   });
 
 export const listStaff = (take: number, skip: number, q?: string) =>
   prisma.user.findMany({
-    where: { deletedAt: null, role: { not: "PACIENTE" }, ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] } : {}) },
+    where: { role: { not: "PACIENTE" }, ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] } : {}) },
     orderBy: [{ role: "asc" }, { name: "asc" }], take, skip,
-    select: { id: true, name: true, email: true, role: true, createdAt: true, unit: { select: { name: true } } },
+    select: { id: true, name: true, email: true, role: true, createdAt: true, deletedAt: true, unit: { select: { name: true } } },
   });
 
 export const createVerification = (data: Prisma.EmailVerificationCreateInput) => prisma.emailVerification.create({ data });

@@ -73,7 +73,7 @@ function SwapSheet({ session, onClose, initialUnit }: { session: SessionRow | nu
                 <div className="flex flex-wrap gap-1.5">
                   {day.map((s) => (
                     <button key={s.startsAt} type="button" aria-pressed={chosen === s.startsAt} onClick={() => setChosen(s.startsAt)}
-                      className={cx("min-h-11 min-w-16 rounded-xl px-3 text-sm tabular-nums transition-transform active:scale-95", chosen === s.startsAt ? "bg-accent font-semibold text-on-accent" : "bg-surface-2 text-ink")}>
+                      className={cx("min-h-11 min-w-16 rounded-xl px-3 text-sm tabular-nums transition-transform active:scale-95", chosen === s.startsAt ? "bg-accent-fill font-semibold text-on-accent" : "bg-surface-2 text-ink")}>
                       {fmtTime(s.startsAt)}
                     </button>
                   ))}

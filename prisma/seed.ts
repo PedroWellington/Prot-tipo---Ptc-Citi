@@ -64,7 +64,8 @@ async function base() {
 }
 
 async function demo() {
-  const password = await bcrypt.hash(process.env.DEMO_PASSWORD!, 10);
+  if (!process.env.DEMO_PASSWORD) throw new Error("Defina DEMO_PASSWORD no .env");
+  const password = await bcrypt.hash(process.env.DEMO_PASSWORD, 10);
   const now = new Date();
   const [bv, cf] = await Promise.all(UNITS.map((u) => db.unit.findUniqueOrThrow({ where: { code: u.code } })));
 
@@ -72,8 +73,8 @@ async function demo() {
     data: HOLIDAYS.filter(([d]) => new Date(d) > now).map(([date, name]) => ({ date: new Date(date), name })),
   });
 
-  for (const [code, unit] of [["bv", bv], ["cf", cf]] as const)
-    await db.user.create({ data: { email: `recepcao.${code}@exemplo.test`, name: code === "bv" ? "Lumélia Trevizani" : "Odalina Crestovale", passwordHash: password, role: "RECEPCAO", unitId: unit.id } });
+  // Casa Forte fica sem recepção de propósito: as filas de lá vão às fisioterapeutas (Admin > Equipe adiciona)
+  await db.user.create({ data: { email: "recepcao.bv@exemplo.test", name: "Lumélia Trevizani", passwordHash: password, role: "RECEPCAO", unitId: bv.id } });
 
   const physios = [];
   for (const [i, [name, unit]] of ([

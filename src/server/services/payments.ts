@@ -2,11 +2,13 @@ import { randomBytes } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import QRCode from "qrcode";
 import { fmtLong, fmtStamp } from "@/lib/time";
+import type { CurrentUser } from "../auth/session";
 import { prisma } from "../db";
 import { AppError, conflict, forbidden, notFound } from "../errors";
 import { paymentProvider } from "../payments";
 import { audit, getSettings } from "../repositories/config";
 import * as repo from "../repositories/payments";
+import { assertDeskAccess, deskScope } from "./access";
 import { notify } from "./notifications";
 import { offerFreedSlot } from "./waitlist";
 
@@ -61,7 +63,11 @@ async function markPaid(id: string, actorId: string | null) {
   });
 }
 
-export const confirmManually = (id: string, actorId: string) => markPaid(id, actorId);
+export async function confirmManually(id: string, user: CurrentUser) {
+  const first = await repo.firstSessionOf(id);
+  if (first) await assertDeskAccess(user, first.unitId, first.physioId);
+  return markPaid(id, user.id);
+}
 
 /** Webhook do PSP: só um provedor automático devolve txid aqui. */
 export async function handleWebhook(rawBody: string, signature: string | null) {
@@ -95,4 +101,7 @@ export async function expirePayments() {
 }
 
 export const patientPayments = repo.patientPayments;
-export const pendingPayments = repo.pendingPayments;
+export async function pendingPayments(user: CurrentUser) {
+  const scope = await deskScope(user);
+  return scope ? repo.pendingPayments(scope) : [];
+}

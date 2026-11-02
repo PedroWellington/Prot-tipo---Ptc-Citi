@@ -1,11 +1,13 @@
 import type { LateStatus } from "@prisma/client";
 import { recifeParts, fmtLong, fmtTime, HOUR } from "@/lib/time";
+import type { CurrentUser } from "../auth/session";
 import { prisma } from "../db";
 import { conflict, forbidden, notFound } from "../errors";
 import { audit, getUnit } from "../repositories/config";
 import { createSession, findSession, nextActiveSession, updateSession } from "../repositories/sessions";
+import { assertDeskAccess } from "./access";
 import { appendReplacement, markMissed } from "./sessions";
-import { notify, notifyStaff } from "./notifications";
+import { notify, notifyDesk } from "./notifications";
 import { withSlotLock } from "./schedule";
 import { offerFreedSlot } from "./waitlist";
 import { recordReply, sendWhatsApp } from "./whatsapp";
@@ -170,9 +172,11 @@ async function notifyOthers(eventId: string, exceptOfferId: string | null, title
 }
 
 /** Chegou. Sem vaga preenchida, cancela as ofertas; preenchida, avisa a recepção para reagendar. */
-export async function checkIn(sessionId: string, actorId: string) {
+export async function checkIn(sessionId: string, user: CurrentUser) {
   const s = await findSession(sessionId);
   if (!s) throw notFound("Sessão");
+  await assertDeskAccess(user, s.unitId, s.physioId);
+  const actorId = user.id;
   const outcome = await withSlotLock(s.unitId, async (tx) => {
     const e = await tx.lateEvent.findUnique({ where: { sessionId } });
     if (e?.status === "PREENCHIDA") return { filled: true, eventId: e.id };
@@ -184,7 +188,7 @@ export async function checkIn(sessionId: string, actorId: string) {
   });
   if (outcome.filled) {
     await log(actorId, "CHEGOU_APOS_VAGA_PREENCHIDA", outcome.eventId!);
-    await notifyStaff("RECEPCAO", s.unitId, {
+    await notifyDesk(s.unitId, s.physioId, {
       type: "ATRASO", title: `Reagendar: ${s.patient.user.name}`, body: "Chegou depois que a vaga foi preenchida. A reposição já está ao fim do plano.", href: "/recepcao",
     });
     throw conflict("A vaga já foi preenchida. Reagende o paciente: a reposição já está ao fim do plano.");

@@ -8,6 +8,7 @@ import { audit } from "../repositories/config";
 import * as users from "../repositories/users";
 
 const CODE_TTL_MS = 15 * 60_000;
+const INVITE_TTL_MS = 7 * 24 * 3_600_000;
 const MAX_CODE_ATTEMPTS = 5;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MS = 15 * 60_000;
@@ -131,5 +132,14 @@ export async function changePassword(userId: string, current: string, next: stri
   return { redirect: updated.role === "PACIENTE" ? "/app" : undefined };
 }
 
-/** Conta criada pela recepção/admin: a pessoa define a senha com o código recebido por e-mail. */
-export const sendPasswordSetup = (email: string) => sendCode("SENHA", email);
+/** Conta criada pela equipe: a pessoa define a própria senha pelo link do convite. */
+export async function sendInvite(email: string, name: string) {
+  const id = randomUUID();
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  await users.createVerification({ id, purpose: "SENHA", email, codeHash: codeHash(id, code), expiresAt: new Date(Date.now() + INVITE_TTL_MS) });
+  await emailChannel.send({
+    to: email, subject: `Seu convite para a Clínica Movimento: ${code}`,
+    text: `Olá, ${name}. Você recebeu acesso ao sistema da Clínica Movimento.\nToque no botão e use o código ${code} para criar sua senha. O convite vale por 7 dias.`,
+    actions: [{ label: "Criar minha senha", url: `${process.env.APP_URL}/recuperar?id=${id}` }],
+  });
+}

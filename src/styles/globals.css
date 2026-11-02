@@ -13,7 +13,12 @@
   --color-ink-3: var(--ink-3);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-fill: var(--accent-fill);
   --color-on-accent: var(--on-accent);
+  --color-nav-active: var(--nav-active);
+  --color-nav-active-ink: var(--nav-active-ink);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger-soft: var(--danger-soft);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
@@ -34,6 +39,7 @@ body {
   font-family: var(--font-sans);
   min-height: 100dvh;
   overscroll-behavior-y: none;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -91,8 +97,8 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
   transition: opacity 300ms, transform 300ms var(--ease-out-soft);
 }
 .btn:active:not(:disabled)::after { opacity: 0.1; transform: scale(1); transition-duration: 0ms; }
-.btn-primary { background: var(--accent); color: var(--on-accent); }
-.btn-brand { background: var(--brand-gradient); color: #fff; text-shadow: 0 1px 1px rgb(0 0 0 / 0.25); }
+.btn-primary { background: var(--accent-fill); color: var(--on-accent); }
+.btn-brand { background: var(--cta); color: var(--on-cta); text-shadow: var(--cta-shadow); }
 .btn-ghost { background: var(--accent-soft); color: var(--ink); }
 .btn-line { border: 1px solid var(--line-strong); color: var(--ink); }
 .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
@@ -168,21 +174,66 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 /* Tema */
 :root[data-theme="light"] .theme-sun, :root[data-theme="dark"] .theme-moon { display: none; }
 
-/* Shell */
-.side-grid { display: block; }
-@media (min-width: 1024px) {
-  .side-grid { display: grid; grid-template-columns: var(--side, 256px) minmax(0, 1fr); transition: grid-template-columns 150ms ease-out; }
+/*
+ * Sidebar: tudo por transform. O painel desliza e o conteúdo interno desliza ao contrário
+ * no mesmo tempo, então os ícones e o M ficam parados no trilho de 76px.
+ */
+:root {
+  --side-open: 256px;
+  --side-shift: 0px;
+  --side-time: 650ms;
+  --side-ease: cubic-bezier(0.65, 0, 0.35, 1);
 }
-:root[data-sidebar="collapsed"] { --side: 76px; }
-:root[data-sidebar="collapsed"] .nav-label { display: none; }
-:root[data-sidebar="collapsed"] .nav-link { justify-content: center; padding-inline: 0; }
-:root[data-sidebar="collapsed"] .side-foot { flex-direction: column; align-items: center; }
-:root[data-sidebar="collapsed"] .side-nav { overflow: visible; }
-:root[data-sidebar="collapsed"] .side-top { flex-direction: column; }
-:root[data-sidebar="collapsed"] .side-top button { margin-inline: auto; padding-inline: 0; justify-content: center; }
+:root[data-sidebar="collapsed"] { --side-shift: 180px; }
+
+.side-panel { display: none; }
+@media (min-width: 1024px) {
+  .side-content { margin-left: calc(var(--side-open) - var(--side-shift)); }
+  .side-panel {
+    display: block;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: var(--side-open);
+    overflow: hidden;
+    transform: translateX(calc(var(--side-shift) * -1));
+    transition: transform var(--side-time) var(--side-ease);
+  }
+  .side-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: var(--side-open);
+    padding: 20px 12px;
+    transform: translateX(var(--side-shift));
+    transition: transform var(--side-time) var(--side-ease);
+  }
+  /* Parada e recolhida: encolhe de verdade, para os tooltips saírem e nada cobrir o conteúdo */
+  :root[data-sidebar="collapsed"]:not([data-side-anim]) .side-panel { overflow: visible; }
+  :root[data-sidebar="collapsed"]:not([data-side-anim]) .side-inner { width: 76px; }
+  :root[data-sidebar="collapsed"]:not([data-side-anim]) .side-nav { overflow: visible; }
+}
+
+/* Texto sai primeiro e rápido; ao expandir, volta depois que a sidebar abriu */
+.nav-label { white-space: nowrap; transition: opacity 260ms ease-out 300ms, transform 260ms ease-out 300ms; }
+:root[data-sidebar="collapsed"] .nav-label { opacity: 0; transform: translateX(-8px); transition-duration: 150ms; transition-delay: 0ms; }
+.side-divider { transition: opacity 150ms; }
+:root[data-sidebar="collapsed"] .side-divider { opacity: 0; }
+
+.side-foot > * { flex-shrink: 0; }
+.side-toggle, .side-nav, .side-foot > * { transition: transform var(--side-time) var(--side-ease); }
+.side-toggle { position: absolute; left: 200px; top: 20px; }
+:root[data-sidebar="collapsed"] .side-toggle { transform: translate(-184px, 52px); }
+:root[data-sidebar="collapsed"] .side-nav { transform: translateY(56px); }
+/* Rodapé empilha sobre o sino, que fica parado no trilho */
+:root[data-sidebar="collapsed"] .side-foot > :nth-child(2) { transform: translate(-44px, -44px); }
+:root[data-sidebar="collapsed"] .side-foot > :nth-child(3) { transform: translate(-88px, -88px); }
+
 .nav-tip { display: none; }
-:root[data-sidebar="collapsed"] .nav-link:hover .nav-tip,
-:root[data-sidebar="collapsed"] .nav-link:focus-visible .nav-tip {
+:root[data-sidebar="collapsed"]:not([data-side-anim]) .nav-link { width: 52px; }
+:root[data-sidebar="collapsed"]:not([data-side-anim]) .nav-link:hover .nav-tip,
+:root[data-sidebar="collapsed"]:not([data-side-anim]) .nav-link:focus-visible .nav-tip {
   display: block;
   position: absolute;
   left: calc(100% + 8px);
@@ -197,7 +248,7 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
   white-space: nowrap;
   box-shadow: var(--shadow);
 }
-.collapse-icon { transition: transform 150ms ease-out; }
+.collapse-icon { transition: transform var(--side-time) var(--side-ease); }
 :root[data-sidebar="collapsed"] .collapse-icon { transform: rotate(180deg); }
 
 /* Busca */

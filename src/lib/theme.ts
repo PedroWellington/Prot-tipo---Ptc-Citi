@@ -12,16 +12,35 @@ export function toggleTheme() {
   persist("mv-theme", next);
 }
 
+const SIDE_MS = 650;
+const SIDE_SHIFT = 180;
+const SIDE_EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
+let sideTimer: ReturnType<typeof setTimeout> | undefined;
+
 export function toggleSidebar() {
-  const next = document.documentElement.dataset.sidebar === "collapsed" ? "open" : "collapsed";
-  document.documentElement.dataset.sidebar = next;
-  persist("mv-sidebar", next);
-  // Web Animations só com transform: roda no compositor e não disputa com a largura da sidebar
-  if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
-    document.querySelector("[data-logo-mark]")?.animate(
-      [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
-      { duration: 560, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
-    );
+  const root = document.documentElement;
+  const collapsing = root.dataset.sidebar !== "collapsed";
+  const animate = matchMedia("(min-width: 1024px)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (animate) {
+    root.dataset.sideAnim = "1";
+    clearTimeout(sideTimer);
+    sideTimer = setTimeout(() => delete root.dataset.sideAnim, SIDE_MS);
+  }
+  root.dataset.sidebar = collapsing ? "collapsed" : "open";
+  persist("mv-sidebar", root.dataset.sidebar);
+  if (!animate) return;
+
+  const options = { duration: SIDE_MS, easing: SIDE_EASE };
+  // Direção por ação: recolher gira para a esquerda, expandir para a direita. Sem fill: termina em 0, igual a 360
+  const mark = document.querySelector("[data-logo-mark]");
+  mark?.getAnimations().forEach((a) => a.cancel());
+  mark?.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${collapsing ? -360 : 360}deg)` }], options);
+
+  // A margem muda de uma vez só; a transição do conteúdo é transform, sem layout a cada quadro
+  const content = document.querySelector("[data-side-content]");
+  content?.getAnimations().forEach((a) => a.cancel());
+  content?.animate([{ transform: `translateX(${collapsing ? SIDE_SHIFT : -SIDE_SHIFT}px)` }, { transform: "none" }], options);
 }
 
 // Roda antes da primeira pintura: sem flash de tema nem de sidebar

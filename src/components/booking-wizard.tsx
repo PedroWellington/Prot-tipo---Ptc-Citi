@@ -172,7 +172,7 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
                                 <button type="button" disabled={none} aria-pressed={chosen}
                                   aria-label={`${WEEKDAYS[d.weekday]}, ${hour} horas${cell.peak ? ", horário concorrido" : ""}${none ? ", sem vagas" : ""}`}
                                   onClick={() => toggle({ weekday: d.weekday, hour })}
-                                  className={cx("relative flex h-11 w-full items-center justify-center rounded-lg transition-transform active:scale-95 disabled:cursor-not-allowed", chosen ? "bg-accent font-semibold text-on-accent" : LEVEL[cell.level])}>
+                                  className={cx("relative flex h-11 w-full items-center justify-center rounded-lg transition-transform active:scale-95 disabled:cursor-not-allowed", chosen ? "bg-accent-fill font-semibold text-on-accent" : LEVEL[cell.level])}>
                                   {chosen ? "✓" : none ? "–" : ""}
                                   {cell.peak && !chosen && !none && <Flame strokeWidth={1.5} className="size-3 text-warn" aria-hidden />}
                                 </button>

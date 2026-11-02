@@ -6,7 +6,7 @@ export function AuthFrame({ title, subtitle, children }: { title: string; subtit
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
       <div className="mb-10 flex items-center justify-between">
-        <Logo className="h-8 text-ink" />
+        <Logo size={30} />
         <ThemeToggle className="-mr-2" />
       </div>
       <div>

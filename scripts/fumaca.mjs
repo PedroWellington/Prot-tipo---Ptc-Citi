@@ -2,10 +2,11 @@
 // Uso: node scripts/fumaca.mjs   Cria dados novos a cada execução; rode num banco de demonstração.
 import assert from "node:assert/strict";
 
+process.loadEnvFile(); // as senhas vêm do .env, nunca do código
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const MAILPIT = process.env.MAILPIT ?? "http://localhost:8025";
-const ADMIN = { email: process.env.ADMIN_EMAIL ?? "admin@exemplo.test", password: process.env.ADMIN_PASSWORD ?? "Movimento@2026" };
-const DEMO = process.env.DEMO_PASSWORD ?? "Demo@2026";
+const ADMIN = { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD };
+const DEMO = process.env.DEMO_PASSWORD;
 
 function client() {
   let cookie = "";
@@ -227,6 +228,47 @@ assert.equal(overview.length, 2);
 const prof = ok(await conv("/me/profile"));
 assert.match(prof.cpf, /^\*\*\*\.\d{3}\.\d{3}-\*\*$/);
 step("CPF mascarado e unidades com horários");
+
+// Casa Forte sem recepção: a fisioterapeuta assume; com recepção cadastrada, a fila volta para ela
+{
+  await new Promise((r) => setTimeout(r, 61_000)); // respeita o limite de login por minuto
+  const paciente = await login("paciente04@exemplo.test", DEMO);
+  const fisio = await login("fisio4@exemplo.test", DEMO);
+  const outra = await login("fisio5@exemplo.test", DEMO);
+  const cf = units.find((u) => u.code === "CF");
+  const h = ok(await paciente("/me/home"));
+  const alvo = h.sessions.find((s) => s.status === "AGENDADA" || s.status === "CONFIRMADA");
+  const livres = ok(await paciente(`/slots?unitId=${cf.id}&days=14`));
+  const dest = livres.find((s) => !h.sessions.some((x) => x.startsAt === s.startsAt));
+  const pedido = ok(await paciente("/me/requests", { body: { sessionId: alvo.id, targetStartsAt: dest.startsAt, targetUnitId: cf.id } }));
+  assert.ok(!ok(await recep("/desk/requests")).some((r) => r.id === pedido.id), "recepção de BV não vê");
+  assert.ok(ok(await fisio("/notifications")).items.some((n) => n.title.startsWith("Pedido de troca")), "aviso vai à fisioterapeuta");
+  assert.ok(ok(await fisio("/desk/requests")).some((r) => r.id === pedido.id));
+  assert.equal((await outra(`/desk/requests/${pedido.id}/approve`, { body: {} })).status, 403, "só a responsável");
+
+  const email = `recepcao-${Date.now()}@exemplo.test`;
+  const novo = ok(await admin("/admin/users", { body: { name: "Recepção Teste", email, role: "RECEPCAO", unitId: cf.id } }));
+  assert.equal(novo.inviteSent, true);
+  assert.equal((await fisio(`/desk/requests/${pedido.id}/approve`, { body: {} })).status, 403, "com recepção, a fila sai da fisioterapeuta");
+  assert.deepEqual(ok(await fisio("/desk/requests")), []);
+
+  const code = await mailCode(email);
+  const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
+  const corpo = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}`)).json();
+  const id = corpo.HTML.match(/recuperar\?id=([0-9a-f-]{36})/)[1];
+  ok(await client()("/auth/reset", { body: { id, code, password: "Convite123" } }));
+  const recepCf = await login(email, "Convite123");
+  ok(await recepCf(`/desk/requests/${pedido.id}/approve`, { body: {} }));
+
+  ok(await admin(`/admin/users/${novo.id}`, { method: "DELETE" }));
+  assert.equal((await client()("/auth/login", { body: { email, password: "Convite123" } })).status, 401, "desativada não entra");
+  assert.ok(ok(await fisio("/desk/requests")), "fila volta à fisioterapeuta");
+  ok(await admin(`/admin/users/${novo.id}/reactivate`, { body: {} }));
+  ok(await client()("/auth/login", { body: { email, password: "Convite123" } }));
+  ok(await admin(`/admin/users/${novo.id}`, { method: "DELETE" })); // devolve Casa Forte ao estado sem recepção
+  step("Casa Forte sem recepção: fisioterapeuta assume, convite por e-mail, desativar e reativar");
+  await new Promise((r) => setTimeout(r, 61_000));
+}
 
 // Segurança
 assert.equal((await conv("/admin/dashboard")).status, 403);
