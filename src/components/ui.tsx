@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
-import { AlertCircle, Search, WifiOff, X } from "lucide-react";
+import { AlertCircle, Info, Search, WifiOff, X } from "lucide-react";
 import type { Tone } from "@/lib/labels";
 import { ApiError } from "@/lib/api";
 
@@ -44,22 +44,35 @@ export function Badge({ tone = "neutral", children, className }: { tone?: Tone; 
   return <span className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap", TONES[tone], className)}>{children}</span>;
 }
 
-export function Field({ label, error, hint, hideLabel, children }: { label: string; error?: string; hint?: string; hideLabel?: boolean; children: (id: string, describedBy?: string) => ReactNode }) {
+export function Field({ label, error, hint, note, hideLabel, children }: { label: string; error?: string; hint?: string; note?: ReactNode; hideLabel?: boolean; children: (id: string, describedBy?: string) => ReactNode }) {
   const id = useId();
   const msg = error ?? hint;
+  // O aviso fica sempre visível e ligado ao campo; a mensagem de erro entra junto, sem substituí-lo
+  const described = [note && `${id}-n`, msg && `${id}-m`].filter(Boolean).join(" ") || undefined;
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className={hideLabel ? "sr-only" : "text-sm font-medium text-ink-2"}>{label}</label>
-      {children(id, msg ? `${id}-m` : undefined)}
+      {children(id, described)}
+      {note && <Notice id={`${id}-n`}>{note}</Notice>}
       {msg && <p id={`${id}-m`} className={cx("text-sm", error ? "text-danger" : "text-ink-3")}>{msg}</p>}
     </div>
   );
 }
 
-export function Input({ label, error, hint, ...p }: ComponentProps<"input"> & { label: string; error?: string; hint?: string }) {
+/** Aviso discreto com ícone e fundo sólido (sem transparência) nos dois temas. */
+export function Notice({ id, children, className }: { id?: string; children: ReactNode; className?: string }) {
   return (
-    <Field label={label} error={error} hint={hint}>
-      {(id, d) => <input {...p} id={id} aria-describedby={d} aria-invalid={!!error} className="field" />}
+    <p id={id} className={cx("notice flex items-start gap-2 rounded-xl px-3 py-2 text-[13px] leading-snug", className)}>
+      <Info strokeWidth={2} aria-hidden className="mt-px size-4 shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+export function Input({ label, error, hint, note, ...p }: ComponentProps<"input"> & { label: string; error?: string; hint?: string; note?: ReactNode }) {
+  return (
+    <Field label={label} error={error} hint={hint} note={note}>
+      {(id, d) => <input {...p} id={id} aria-describedby={d} aria-invalid={!!error} className={p.className ?? "field"} />}
     </Field>
   );
 }

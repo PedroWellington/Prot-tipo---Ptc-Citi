@@ -5,7 +5,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Clínica Movimento",
     short_name: "Movimento",
     description: "Acompanhe seu tratamento de fisioterapia.",
-    start_url: "/",
+    // "/" virou a página pública; o app instalado abre direto na área de quem já entrou
+    start_url: "/login",
     display: "standalone",
     background_color: "#123a6b",
     theme_color: "#123a6b",

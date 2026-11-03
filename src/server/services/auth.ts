@@ -1,3 +1,4 @@
+import { RESEND_SECONDS, resendWait } from "@/lib/site-content";
 import { createHmac, randomInt, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { VerificationPurpose } from "@prisma/client";
@@ -57,6 +58,15 @@ export type RegisterPayload = {
 export async function startRegistration({ consent: _consent, ...data }: RegisterPayload & { consent: true }) {
   if (await users.emailOrCpfTaken(data.email, data.cpf)) throw conflict("Já existe uma conta com este CPF ou e-mail.");
   return { verificationId: await sendCode("CADASTRO", data.email, data) };
+}
+
+/** Novo código para o mesmo cadastro: no mínimo 60 s entre envios (o limite por IP da rota segue valendo). */
+export async function resendRegistration(id: string) {
+  const v = await users.findVerification(id, "CADASTRO");
+  if (!v || v.consumedAt || v.verifiedAt) throw badRequest("Este cadastro não está mais aguardando código. Comece novamente.");
+  const wait = resendWait(v.createdAt.getTime(), Date.now());
+  if (wait > 0) throw new AppError(429, "AGUARDE", `Aguarde ${wait} s para pedir outro código.`);
+  return { verificationId: await sendCode("CADASTRO", v.email, (v.payload ?? undefined) as object | undefined), waitSeconds: RESEND_SECONDS };
 }
 
 export async function verifyRegistration(id: string, code: string) {

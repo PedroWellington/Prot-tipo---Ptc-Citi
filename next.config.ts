@@ -18,6 +18,8 @@ const csp = [
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // Fotos da página pública em tamanhos prontos (scripts/imagens-site.mjs), servidas estáticas
+  images: { loader: "custom", loaderFile: "./src/lib/image-loader.ts" },
   reactStrictMode: true,
   // Rotas pré-carregadas ficam 5 min no cache do cliente: trocar de aba não vai ao servidor
   experimental: { optimizePackageImports: ["lucide-react"], staleTimes: { dynamic: 300, static: 600 } },
@@ -33,6 +35,10 @@ const config: NextConfig = {
           { key: "Permissions-Policy", value: "geolocation=(self), camera=(), microphone=()" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
         ],
+      },
+      {
+        source: "/site/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
         source: "/sw.js",

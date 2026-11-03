@@ -27,6 +27,7 @@ import * as payments from "../services/payments";
 import * as renewals from "../services/renewals";
 import * as reschedule from "../services/reschedule";
 import * as schedule from "../services/schedule";
+import * as site from "../services/site";
 import * as sessions from "../services/sessions";
 import * as uploads from "../services/uploads";
 import * as waitlist from "../services/waitlist";
@@ -120,6 +121,8 @@ route("POST", "/auth/login", { roles: "public", rate: LOGIN_RATE, body: z.object
 route("POST", "/auth/logout", { roles: "public", summary: "Sair" }, () => auth.logout());
 route("POST", "/auth/register/start", { roles: "public", rate: CODE_RATE, body: patientData, summary: "Valida dados e envia o código por e-mail" },
   ({ body }) => auth.startRegistration(body));
+route("POST", "/auth/register/resend", { roles: "public", rate: CODE_RATE, body: z.object({ id: uuid }), summary: "Reenvia o código (mínimo de 60 s entre envios)" },
+  ({ body }) => auth.resendRegistration(body.id));
 route("POST", "/auth/register/verify", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, code }), summary: "Confere o código de 6 dígitos" },
   ({ body }) => auth.verifyRegistration(body.id, body.code));
 route("POST", "/auth/register/complete", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, password, confirm: z.string() }).refine(matches, sameConfirm), summary: "Define a senha, com confirmação, e cria a conta" },
@@ -342,6 +345,9 @@ route("POST", "/analytics/export-audit", {
 }, ({ body, user }) => cfg.audit(user.id, "EXPORTACAO_COM_NOMES", "Analytics", null, { item: body.item }));
 route("POST", "/desk/sessions/:id/remind", { roles: FRONT_DESK, summary: "Envia lembrete agora (app, e-mail e WhatsApp simulado)" }, ({ params, user }) => analytics.remindSession(params.id, user));
 
+route("GET", "/admin/site-content", { roles: ADMIN, summary: "Textos da página pública" }, () => site.adminSiteContent());
+route("PATCH", "/admin/site-content/:key", { roles: ADMIN, body: z.object({ value: z.string().trim().min(1).max(2000) }), summary: "Altera um texto da página pública e a publica" },
+  ({ params, body, user }) => site.saveSiteContent(user, params.key, body.value));
 route("GET", "/admin/export.csv", { roles: ADMIN, query: period, summary: "Relatório de sessões em CSV (sem dados pessoais)" }, async ({ query, user }) => {
   await cfg.audit(user.id, "RELATORIO_EXPORTADO", "Session");
   return new Response(await metrics.sessionsCsv(query.from, query.to, query.unitId), {

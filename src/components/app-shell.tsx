@@ -172,6 +172,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
           <div className="pt-3">
             <div className="side-divider border-t border-line pb-2" />
             <p className="nav-label truncate px-4 pb-1 text-sm text-ink-2">{name}</p>
+            <Link href="/" prefetch={false} className="nav-label block truncate px-4 pb-1 text-xs text-ink-3 underline-offset-2 hover:underline">Sobre a clínica</Link>
             <div className="side-foot flex pl-1">
               <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
               <ThemeToggle />

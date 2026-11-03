@@ -3,6 +3,7 @@ import { MENSAGENS_PROGRESSO } from "../../../content/mensagens-progresso";
 import dadosBairros from "../../../data/bairros-recife.json";
 import { weeklyOccurrences, type WeeklySlot } from "../../lib/schedule";
 import { DAY, HOUR } from "../../lib/time";
+import { SITE_FIELDS } from "../../lib/site-content";
 import { UNIDADES } from "../../lib/unidades";
 import { SETTING_DEFAULTS } from "../repositories/config";
 
@@ -59,6 +60,7 @@ export async function seedBase(db: Db) {
     skipDuplicates: true,
   });
   for (const u of UNITS) await db.unit.upsert({ where: { code: u.code }, update: {}, create: u });
+  await db.siteContent.createMany({ data: SITE_FIELDS.map((f) => ({ key: f.key, value: f.value })), skipDuplicates: true });
 }
 
 /** Apaga tudo que o uso gerou, menos os administradores. */

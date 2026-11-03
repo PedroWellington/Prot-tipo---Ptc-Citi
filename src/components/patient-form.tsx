@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { ApiError } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { formatCpfInput } from "@/lib/cpf";
@@ -12,9 +12,11 @@ export type Unit = { id: string; code: string; name: string; physios: { id: stri
 export const useUnits = () => useQuery(q.units);
 
 /** Mesmo formulário no autocadastro e no cadastro pela recepção. */
-export function PatientForm({ submitLabel, consentLabel, cpfHint, onSubmit }: {
+export function PatientForm({ submitLabel, consentLabel, cpfHint, emailNote, onSubmit }: {
   submitLabel: string;
   cpfHint?: string;
+  /** Aviso sempre visível sob o e-mail (autocadastro: o código de confirmação vai para ele). */
+  emailNote?: ReactNode;
   consentLabel: string;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
 }) {
@@ -42,7 +44,7 @@ export function PatientForm({ submitLabel, consentLabel, cpfHint, onSubmit }: {
   return (
     <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <Input label="CPF" name="cpf" inputMode="numeric" value={cpf} onChange={(e) => setCpf(formatCpfInput(e.target.value))} placeholder="000.000.000-00" hint={cpfHint} error={errors.cpf} required />
-      <Input label="E-mail" name="email" type="email" inputMode="email" autoComplete="email" hint="É por aqui que enviamos seus avisos." error={errors.email} required />
+      <Input label="E-mail" name="email" type="email" inputMode="email" autoComplete="email" hint={emailNote ? undefined : "É por aqui que enviamos seus avisos."} note={emailNote} error={errors.email} required />
       <Input label="Nome completo" name="name" autoComplete="name" error={errors.name} required />
       <Input label="Telefone / WhatsApp" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="(81) 90000-0000" error={errors.phone} required />
       <Segmented label="Tipo de atendimento" value={type} onChange={setType} options={[{ value: "PARTICULAR", label: "Particular" }, { value: "CONVENIO", label: "Convênio" }]} />

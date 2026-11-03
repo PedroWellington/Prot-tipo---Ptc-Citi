@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AuthFrame } from "@/components/auth-frame";
 import { NewPasswordFields } from "@/components/password-fields";
 import { PatientForm } from "@/components/patient-form";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { passwordReady } from "@/lib/password";
+import { EMAIL_NOTE, maskEmail, RESEND_SECONDS, resendWait, safeNext } from "@/lib/site-content";
 
 const CONSENT = "Autorizo a Clínica Movimento a tratar meus dados pessoais e de saúde para o meu atendimento, conforme a LGPD. Posso baixar ou excluir meus dados a qualquer momento no meu perfil.";
 
@@ -18,6 +19,17 @@ export default function CadastroPage() {
   const [error, setError] = useState<{ field?: string; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [pw, setPw] = useState({ password: "", confirm: "" });
+  const [sentAt, setSentAt] = useState(0);
+  const [now, setNow] = useState(0);
+  const [resending, setResending] = useState(false);
+  const wait = sentAt ? resendWait(sentAt, now) : 0;
+
+  // Contagem regressiva do reenvio: um tique por segundo só enquanto falta tempo
+  useEffect(() => {
+    if (step !== "codigo" || !sentAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [step, sentAt]);
 
   const run = (fn: (f: Record<string, FormDataEntryValue>) => Promise<void>) => async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,39 +43,66 @@ export default function CadastroPage() {
     setBusy(false);
   };
 
-  if (step === "dados")
-    return (
-      <AuthFrame title="Vamos começar" subtitle="Só precisamos do seu CPF e e-mail, e de alguns dados para cuidar bem de você.">
-        <PatientForm submitLabel="Continuar" consentLabel={CONSENT} cpfHint="Ambiente de demonstração: use um CPF de gerador, não o seu" onSubmit={async (data) => {
-          const r = await api<{ verificationId: string }>("/auth/register/start", { body: data });
-          setId(r.verificationId); setEmail(String(data.email)); setStep("codigo");
-        }} />
-        <p className="mt-6 text-center text-sm text-ink-2">Já tem conta? <Link href="/login" className="font-semibold text-accent">Entrar</Link></p>
-      </AuthFrame>
-    );
+  const sent = (verificationId: string) => { const t = Date.now(); setId(verificationId); setSentAt(t); setNow(t); };
 
-  if (step === "codigo")
-    return (
-      <AuthFrame title="Confira seu e-mail" subtitle={`Enviamos um código de 6 dígitos para ${email}. Ele vale por 15 minutos.`}>
-        <form className="flex flex-col gap-4" onSubmit={run(async (f) => {
-          await api("/auth/register/verify", { body: { id, code: f.code } });
-          setStep("senha");
-        })}>
-          <Input label="Código" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" required error={error?.msg} className="field text-center text-2xl tracking-[.4em]" />
-          <Button type="submit" variant="brand" loading={busy} className="w-full">Verificar</Button>
-        </form>
-      </AuthFrame>
-    );
+  const resend = async () => {
+    setResending(true); setError(null);
+    try {
+      const r = await api<{ verificationId: string }>("/auth/register/resend", { body: { id } });
+      sent(r.verificationId);
+    } catch (err) {
+      setError({ msg: err instanceof Error ? err.message : "Não foi possível reenviar agora." });
+    }
+    setResending(false);
+  };
 
   return (
-    <AuthFrame title="Crie sua senha" subtitle="Tudo certo com seu e-mail. Falta só a senha de acesso.">
-      <form className="flex flex-col gap-4" onSubmit={run(async (f) => {
-        const r = await api<{ redirect: string }>("/auth/register/complete", { body: { id, ...pw } });
-        window.location.assign(r.redirect);
-      })}>
-        <NewPasswordFields value={pw} onChange={setPw} error={error?.msg} />
-        <Button type="submit" variant="brand" loading={busy} disabled={!passwordReady(pw.password, pw.confirm)} className="w-full">Concluir cadastro</Button>
-      </form>
-    </AuthFrame>
+    <>
+      {/* Etapa de dados fica montada (só escondida): "Trocar e-mail" volta sem perder o que foi digitado */}
+      <div hidden={step !== "dados"}>
+        <AuthFrame title="Vamos começar" subtitle="Só precisamos do seu CPF e e-mail, e de alguns dados para cuidar bem de você.">
+          <PatientForm submitLabel="Continuar" consentLabel={CONSENT} cpfHint="Ambiente de demonstração: use um CPF de gerador, não o seu" emailNote={EMAIL_NOTE} onSubmit={async (data) => {
+            const r = await api<{ verificationId: string }>("/auth/register/start", { body: data });
+            sent(r.verificationId); setEmail(String(data.email)); setError(null); setStep("codigo");
+          }} />
+          <p className="mt-6 text-center text-sm text-ink-2">Já tem conta? <Link href="/login" className="font-semibold text-accent">Entrar</Link></p>
+        </AuthFrame>
+      </div>
+
+      {step === "codigo" && (
+        <AuthFrame title="Confira seu e-mail" subtitle="Digite o código de 6 dígitos. Ele vale por 15 minutos.">
+          <form className="flex flex-col gap-4" onSubmit={run(async (f) => {
+            await api("/auth/register/verify", { body: { id, code: f.code } });
+            setStep("senha");
+          })}>
+            <Input label="Código" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" required error={error?.msg}
+              note={<>Enviamos um código para <b className="font-semibold">{maskEmail(email)}</b>. Não chegou? Olhe o spam ou reenvie.</>}
+              className="field text-center text-2xl tracking-[.4em]" />
+            <Button type="submit" variant="brand" loading={busy} className="w-full">Verificar</Button>
+          </form>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="line" className="min-w-44 flex-1" disabled={wait > 0} loading={resending} onClick={resend} aria-describedby="reenvio">
+              {wait > 0 ? `Reenviar código (${wait} s)` : resending ? "Enviando…" : "Reenviar código"}
+            </Button>
+            <Button variant="ghost" className="flex-1" onClick={() => { setError(null); setStep("dados"); }}>Trocar e-mail</Button>
+          </div>
+          <p id="reenvio" className="sr-only" aria-live="polite">{wait > 0 ? `Você pode pedir outro código em ${wait} segundos.` : "Você já pode pedir outro código."}</p>
+          <p className="mt-2 text-xs text-ink-3">Um novo código a cada {RESEND_SECONDS} segundos, no máximo 5 pedidos a cada 5 minutos.</p>
+        </AuthFrame>
+      )}
+
+      {step === "senha" && (
+        <AuthFrame title="Crie sua senha" subtitle="Tudo certo com seu e-mail. Falta só a senha de acesso.">
+          <form className="flex flex-col gap-4" onSubmit={run(async () => {
+            const r = await api<{ redirect: string }>("/auth/register/complete", { body: { id, ...pw } });
+            // Veio de "Agendar tratamento" na página da clínica: segue para Agendar
+            window.location.assign(safeNext(new URLSearchParams(location.search).get("next")) ?? r.redirect);
+          })}>
+            <NewPasswordFields value={pw} onChange={setPw} error={error?.msg} />
+            <Button type="submit" variant="brand" loading={busy} disabled={!passwordReady(pw.password, pw.confirm)} className="w-full">Concluir cadastro</Button>
+          </form>
+        </AuthFrame>
+      )}
+    </>
   );
 }

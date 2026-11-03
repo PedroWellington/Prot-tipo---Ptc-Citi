@@ -507,3 +507,10 @@ model Holiday {
 
   @@index([date])
 }
+
+/// Textos da página pública (chave → texto). Faltando a chave, vale o padrão de src/lib/site-content.ts
+model SiteContent {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

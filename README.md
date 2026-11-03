@@ -117,6 +117,22 @@ As coordenadas do dispositivo ficam só na sessão do navegador e nunca vão par
 
 Ajuste em `src/lib/unidades.ts` ou em Admin > Unidades. As coordenadas vêm do [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL): `way/174874801` e `way/673898374`. Para atualizar um banco já populado sem rodar o seed e sem apagar nada: `npm run db:unidades`.
 
+## Página pública (/)
+
+A raiz é a página de apresentação da clínica, estática com revalidação a cada 5 minutos (e na hora quando o admin salva um texto em Admin > Textos > Página inicial). Fica fora dos buscadores (`noindex, nofollow`). Os textos padrão estão em `src/lib/site-content.ts`; para gravá-los num banco novo sem tocar em usuários: `npx tsx --env-file=.env.neon scripts/conteudo-site.ts`.
+
+### Imagens da página pública
+
+Nenhuma imagem, texto ou logotipo foi copiado de outros sites. Nenhuma imagem foi gerada por IA.
+
+| Arquivo | Onde | Origem | Autor | Licença |
+|---|---|---|---|---|
+| `public/site/espaco-*.webp` | Nosso espaço | [Wikimedia Commons: LRMC Physical, Occupational Therapy Clinics… (10036396)](https://commons.wikimedia.org/wiki/File:LRMC_Physical,_Occupational_Therapy_Clinics_Help_Service_Members_Recover,_Return_to_Duty_(10036396).jpg) | Bernhard Lashleyleidner, Exército dos EUA (ID 261020-A-HN506-1013) | Domínio público (obra do governo dos EUA) |
+| `public/site/exercicios-*.webp` | A terapia ideal | [Wikimedia Commons: Exercise equipment (rubber ball, light-weight dumbbells, jump rope)](https://commons.wikimedia.org/wiki/File:Exercise_equipment_(rubber_ball,_light-weight_dumbbells,_jump_rope).jpg) | Debora Cartagena, CDC (PHIL #14407) | Domínio público (obra do governo dos EUA) |
+| Ilustrações do hero, "A clínica" e especialidades | `src/components/site/illustrations.tsx` | SVG original feito para este projeto | — | Parte do projeto |
+
+As licenças foram conferidas foto a foto pela API do Wikimedia Commons (campo `LicenseShortName`). As fotos mostram ambiente e equipamentos, sem pessoas; o uso não indica endosso das instituições de origem. Conversão: `node scripts/imagens-site.mjs <pasta-dos-originais>` gera WebP em 640, 1024 e 1600 px, sem metadados, com dimensões fixas e placeholder desfocado em `src/lib/site-images.ts`.
+
 ## Análises: como calculamos as previsões
 
 Tudo roda no servidor da clínica, sem API externa nem modelo de linguagem. Funções puras em `src/lib/previsao.ts` (testadas em `previsao.test.ts`); os dados vêm de `src/server/services/analytics.ts`, com cache de 5 minutos.

@@ -354,3 +354,12 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
   .assistant-panel { bottom: 84px; max-height: min(640px, calc(100dvh - 108px)); }
   .assistant-panel[data-size="ampliado"] { bottom: auto; }
 }
+
+/* Aviso de formulário: fundo sólido misturado com a superfície (nada transparente), texto informativo AA */
+.notice { background: color-mix(in srgb, var(--info) 12%, var(--surface)); color: var(--ink); border: 1px solid color-mix(in srgb, var(--info) 30%, var(--surface)); }
+.notice svg { color: var(--info); }
+
+/* Página pública: âncoras não ficam sob o cabeçalho fixo; rolagem suave só para quem não pediu menos movimento */
+.site-section { scroll-margin-top: 80px; }
+@media (prefers-reduced-motion: no-preference) { html:has(.site) { scroll-behavior: smooth; } }
+.site .hero { border-radius: 36px 36px 50% 50% / 36px 36px 48px 48px; padding-bottom: 56px; }

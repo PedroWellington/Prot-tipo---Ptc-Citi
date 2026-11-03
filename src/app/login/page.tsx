@@ -6,6 +6,7 @@ import { AuthFrame } from "@/components/auth-frame";
 import { PasswordInput } from "@/components/password-fields";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
+import { safeNext } from "@/lib/site-content";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -18,9 +19,10 @@ export default function LoginPage() {
     const form = new FormData(e.currentTarget);
     try {
       const r = await api<{ home: string }>("/auth/login", { body: Object.fromEntries(form) });
-      const back = new URLSearchParams(location.search).get("volta");
-      // Volta só para caminhos internos
-      location.href = back?.startsWith("/") && !back.startsWith("//") && r.home !== "/trocar-senha" ? back : r.home;
+      const params = new URLSearchParams(location.search);
+      // Volta só para rotas internas; troca de senha obrigatória vem antes de tudo
+      const back = safeNext(params.get("next") ?? params.get("volta"));
+      location.href = back && r.home !== "/trocar-senha" ? back : r.home;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível entrar.");
       setBusy(false);
@@ -38,6 +40,9 @@ export default function LoginPage() {
       <div className="mt-6 flex items-center justify-between text-sm">
         <Link href="/recuperar" className="flex min-h-11 items-center text-ink-2 underline underline-offset-4">Esqueci minha senha</Link>
         <Link href="/cadastro" className="flex min-h-11 items-center font-semibold text-accent">Criar conta</Link>
+      </div>
+      <div className="mt-2 text-center">
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-ink-3 underline-offset-4 hover:underline">Conhecer a clínica</Link>
       </div>
     </AuthFrame>
   );
