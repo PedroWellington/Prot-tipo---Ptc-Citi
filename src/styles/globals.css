@@ -30,7 +30,16 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  scrollbar-gutter: stable;
+}
+
+/* Sem scrollbar visível em lugar nenhum: a barra de progresso no topo mostra a posição,
+   e sem a barra a largura do conteúdo não muda entre telas com e sem rolagem */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 
 body {

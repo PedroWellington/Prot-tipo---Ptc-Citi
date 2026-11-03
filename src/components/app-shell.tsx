@@ -77,7 +77,7 @@ const SideNav = memo(function SideNav({ items, path }: { items: Item[]; path: st
 const Tabs = memo(function Tabs({ items, path }: { items: Item[]; path: string }) {
   return (
     <nav aria-label="Abas" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <ul className="flex overflow-x-auto overscroll-contain [scrollbar-width:none]">
+      <ul className="flex overflow-x-auto overscroll-contain">
         {items.map((i) => (
           <li key={i.href} className={cx("min-w-0 flex-1", items.length > 5 && "min-w-[72px] shrink-0")}>
             <Link href={i.href} prefetch aria-current={isActive(path, i.href) ? "page" : undefined}
