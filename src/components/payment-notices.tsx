@@ -38,7 +38,7 @@ export function ExpiredNotice({ id, cta = true }: { id: string; cta?: boolean })
   return (
     <div role="status" className="card flex flex-wrap items-center gap-3 border-danger/40 p-4">
       <CircleAlert strokeWidth={1.5} className="size-5 shrink-0 text-danger" />
-      <p className="min-w-0 flex-1 basis-56 text-sm"><b className="font-semibold">Sua reserva expirou.</b> O prazo terminou e o horário foi liberado. Nenhuma cobrança foi feita.</p>
+      <p className="min-w-0 flex-1 basis-56 text-sm"><b className="font-semibold">Sua reserva expirou.</b> O horário foi liberado. Nenhuma cobrança foi feita.</p>
       <div className="flex items-center gap-2">
         {cta && <LinkButton variant="line" href="/app/agendar" onClick={dismiss}>Agendar de novo</LinkButton>}
         <CloseButton onClick={dismiss} label="Fechar aviso de reserva expirada" />

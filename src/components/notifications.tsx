@@ -153,15 +153,15 @@ export function NotificationPanel({ open, anchor, onClose }: { open: boolean; an
     if (!open) return null;
     return (
       <Popover onClose={onClose} anchor={anchor}>
-        <div className="px-4 pb-2 empty:hidden"><NoteActions /></div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2">{body}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">{body}</div>
+        <div className="p-4 empty:hidden"><NoteActions /></div>
       </Popover>
     );
   }
   return (
     <Sheet open={open} onClose={onClose} title="Notificações">
-      <div className="mb-2 empty:hidden"><NoteActions /></div>
       {body}
+      <div className="mt-3 empty:hidden"><NoteActions /></div>
     </Sheet>
   );
 }
