@@ -6,10 +6,17 @@ function persist(key: string, value: string) {
   document.cookie = `${key}=${value}; path=/; max-age=${YEAR}; samesite=lax`;
 }
 
+/** Barra do navegador no celular: acompanha o tema escolhido, não o do sistema. */
+export function syncThemeColor() {
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", color));
+}
+
 export function toggleTheme() {
   const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   document.documentElement.dataset.theme = next;
   persist("mv-theme", next);
+  syncThemeColor();
 }
 
 const SIDE_MS = 650;

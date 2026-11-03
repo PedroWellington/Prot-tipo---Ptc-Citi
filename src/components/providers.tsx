@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
+import { syncThemeColor } from "@/lib/theme";
 
 // Só o componente visual é adiado; toast() é leve e enfileira até ele montar
 const Toaster = dynamic(() => import("sonner").then((m) => m.Toaster), { ssr: false });
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
   }));
 
   useEffect(() => {
+    syncThemeColor();
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
 
