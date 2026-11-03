@@ -1,83 +1,94 @@
-/* ÚNICO arquivo de cor da marca. Para trocar o verde, altere --green-* aqui (e o theme_color em src/app/manifest.ts). */
+/* ÚNICO arquivo de cor da marca. Para trocar o verde, altere --green-* e --brand aqui (e o theme_color em src/app/manifest.ts).
+   Contraste conferido (WCAG AA): textos ≥ 4.5:1 sobre surface, surface-2, bg e os fundos tonais; --brand é só para ícones, anéis e barras (≥ 3:1). */
 :root {
   --green-950: #052e1f;
   --green-900: #07422c;
-  --green-700: #0f6b46;
-  --green-500: #1fa86a;
+  --green-700: #0b8058;
+  --green-500: #0f9d6b;
+}
 
-  }
-
-/* Tema escuro: clínica premium, calmo e sóbrio. Sem preto puro, sem néon. */
+/* Tema escuro: clínica premium, calmo. Sem preto puro, sem néon: o verde é vivo mas não brilha. */
 :root[data-theme="dark"] {
-  --bg: #0f1613;
-  --surface: #151e1a;
-  --surface-2: #1b2621;
-  --sidebar: #131b17;
-  --line: rgb(255 255 255 / 0.07);
-  --line-strong: rgb(255 255 255 / 0.15);
-  --ink: #e9eeea;
-  --ink-2: #b3bfb8;
-  --ink-3: #9aa8a0;
-  --accent: #5aa88a;
-  --accent-soft: rgb(90 168 138 / 0.14);
-  --accent-fill: #1f4a3a;
-  --on-accent: #e9eeea;
-  --nav-active: #1f4a3a;
-  --nav-active-ink: #e9eeea;
-  --warn: #c9ad78;
-  --warn-soft: rgb(201 173 120 / 0.13);
-  --danger: #d9a093;
-  --danger-soft: rgb(217 160 147 / 0.13);
-  --ok: #86bba3;
-  --mesh-a: transparent;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.25);
-  --chart-1: #3a9e78;
-  --chart-2: #7889da;
-  /* Gradiente só em detalhes mínimos: barra de rolagem e anel */
-  --brand-gradient: linear-gradient(100deg, #4f9d80 0%, #5f92a8 55%, #7d86b0 100%);
-  --ring-a: #4f9d80;
-  --ring-b: #5f92a8;
-  --ring-c: #7d86b0;
+  --bg: #0b1310;
+  --surface: #131d19;
+  --surface-2: #1b2823;
+  --sidebar: #101915;
+  --line: rgb(190 255 225 / 0.08);
+  --line-strong: rgb(190 255 225 / 0.17);
+  --ink: #f1f6f3;
+  --ink-2: #c0ccc5;
+  --ink-3: #9fb1a8;
+  --brand: #2fbf8a;
+  --accent: #2fbf8a;
+  --accent-soft: rgb(47 191 138 / 0.15);
+  --accent-fill: #2fbf8a;
+  --on-accent: #04170f;
+  --nav-active: rgb(47 191 138 / 0.16);
+  --nav-active-ink: #5fd3a6;
+  --warn: #e6b866;
+  --warn-soft: rgb(230 184 102 / 0.14);
+  --info: #86b4ff;
+  --info-soft: rgb(134 180 255 / 0.14);
+  --danger: #f19aa5;
+  --danger-soft: rgb(241 154 165 / 0.14);
+  --ok: #5fd3a6;
+  --ok-soft: rgb(95 211 166 / 0.14);
+  --mesh-a: rgb(47 191 138 / 0.07);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --hero: linear-gradient(135deg, #163b2d 0%, #132c25 55%, #14242b 100%);
+  --hero-line: rgb(47 191 138 / 0.25);
+  --chart-1: #2fbf8a;
+  --chart-2: #86b4ff;
+  --brand-gradient: linear-gradient(100deg, #2fbf8a 0%, #3fb8c0 55%, #6f9fe0 100%);
+  --ring-a: #2fbf8a;
+  --ring-b: #3fb8c0;
+  --ring-c: #6f9fe0;
   --cta: var(--accent-fill);
-  --on-cta: #e9eeea;
+  --on-cta: #04170f;
   --cta-shadow: none;
   color-scheme: dark;
 }
 
 /* Tema claro: o padrão */
 :root, :root[data-theme="light"] {
-  --bg: #f3f8f5;
+  --bg: #edf3ef;
   --surface: #ffffff;
-  --surface-2: #e8f1ec;
-  --sidebar: #e4efe9;
-  --line: rgb(5 46 31 / 0.11);
-  --line-strong: rgb(5 46 31 / 0.24);
-  --ink: #062318;
-  --ink-2: #33524a;
-  --ink-3: #4f6b62;
-  --accent: var(--green-700);
-  --accent-soft: rgb(15 107 70 / 0.1);
+  --surface-2: #e4eee8;
+  --sidebar: #e0ebe4;
+  --line: rgb(6 60 38 / 0.11);
+  --line-strong: rgb(6 60 38 / 0.22);
+  --ink: #04170f;
+  --ink-2: #2a463d;
+  --ink-3: #4a655c;
+  --brand: var(--green-500);
+  --accent: #0a7a52;
+  --accent-soft: rgb(15 157 107 / 0.12);
   --accent-fill: var(--green-700);
   --on-accent: #ffffff;
-  --nav-active: rgb(15 107 70 / 0.1);
-  --nav-active-ink: var(--green-700);
-  --warn: #8a5a00;
-  --warn-soft: var(--surface-2);
-  --danger: #b3321f;
-  --danger-soft: var(--surface-2);
-  --ok: var(--green-700);
-  --mesh-a: rgb(31 168 106 / 0.1);
-  --shadow: 0 1px 2px rgb(5 46 31 / 0.07);
-  --chart-1: #0f6b46;
-  --chart-2: #4a6fd4;
-  /* Só para linhas finas, anel de progresso e CTAs principais */
-  --brand-gradient: linear-gradient(100deg, #1fa86a 0%, #2f8fd8 55%, #8b5cf6 100%);
-  --ring-a: #1fa86a;
-  --ring-b: #2f8fd8;
-  --ring-c: #8b5cf6;
+  --nav-active: rgb(15 157 107 / 0.13);
+  --nav-active-ink: #0a7a52;
+  --warn: #8f5300;
+  --warn-soft: #fcefd7;
+  --info: #1a5bbf;
+  --info-soft: #e3edfc;
+  --danger: #b0283b;
+  --danger-soft: #fce6e9;
+  --ok: #0a7a52;
+  --ok-soft: #daf2e6;
+  --mesh-a: rgb(15 157 107 / 0.12);
+  --shadow: 0 1px 2px rgb(6 60 38 / 0.06), 0 6px 20px -10px rgb(6 60 38 / 0.18);
+  --hero: linear-gradient(135deg, #dff5ea 0%, #d5efe2 50%, #e3effa 100%);
+  --hero-line: rgb(15 157 107 / 0.22);
+  --chart-1: #0f9d6b;
+  --chart-2: #3b74d6;
+  /* Só para linhas finas, anel de progresso e CTAs principais (texto branco ≥ 4.9:1 em toda a faixa) */
+  --brand-gradient: linear-gradient(100deg, #0b8058 0%, #0f7f8c 55%, #1769b8 100%);
+  --ring-a: #0f9d6b;
+  --ring-b: #14a3a0;
+  --ring-c: #3b74d6;
   --cta: var(--brand-gradient);
   --on-cta: #ffffff;
-  --cta-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
+  --cta-shadow: 0 1px 1px rgb(0 0 0 / 0.2);
   /* "only": sem isso, o escuro automático do Chrome/Android escurece o tema claro (lua no botão, tela escura) */
   color-scheme: only light;
 }

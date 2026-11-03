@@ -29,10 +29,16 @@ export function Card({ className, ...p }: ComponentProps<"section">) {
 const TONES: Record<Tone, string> = {
   neutral: "bg-surface-2 text-ink-2",
   accent: "bg-accent-soft text-accent",
-  ok: "bg-accent-soft text-ok",
+  ok: "bg-ok-soft text-ok",
   warn: "bg-warn-soft text-warn",
   danger: "bg-danger-soft text-danger",
+  info: "bg-info-soft text-info",
 };
+
+/** Ícone em quadrado arredondado com fundo tonal. */
+export function Tile({ tone = "accent", children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
+  return <span aria-hidden className={cx("tile", TONES[tone], className)}>{children}</span>;
+}
 
 export function Badge({ tone = "neutral", children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
   return <span className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap", TONES[tone], className)}>{children}</span>;
@@ -209,9 +215,10 @@ export function SuccessCheck() {
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+export function Stat({ label, value, hint, icon, tone }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode; tone?: Tone }) {
   return (
     <div className="card p-4 sm:p-5">
+      {icon && <Tile tone={tone} className="mb-3">{icon}</Tile>}
       <p className="text-sm text-ink-2">{label}</p>
       <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{value}</p>
       {hint && <p className="mt-2 text-sm text-ink-3">{hint}</p>}

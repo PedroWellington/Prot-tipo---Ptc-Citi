@@ -3,14 +3,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Flame } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarPlus, Flame, MapPin, Package, Receipt, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { BOOKING_SIZES } from "@/lib/schedule";
 import { WEEKDAYS, WEEKDAYS_SHORT, fmtLong, fmtTime } from "@/lib/time";
 import { useUnits } from "./patient-form";
 import { useAction, haptic } from "./providers";
-import { Button, Card, cx, ErrorState, LinkButton, Skeleton, SuccessCheck } from "./ui";
+import { Button, Card, cx, ErrorState, LinkButton, Skeleton, SuccessCheck, Tile } from "./ui";
 
 type Grid = { days: { weekday: number; hours: { hour: number; peak: boolean; level: string }[] }[]; saturdayEnabled: boolean };
 type Pick = { weekday: number; hour: number };
@@ -87,7 +87,16 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
   const calmHours = grid.data?.days.flatMap((d) => d.hours.filter((h) => !h.peak && h.level === "alta").map((h) => h.hour));
   const suggestion = calmHours?.length ? [...new Set(calmHours)].sort((a, b) => a - b).filter((h) => h >= 9).slice(0, 3) : [];
 
+  const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const summary = [
+    { icon: <Package />, tone: "accent", label: "Plano", value: single ? "1 sessão avulsa" : "Pacote de 10 sessões" },
+    { icon: <MapPin />, tone: "warn", label: "Unidade", value: unit?.name ?? "A escolher" },
+    { icon: <UserRound />, tone: "info", label: "Fisioterapeuta", value: unit?.physios.find((p) => p.id === physioId)?.name ?? (step > 2 ? "Sem preferência" : "A escolher") },
+    { icon: <CalendarDays />, tone: "danger", label: single ? "Horário" : "Horários", value: picks.length ? [...picks].sort((a, b) => a.weekday - b.weekday).map((p) => `${WEEKDAYS_SHORT[p.weekday]} ${p.hour}h`).join(" · ") : "A escolher" },
+  ] as const;
+
   return (
+    <div className={cx("grid items-start gap-4", !patientId && "lg:grid-cols-[minmax(0,1fr)_320px]")}>
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         {step > 0 && (
@@ -105,9 +114,10 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
           <div className="flex flex-col gap-3">
             <h2 className="font-display text-2xl">O que você quer agendar?</h2>
             {([[BOOKING_SIZES.pacote, "Pacote de 10 sessões", "2 vezes por semana, nos mesmos horários"], [BOOKING_SIZES.avulsa, "Uma sessão avulsa", "Uma consulta a mais, quando precisar"]] as const).map(([size, title, body]) => (
-              <button key={size} type="button" onClick={() => { setCount(size); setPicks([]); setStep(unitId ? 2 : 1); }} className="card row-hover p-5 text-left">
-                <span className="block font-display text-2xl">{title}</span>
-                <span className="text-sm text-ink-2">{body}{pays && ` · ${((info.data!.priceCents * size) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}</span>
+              <button key={size} type="button" onClick={() => { setCount(size); setPicks([]); setStep(unitId ? 2 : 1); }} className="card row-hover flex items-center gap-4 p-5 text-left">
+                <Tile tone={size === BOOKING_SIZES.pacote ? "accent" : "info"}>{size === BOOKING_SIZES.pacote ? <Package /> : <CalendarPlus />}</Tile>
+                <span><span className="block font-display text-2xl">{title}</span>
+                <span className="text-sm text-ink-2">{body}{pays && ` · ${brl((info.data!.priceCents * size) / 100)}`}</span></span>
               </button>
             ))}
           </div>
@@ -118,9 +128,10 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
             <h2 className="font-display text-2xl">Onde você prefere ser atendido?</h2>
             {!units && <Skeleton className="h-24 w-full" />}
             {units?.map((u) => (
-              <button key={u.id} type="button" onClick={() => { setUnitId(u.id); setPhysioId(""); setPicks([]); setStep(2); }} className="card row-hover p-5 text-left">
-                <span className="block font-display text-2xl">{u.name}</span>
-                <span className="text-sm text-ink-2">{u.physios.length} fisioterapeutas</span>
+              <button key={u.id} type="button" onClick={() => { setUnitId(u.id); setPhysioId(""); setPicks([]); setStep(2); }} className="card row-hover flex items-center gap-4 p-5 text-left">
+                <Tile tone="warn"><MapPin /></Tile>
+                <span><span className="block font-display text-2xl">{u.name}</span>
+                <span className="text-sm text-ink-2">{u.physios.length} fisioterapeutas</span></span>
               </button>
             ))}
           </div>
@@ -211,6 +222,29 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
           </Card>
         )}
       </div>
+    </div>
+    {/* Resumo ao lado no desktop; no celular vem depois, e some na revisão, que já é o resumo */}
+    {!patientId && (
+      <aside aria-label="Resumo do agendamento" className={cx("card flex flex-col gap-3 p-5 lg:sticky lg:top-6", step === 4 && "max-lg:hidden")}>
+        <h2 className="font-semibold">Resumo</h2>
+        <ul className="flex flex-col gap-3">
+          {summary.map((r) => (
+            <li key={r.label} className="flex items-center gap-3">
+              <Tile tone={r.tone}>{r.icon}</Tile>
+              <span className="min-w-0"><span className="block text-xs text-ink-3">{r.label}</span><span className="block truncate text-sm font-medium">{r.value}</span></span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-1 flex items-center gap-3 rounded-2xl bg-accent-soft p-3">
+          <Tile tone="ok"><Receipt /></Tile>
+          {info.data ? (
+            <span><span className="block text-xs text-ink-2">{pays ? "Total via PIX" : "Cobertura"}</span>
+              <span className="block font-display text-2xl tabular-nums">{pays ? brl(total) : info.data.type === "CONVENIO" ? "Convênio" : "–"}</span></span>
+          ) : <Skeleton className="h-10 w-32" />}
+        </div>
+        {pays && !single && <p className="text-xs text-ink-3">{brl(info.data!.priceCents / 100)} por sessão</p>}
+      </aside>
+    )}
     </div>
   );
 }

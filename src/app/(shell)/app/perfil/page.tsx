@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Download, KeyRound, LogOut, Moon, Trash2 } from "lucide-react";
+import { Bell, CreditCard, Download, IdCard, KeyRound, LogOut, MapPin, MessageCircle, Moon, ShieldCheck, Trash2, UsersRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { logout } from "@/components/app-shell";
 import { toggleTheme } from "@/lib/theme";
@@ -9,7 +9,7 @@ import { Sheet } from "@/components/lazy-sheet";
 import { useUnits } from "@/components/patient-form";
 import { BairroInput } from "@/components/bairro-input";
 import { useAction } from "@/components/providers";
-import { Badge, Button, Card, ErrorState, Input, ListSkeleton, PageTitle, Select, Toggle } from "@/components/ui";
+import { Badge, Button, Card, ErrorState, Input, ListSkeleton, PageTitle, Select, Tile, Toggle } from "@/components/ui";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
@@ -50,9 +50,22 @@ export default function Page() {
   return (
     <>
       <PageTitle eyebrow={p.user.email} title={p.user.name} />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <ul className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {([
+          [<IdCard key="i" />, "accent", "Atendimento", p.type === "CONVENIO" ? p.insurer ?? "Convênio" : "Particular"],
+          [<MapPin key="i" />, "warn", "Unidade preferida", units?.find((u) => u.id === p.preferredUnitId)?.name ?? "Sem preferência"],
+          [<UsersRound key="i" />, "info", "Segundo contato", p.secondContactName ?? "Não informado"],
+          [<MessageCircle key="i" />, p.whatsappOptIn ? "ok" : "neutral", "WhatsApp", p.whatsappOptIn ? "Avisos ativos" : "Desativado"],
+        ] as const).map(([icon, tone, label, value]) => (
+          <li key={label} className="card flex items-center gap-3 p-4">
+            <Tile tone={tone}>{icon}</Tile>
+            <span className="min-w-0"><span className="block text-xs text-ink-3">{label}</span><span className="block truncate text-sm font-semibold">{value}</span></span>
+          </li>
+        ))}
+      </ul>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-3 font-semibold">Dados pessoais</h2>
+          <h2 className="mb-4 flex items-center gap-3 font-semibold"><Tile tone="accent"><IdCard /></Tile>Dados pessoais</h2>
           <form key={p.user.name} onSubmit={submit((b) => form.mutate({ ...b, preferredUnitId: b.preferredUnitId || null, bairro: b.bairro || null }))} className="flex flex-col gap-3">
             <Input label="Nome" name="name" defaultValue={p.user.name} required />
             <Input label="CPF" value={p.cpf} readOnly disabled hint="Para alterar, fale com a recepção." />
@@ -69,14 +82,14 @@ export default function Page() {
         </Card>
         <div className="flex flex-col gap-4">
           <Card>
-            <h2 className="mb-1 font-semibold">Notificações</h2>
+            <h2 className="mb-2 flex items-center gap-3 font-semibold"><Tile tone="info"><Bell /></Tile>Notificações</h2>
             <Toggle label="Avisos por e-mail" hint="Lembretes, trocas e convênio" checked={p.notifyEmail} onChange={(v) => save.mutate({ notifyEmail: v })} />
             <Toggle label="Mensagens educativas" hint="Dicas a cada sessão concluída" checked={p.notifyEducational} onChange={(v) => save.mutate({ notifyEducational: v })} />
             <Toggle label="Avisos pelo WhatsApp" hint="Revogue quando quiser. Sem isso, usamos e-mail e o app." checked={p.whatsappOptIn} onChange={(v) => save.mutate({ whatsappOptIn: v })} />
           </Card>
           {!!payments?.length && (
             <Card>
-              <h2 className="mb-1 font-semibold">Pagamentos</h2>
+              <h2 className="mb-2 flex items-center gap-3 font-semibold"><Tile tone="ok"><CreditCard /></Tile>Pagamentos</h2>
               <ul className="divide-y divide-line">
                 {payments.map((x) => (
                   <li key={x.id}>
@@ -90,7 +103,7 @@ export default function Page() {
             </Card>
           )}
           <Card className="flex flex-col gap-2">
-            <h2 className="mb-1 font-semibold">Conta e privacidade</h2>
+            <h2 className="mb-1 flex items-center gap-3 font-semibold"><Tile tone="danger"><ShieldCheck /></Tile>Conta e privacidade</h2>
             <Button variant="ghost" className="justify-start" onClick={() => setSheet("senha")}><KeyRound strokeWidth={1.5} className="size-4" />Trocar senha</Button>
             <Button variant="ghost" className="justify-start" onClick={toggleTheme}><Moon strokeWidth={1.5} className="size-4" />Alternar tema</Button>
             <Button variant="ghost" className="justify-start" onClick={() => window.location.assign("/api/me/export")}><Download strokeWidth={1.5} className="size-4" />Baixar meus dados</Button>

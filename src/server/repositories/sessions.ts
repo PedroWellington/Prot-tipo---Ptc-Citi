@@ -5,7 +5,7 @@ export const ACTIVE: SessionStatus[] = ["AGENDADA", "CONFIRMADA"];
 
 const card = {
   id: true, number: true, startsAt: true, status: true, provisional: true, reason: true, reasonNote: true, noticeHours: true,
-  isReplacement: true, confirmedAt: true, treatmentId: true, checkedInAt: true, lateAt: true,
+  isReplacement: true, confirmedAt: true, treatmentId: true, checkedInAt: true, lateAt: true, painScore: true,
   payment: { select: { id: true, status: true } },
   late: { select: { status: true } },
   unit: { select: { id: true, code: true, name: true } },

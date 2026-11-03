@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { BairroInput, loadBairros, useBairros } from "@/components/bairro-input";
 import { useAction } from "@/components/providers";
-import { Badge, Button, Card, ErrorState, LinkButton, ListSkeleton, PageTitle, Skeleton } from "@/components/ui";
+import { Badge, Button, Card, ErrorState, LinkButton, ListSkeleton, PageTitle, Skeleton, Tile } from "@/components/ui";
 import { api } from "@/lib/api";
 import { localizarBairro, ordenarPorDistancia, type Point } from "@/lib/bairros";
 import { q } from "@/lib/queries";
@@ -45,16 +45,16 @@ function UnitCard({ u, km, nearest }: { u: Unit; km: number | null; nearest: boo
         {nearest && <Badge tone="accent"><LocateFixed className="size-3.5" />Mais perto de você</Badge>}
       </div>
       <ul className="mt-3 flex flex-col gap-1.5 text-sm text-ink-2">
-        <li className="flex gap-2"><MapPin strokeWidth={1.5} className="size-4 shrink-0" /><span>{u.address}<span className="block text-xs text-ink-3">{NOTA_ENDERECO}</span></span></li>
-        <li className="flex gap-2"><Clock strokeWidth={1.5} className="size-4 shrink-0" />Seg a sex, {u.openHour}h às {u.closeHour}h{u.saturdayEnabled && ` · Sáb, ${u.satOpenHour}h às ${u.satCloseHour}h`}</li>
-        <li className="flex gap-2"><Phone strokeWidth={1.5} className="size-4 shrink-0" />{u.phone}</li>
+        <li className="flex gap-2"><MapPin strokeWidth={1.8} className="size-4 shrink-0 text-warn" /><span>{u.address}<span className="block text-xs text-ink-3">{NOTA_ENDERECO}</span></span></li>
+        <li className="flex gap-2"><Clock strokeWidth={1.8} className="size-4 shrink-0 text-info" />Seg a sex, {u.openHour}h às {u.closeHour}h{u.saturdayEnabled && ` · Sáb, ${u.satOpenHour}h às ${u.satCloseHour}h`}</li>
+        <li className="flex gap-2"><Phone strokeWidth={1.8} className="size-4 shrink-0 text-ok" />{u.phone}</li>
       </ul>
       <p className="mt-3 text-sm text-ink-2"><span className="text-ink-3">Fisioterapeutas: </span>{u.physios.map((p) => p.name).join(", ")}</p>
 
-      <h3 className="mt-4 mb-2 text-sm font-semibold">Horários nos próximos 7 dias <span className="font-normal text-ink-3">({u.totalFree} livres)</span></h3>
+      <h3 className="mt-4 mb-2 flex items-center justify-between gap-2 text-sm font-semibold">Horários nos próximos 7 dias <Badge tone={u.totalFree > 20 ? "ok" : u.totalFree ? "warn" : "danger"}>{u.totalFree} livres</Badge></h3>
       <div className="flex flex-wrap gap-1.5">
         {u.slots.map((s) => (
-          <span key={String(s.startsAt)} className="rounded-lg bg-surface-2 px-2.5 py-1.5 text-sm tabular-nums first-letter:uppercase">{fmtWeekShort(s.startsAt).split(" ")[0]} {fmtTime(s.startsAt)}</span>
+          <span key={String(s.startsAt)} className="rounded-lg bg-accent-soft px-2.5 py-1.5 text-sm tabular-nums first-letter:uppercase">{fmtWeekShort(s.startsAt).split(" ")[0]} {fmtTime(s.startsAt)}</span>
         ))}
       </div>
 
@@ -123,7 +123,7 @@ export default function Page() {
           <div className="grid items-stretch gap-4 lg:grid-cols-2">
             <Card className="flex flex-col gap-3">
               <div>
-                <h2 className="font-semibold">Qual unidade fica mais perto?</h2>
+                <h2 className="flex items-center gap-3 font-semibold"><Tile tone="warn"><LocateFixed /></Tile>Qual unidade fica mais perto?</h2>
                 {origem ? (
                   <p className="mt-1 text-ink-2">
                     {origem.fonte === "dispositivo" ? (origem.exato ? "Você está em " : "Bairro mais próximo de você: ") : "Calculando a partir de "}

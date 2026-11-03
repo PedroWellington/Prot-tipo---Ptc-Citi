@@ -241,6 +241,7 @@ model Session {
   payment            Payment?      @relation(fields: [paymentId], references: [id])
   checkedInAt        DateTime?
   lateAt             DateTime?
+  painScore          Int?
   createdAt          DateTime      @default(now())
 
   requests RescheduleRequest[]
@@ -384,6 +385,7 @@ model Guidance {
   message     String?
   url         String?
   fileName    String?
+  doneAt      DateTime?
   createdAt   DateTime        @default(now())
 
   @@index([treatmentId, createdAt])

@@ -43,6 +43,13 @@ export function TreatmentDetail({ id }: { id: string }) {
     },
     invalidate: [["physio-agenda"]], success: "Registrado. Reposição criada ao fim do plano.",
   });
+  const pain = useAction({
+    run: ({ sid, score }: { sid: string; score: number }) => api(`/physio/sessions/${sid}/pain`, { body: { score } }),
+    optimistic: {
+      key,
+      update: (old: Detail, v: { sid: string; score: number }) => ({ ...old, sessions: old.sessions.map((s) => (s.id === v.sid ? { ...s, painScore: v.score } : s)) }),
+    },
+  });
   const script = useAction({
     run: () => api(`/physio/treatments/${id}/script`, { body: {} }),
     optimistic: { key, update: (old: Detail) => ({ ...old, scriptDoneAt: new Date() }) }, success: "Roteiro registrado",
@@ -142,6 +149,14 @@ export function TreatmentDetail({ id }: { id: string }) {
                   </span>
                   <Badge tone={SESSION_STATUS[s.status].tone}>{SESSION_STATUS[s.status].label}</Badge>
                   {s.provisional && <Badge tone="warn">Pré-reserva</Badge>}
+                  {(s.status === "REALIZADA" || s.status === "CONFIRMADA") && (
+                    <select aria-label={`Dor relatada na sessão ${s.number}`} value={s.painScore ?? ""}
+                      onChange={(e) => e.target.value && pain.mutate({ sid: s.id, score: Number(e.target.value) })}
+                      className="field min-h-9 w-auto px-2 text-sm">
+                      <option value="">Dor –</option>
+                      {Array.from({ length: 11 }, (_, n) => <option key={n} value={n}>Dor {n}</option>)}
+                    </select>
+                  )}
                   {open && (
                     <div className="flex w-full gap-2">
                       <Button className="flex-1" onClick={() => done.mutate(s.id)}>Realizada</Button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, Phone, Timer, UserCheck } from "lucide-react";
+import { CalendarCheck, CalendarClock, ChartColumn, CircleCheckBig, Clock, Phone, Timer, UserCheck, UserX } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { formatPhone, LATE_STATUS, LATE_STEP, SESSION_STATUS } from "@/lib/labels";
@@ -13,7 +13,8 @@ import { Sheet } from "./lazy-sheet";
 import { MissSheet, type MissInput } from "./miss-sheet";
 import { useUnits } from "./patient-form";
 import { useAction } from "./providers";
-import { Badge, Button, Card, cx, Empty, ErrorState, ListSkeleton, PageTitle, SearchField, Segmented, Select, Stat } from "./ui";
+import { DaySummary } from "./charts";
+import { Badge, Button, Card, cx, Empty, ErrorState, ListSkeleton, PageTitle, SearchField, Segmented, Select, Stat, Tile } from "./ui";
 
 const Row = memo(function Row({ s, selected, onSelect }: { s: AgendaItem; selected: boolean; onSelect: (id: string) => void }) {
   const st = SESSION_STATUS[s.status];
@@ -154,10 +155,10 @@ export function AgendaDesk({ initial, day: firstDay, serverAt }: { initial: Agen
       <PageTitle eyebrow="Painel do dia" title="Agenda" />
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Confirmadas" value={counts.CONFIRMADA ?? 0} />
-          <Stat label="A confirmar" value={counts.AGENDADA ?? 0} />
-          <Stat label="Realizadas" value={counts.REALIZADA ?? 0} />
-          <Stat label="Faltas" value={counts.FALTA ?? 0} />
+          <Stat label="Confirmadas" value={counts.CONFIRMADA ?? 0} icon={<CalendarCheck />} tone="info" />
+          <Stat label="A confirmar" value={counts.AGENDADA ?? 0} icon={<Clock />} tone="warn" />
+          <Stat label="Realizadas" value={counts.REALIZADA ?? 0} icon={<CircleCheckBig />} tone="ok" />
+          <Stat label="Faltas" value={counts.FALTA ?? 0} icon={<UserX />} tone="danger" />
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <DayNav day={day} onChange={setDay} />
@@ -182,15 +183,21 @@ export function AgendaDesk({ initial, day: firstDay, serverAt }: { initial: Agen
               </ul>
             )}
           </div>
-          <aside className="sticky top-8 hidden xl:block">
-            <Card>
+          <aside className="flex flex-col gap-4 xl:sticky xl:top-8">
+            <Card className="hidden xl:block">
               {details ?? (
-                <div className="flex flex-col items-center gap-2 py-8 text-center text-ink-2">
+                <div className="flex flex-col items-center gap-2 py-6 text-center text-ink-2">
                   <CalendarClock strokeWidth={1.2} className="size-9 text-ink-3" />
                   <p>Selecione uma sessão para ver os detalhes.</p>
                 </div>
               )}
             </Card>
+            {data && (
+              <Card>
+                <h2 className="mb-4 flex items-center gap-3 font-semibold"><Tile tone="accent"><ChartColumn /></Tile>Resumo do dia por unidade</h2>
+                <DaySummary sessions={data} />
+              </Card>
+            )}
           </aside>
         </div>
       </div>

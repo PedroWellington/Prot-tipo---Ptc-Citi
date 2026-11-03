@@ -7,7 +7,7 @@ export const SESSION_STATUS: Record<string, { label: string; tone: Tone }> = {
   REAGENDADA: { label: "Reagendada", tone: "neutral" },
 };
 
-export type Tone = "neutral" | "accent" | "ok" | "warn" | "danger";
+export type Tone = "neutral" | "accent" | "ok" | "warn" | "danger" | "info";
 
 export const MISS_REASON_LABELS: Record<string, string> = {
   ALIVIO_DOR: "Sentiu alívio da dor",

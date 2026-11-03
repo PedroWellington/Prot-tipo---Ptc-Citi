@@ -17,7 +17,7 @@ export default function Page() {
   return (
     <>
       <PageTitle eyebrow="Novo pacote ou sessão avulsa" title="Agendar" />
-      <div className="mx-auto flex max-w-2xl flex-col gap-4">
+      <div className="flex max-w-5xl flex-col gap-4">
         {/* Já está em Agendar: só o aviso, sem o botão para vir aqui */}
         {expired && <ExpiredNotice id={expired} cta={false} />}
         <Suspense fallback={<ListSkeleton rows={3} />}><Content /></Suspense>

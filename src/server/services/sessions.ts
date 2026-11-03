@@ -29,6 +29,16 @@ export async function confirmSession(id: string, patientId: string | null) {
   return { status: "CONFIRMADA" };
 }
 
+/** Dor de 0 a 10: o paciente registra na própria sessão; a fisioterapeuta, nas sessões que atende. */
+export async function recordPain(id: string, score: number, by: { patientId: string } | { user: CurrentUser }) {
+  const s = await sessions.findSession(id);
+  if (!s || ("patientId" in by && s.patientId !== by.patientId)) throw notFound("Sessão");
+  if ("user" in by) assertCanHandle(by.user, s.physioId);
+  if (s.status === "FALTA" || s.status === "DESMARCADA" || s.status === "REAGENDADA") throw conflict("Esta sessão não aconteceu.");
+  await sessions.updateSession(id, { painScore: score });
+  return { painScore: score };
+}
+
 export async function markDone(id: string, user: CurrentUser) {
   const s = await sessions.findSession(id);
   if (!s) throw notFound("Sessão");

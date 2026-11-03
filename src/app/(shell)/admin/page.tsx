@@ -1,7 +1,7 @@
 "use client";
 
+import { Armchair, CalendarCheck, Download, Hourglass, LogOut, Repeat, ShieldCheck, UserX, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
 import { useState } from "react";
 import { Bars, Columns } from "@/components/charts";
 import { useUnits } from "@/components/patient-form";
@@ -37,14 +37,14 @@ export default function Page() {
       {d && (
         <div className={`flex flex-col gap-4 ${isPlaceholderData ? "opacity-60" : ""}`}>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
-            <Stat label="Taxa de faltas" value={pct(d.noShowRate)} hint={`${d.totals.faltas} faltas`} />
-            <Stat label="Abandono antes da 10ª" value={pct(d.abandonRate)} />
-            <Stat label="Taxa de confirmação" value={pct(d.confirmationRate)} />
-            <Stat label="Receita recuperada" value={brl(d.recoveredRevenue)} hint={`contra ${d.rules.baselineNoShowPct}% de referência`} />
-            <Stat label="Renovação de convênio" value={`${d.avgRenewalDays.toLocaleString("pt-BR")} dias`} hint="tempo médio" />
-            <Stat label="Trocas aprovadas" value={`${d.reschedule.approved}/${d.reschedule.total}`} hint={`${d.reschedule.rejected} recusadas · ${d.reschedule.avgResponseHours.toLocaleString("pt-BR")}h`} />
-            <Stat label="Lista de espera" value={`${d.waitlist.accepted}/${d.waitlist.offered}`} hint={`aceitas · ${d.waitlist.active} na fila`} />
-            <Stat label="Ocupação das cadeiras" value={pct(d.occupancy)} />
+            <Stat icon={<UserX />} tone="danger" label="Taxa de faltas" value={pct(d.noShowRate)} hint={`${d.totals.faltas} faltas`} />
+            <Stat icon={<LogOut />} tone="warn" label="Abandono antes da 10ª" value={pct(d.abandonRate)} />
+            <Stat icon={<CalendarCheck />} tone="info" label="Taxa de confirmação" value={pct(d.confirmationRate)} />
+            <Stat icon={<Wallet />} tone="ok" label="Receita recuperada" value={brl(d.recoveredRevenue)} hint={`contra ${d.rules.baselineNoShowPct}% de referência`} />
+            <Stat icon={<ShieldCheck />} tone="accent" label="Renovação de convênio" value={`${d.avgRenewalDays.toLocaleString("pt-BR")} dias`} hint="tempo médio" />
+            <Stat icon={<Repeat />} tone="info" label="Trocas aprovadas" value={`${d.reschedule.approved}/${d.reschedule.total}`} hint={`${d.reschedule.rejected} recusadas · ${d.reschedule.avgResponseHours.toLocaleString("pt-BR")}h`} />
+            <Stat icon={<Hourglass />} tone="warn" label="Lista de espera" value={`${d.waitlist.accepted}/${d.waitlist.offered}`} hint={`aceitas · ${d.waitlist.active} na fila`} />
+            <Stat icon={<Armchair />} tone="accent" label="Ocupação das cadeiras" value={pct(d.occupancy)} />
           </div>
 
           <div className="grid items-stretch gap-4 xl:grid-cols-3">

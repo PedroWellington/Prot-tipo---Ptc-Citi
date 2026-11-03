@@ -21,6 +21,11 @@ const HOLIDAYS = [
 const FIRST = ["Alvenira", "Brisael", "Calíope", "Dorvano", "Elisandra", "Fabrízia", "Galdino", "Helvira", "Isandro", "Jacélia", "Kelvano", "Lourisa", "Mirandel", "Nevina", "Orlandino", "Petrúcia", "Quirino", "Rosalvo", "Silvandra", "Tarcélia", "Ubirajane", "Valdirene", "Wesliana", "Xandrino", "Yasmirel", "Zelandro"];
 const LAST = ["Vorlani", "Tremaris", "Quintavel", "Sorvelho", "Maravento", "Lindoval", "Brenhaus", "Cestarolli", "Dumarello", "Estrelanova", "Fontarelo", "Galvarim", "Horvatelli", "Ibarrosa", "Jandrovel"];
 const REASONS = ["ALIVIO_DOR", "ALIVIO_DOR", "ALIVIO_DOR", "HORARIO", "HORARIO", "CONVENIO", "TRANSPORTE", "SAUDE", "ESQUECIMENTO"];
+const EXERCISES = [
+  { title: "Ponte de glúteo", message: "3 séries de 12, segurando 3 segundos no alto.", url: "https://www.youtube.com/results?search_query=ponte+de+gluteo+fisioterapia" },
+  { title: "Alongamento de isquiotibiais", message: "Deitado, perna estendida com a faixa: 3 × 30 segundos de cada lado." },
+  { title: "Gato e camelo", message: "10 repetições lentas, de manhã e à noite.", url: "https://www.youtube.com/results?search_query=gato+camelo+exercicio" },
+];
 const INSURERS = ["Vida Plena Saúde", "Norte Saúde", "Maré Alta Assistência", "Bem Cuidar Convênios"];
 
 // PRNG determinístico: a demonstração fica igual em toda instalação
@@ -165,6 +170,8 @@ export async function seedActive(db: Db, password: string) {
         treatmentId: treatment.id, patientId: p.id, unitId: physio.unitId, physioId: physio.id, startsAt, number,
         status: missed ? "FALTA" : "REALIZADA", reason: missed ? pick(REASONS) : null,
         confirmedAt: missed ? null : startsAt, doneAt: missed ? null : startsAt,
+        // Dor cai de ~8 para ~2 com oscilação pequena, sem rnd() para não mudar o resto da demo
+        painScore: missed ? null : Math.max(1, Math.min(10, 8 - Math.round((number - 1) * 0.7) + ((i + idx) % 3) - 1)),
       });
       if (!missed) number++;
     });
@@ -176,6 +183,13 @@ export async function seedActive(db: Db, password: string) {
       });
     });
     await db.session.createMany({ data: rows });
+    if (done > 0 && !concluded)
+      await db.guidance.createMany({
+        data: EXERCISES.slice(0, 2 + (i % 2)).map((g, k) => ({
+          ...g, treatmentId: treatment.id, physioId: physio.id, createdAt: new Date(now.getTime() - (k + 1) * DAY),
+          doneAt: k < done % 3 ? new Date(now.getTime() - k * HOUR) : null,
+        })),
+      });
 
     // Situações prontas para a demonstração
     if (i === 5 || i === 13) {

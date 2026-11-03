@@ -82,3 +82,54 @@ export function Bars({ rows, label }: { rows: { key: string; rate: number }[]; l
     </ul>
   );
 }
+
+const DAY_PARTS = [
+  { key: "REALIZADA", label: "Realizadas", color: "var(--ok)" },
+  { key: "CONFIRMADA", label: "Confirmadas", color: "var(--info)" },
+  { key: "AGENDADA", label: "A confirmar", color: "var(--warn)" },
+  { key: "FALTA", label: "Faltas", color: "var(--danger)" },
+] as const;
+
+/** Resumo do dia por unidade (barra empilhada por status) e ocupação por hora (mini colunas). */
+export function DaySummary({ sessions }: { sessions: { status: string; startsAt: Date | string; unit: { name: string } }[] }) {
+  const live = sessions.filter((s) => s.status !== "REAGENDADA" && s.status !== "DESMARCADA");
+  const units = [...new Set(live.map((s) => s.unit.name))].sort();
+  const byHour = new Map<number, number>();
+  for (const s of live) {
+    const h = Number(new Date(s.startsAt).toLocaleString("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "America/Recife" }));
+    byHour.set(h, (byHour.get(h) ?? 0) + 1);
+  }
+  const hours = Array.from({ length: 14 }, (_, i) => i + 7);
+  const peak = Math.max(1, ...byHour.values());
+  return (
+    <div className="flex flex-col gap-5">
+      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-2">
+        {DAY_PARTS.map((p) => <li key={p.key} className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm" style={{ background: p.color }} />{p.label}</li>)}
+      </ul>
+      {!units.length && <p className="text-sm text-ink-3">Sem sessões neste dia.</p>}
+      {units.map((u) => {
+        const mine = live.filter((s) => s.unit.name === u);
+        const parts = DAY_PARTS.map((p) => ({ ...p, n: mine.filter((s) => s.status === p.key).length }));
+        return (
+          <div key={u}>
+            <div className="mb-1.5 flex justify-between text-sm"><span className="font-medium">{u}</span><span className="text-ink-3 tabular-nums">{mine.length} sessões</span></div>
+            <div role="img" aria-label={`${u}: ${parts.map((p) => `${p.n} ${p.label.toLowerCase()}`).join(", ")}`} className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-surface-2">
+              {parts.filter((p) => p.n).map((p) => <span key={p.key} className="bar-h h-full" style={{ flexGrow: p.n, background: p.color }} />)}
+            </div>
+          </div>
+        );
+      })}
+      <div>
+        <p className="mb-2 text-sm font-medium">Sessões por hora</p>
+        <div role="img" aria-label={`Pico de ${peak} sessões por hora`} className="flex h-16 items-end gap-1">
+          {hours.map((h) => (
+            <span key={h} className="flex h-full flex-1 flex-col justify-end">
+              <span className="bar rounded-t-sm" style={{ height: `${((byHour.get(h) ?? 0) / peak) * 100}%`, background: "var(--chart-1)", opacity: byHour.get(h) ? 1 : 0 }} />
+            </span>
+          ))}
+        </div>
+        <div className="mt-1 flex justify-between text-xs text-ink-3 tabular-nums"><span>7h</span><span>13h</span><span>20h</span></div>
+      </div>
+    </div>
+  );
+}

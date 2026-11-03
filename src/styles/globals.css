@@ -22,6 +22,10 @@
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-brand: var(--brand);
   --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
   --font-display: var(--font-instrument-serif), Georgia, serif;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -74,6 +78,11 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
   border-radius: 20px;
   box-shadow: var(--shadow);
 }
+/* Cartão principal: gradiente verde suave, texto em --ink (contraste forte nos dois temas) */
+.hero { background: var(--hero); border-color: var(--hero-line); }
+/* Ícone em quadrado arredondado com fundo tonal */
+.tile { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
+.tile > svg { width: 20px; height: 20px; }
 .hairline { height: 1px; background: var(--brand-gradient); opacity: 0.7; }
 
 /* Botões: pressão + ripple discreto, só transform/opacity */
@@ -147,6 +156,12 @@ textarea.field { padding-block: 12px; }
 .pop-in { animation: pop 150ms var(--ease-out-soft) both; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: scale(0.96); } }
+
+/* Linha do gráfico: desenha uma vez ao montar (stroke-dashoffset é só pintura, sem layout) */
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 500ms var(--ease-out-soft) 100ms forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.rise { animation: rise 260ms var(--ease-out-soft) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
 .bar { transform-origin: bottom; animation: bar 200ms var(--ease-out-soft) both; }
 .bar-h { transform-origin: left; animation: bar-h 200ms var(--ease-out-soft) both; }

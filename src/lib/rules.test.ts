@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatCpfInput, isValidCpf, maskCpf } from "./cpf";
 import { computeSessionMetrics, type MetricRow } from "./metrics";
-import { phaseLabel, pickMessage, progressOf } from "./progress";
+import { attendance, phaseLabel, pickMessage, progressOf, stageOf } from "./progress";
 import { freePhysiosAt, haversineKm, hourBand, hoursForDay, isPeakHour, planSessions, rescheduleBlock } from "./schedule";
 import { UNIDADES } from "./unidades";
 import { atRecife, dayKey, fmtRelative, HOUR, recifeParts } from "./time";
@@ -39,6 +39,17 @@ describe("Progresso", () => {
     expect(phaseLabel(5, 10)).toBe("Fase crítica");
     expect(phaseLabel(6, 10)).toBe("Fase crítica");
     expect(phaseLabel(7, 10)).toBe("Consolidação");
+  });
+});
+
+describe("Painel do paciente", () => {
+  it("fase pelo avanço", () => {
+    expect([0, 2, 3, 5, 6, 9, 10].map((d) => stageOf(d, 10))).toEqual([0, 1, 1, 2, 2, 3, 4]);
+  });
+  it("presença e sequência sem falta", () => {
+    const st = (xs: string[]) => xs.map((status) => ({ status }));
+    expect(attendance([])).toEqual({ presence: null, streak: 0, missed: 0 });
+    expect(attendance(st(["REALIZADA", "FALTA", "REALIZADA", "DESMARCADA", "REALIZADA", "AGENDADA"]))).toEqual({ presence: 75, streak: 2, missed: 1 });
   });
 });
 

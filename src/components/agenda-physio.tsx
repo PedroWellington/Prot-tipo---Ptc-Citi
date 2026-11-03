@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, MessageCircleHeart } from "lucide-react";
+import { CalendarDays, Check, CircleCheckBig, Clock, MessageCircleHeart } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { AgendaRow, isOpen, type AgendaItem } from "@/components/agenda-row";
@@ -47,9 +47,9 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless }: { i
       <div className="flex flex-col gap-4">
         <DayNav day={day} onChange={setDay} />
         <div className="grid grid-cols-3 gap-3">
-          <Stat label="Sessões" value={rows?.length ?? 0} />
-          <Stat label="Realizadas" value={rows?.filter((s) => s.status === "REALIZADA").length ?? 0} />
-          <Stat label="A atender" value={rows?.filter(isOpen).length ?? 0} />
+          <Stat label="Sessões" value={rows?.length ?? 0} icon={<CalendarDays />} tone="info" />
+          <Stat label="Realizadas" value={rows?.filter((s) => s.status === "REALIZADA").length ?? 0} icon={<CircleCheckBig />} tone="ok" />
+          <Stat label="A atender" value={rows?.filter(isOpen).length ?? 0} icon={<Clock />} tone="warn" />
         </div>
         {isLoading && <ListSkeleton />}
         {error && <ErrorState error={error} retry={refetch} />}

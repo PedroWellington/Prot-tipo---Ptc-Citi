@@ -11,7 +11,7 @@ import { currentUser } from "../auth/session";
 import * as cfg from "../repositories/config";
 import { patientProfileType } from "../repositories/patients";
 import * as usersRepo from "../repositories/users";
-import { createGuidance, findTreatment, updateTreatment } from "../repositories/treatments";
+import { createGuidance, findTreatment, setGuidanceDone, updateTreatment } from "../repositories/treatments";
 import { allWaitlist, patientRequests } from "../repositories/requests";
 import { purgeRateLimits } from "../repositories/rate-limit";
 import * as auth from "../services/auth";
@@ -98,6 +98,7 @@ const booking = z.object({
   .refine((b) => b.pattern.length === 1 || b.pattern[0].weekday !== b.pattern[1].weekday, { path: ["pattern"], message: "Escolha dias diferentes" });
 
 const missBody = z.object({ status: z.enum(["FALTA", "DESMARCADA"]), reason: z.enum(MISS_REASONS), note: optText(300) });
+const painBody = z.object({ score: z.number().int().min(0).max(10) });
 
 const patientOf = (c: Ctx) => {
   const id = c.user.patient?.id;
@@ -141,6 +142,10 @@ route("POST", "/confirm/:token", {
 // ── Paciente ─────────────────────────────────────────────────
 route("GET", "/me/home", { roles: PATIENT, summary: "Dados da tela Meu tratamento" }, (c) => patients.patientHome(patientOf(c)));
 route("POST", "/me/sessions/:id/confirm", { roles: PATIENT, summary: "Confirma presença" }, (c) => sessions.confirmSession(c.params.id, patientOf(c)));
+route("POST", "/me/sessions/:id/pain", { roles: PATIENT, body: painBody, summary: "Registra a dor de hoje (0 a 10)" }, (c) => sessions.recordPain(c.params.id, c.body.score, { patientId: patientOf(c) }));
+route("POST", "/me/guidances/:id/done", { roles: PATIENT, body: z.object({ done: z.boolean() }), summary: "Marca exercício como feito" }, async (c) => {
+  if (!(await setGuidanceDone(c.params.id, patientOf(c), c.body.done)).count) throw notFound("Orientação");
+});
 route("GET", "/me/units", { roles: PATIENT, summary: "Unidades com horários dos próximos 7 dias" }, () => schedule.unitsOverview());
 route("GET", "/slots", {
   roles: [...PATIENT, ...FRONT_DESK],
@@ -256,6 +261,7 @@ route("GET", "/physio/agenda", { roles: PHYSIO, query: dayQuery, summary: "Agend
 });
 route("POST", "/physio/sessions/:id/done", { roles: PHYSIO, summary: "Marca sessão como realizada" }, ({ params, user }) => sessions.markDone(params.id, user));
 route("POST", "/physio/sessions/:id/miss", { roles: PHYSIO, body: missBody, summary: "Registra falta ou desmarcação com motivo" }, ({ params, body, user }) => sessions.markMissed(params.id, body, user));
+route("POST", "/physio/sessions/:id/pain", { roles: PHYSIO, body: painBody, summary: "Registra a dor relatada na sessão (0 a 10)" }, ({ params, body, user }) => sessions.recordPain(params.id, body.score, { user }));
 route("GET", "/physio/treatments/:id", { roles: CLINICAL, summary: "Detalhe do tratamento (acesso auditado)" }, ({ params, user }) => patients.staffTreatmentDetail(user, params.id));
 route("POST", "/physio/treatments/:id/abandon", {
   roles: PHYSIO, body: z.object({ reason: z.enum(MISS_REASONS), note: optText(300) }), summary: "Registra abandono",

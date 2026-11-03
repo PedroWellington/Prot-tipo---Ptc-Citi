@@ -1,14 +1,14 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Clock, Hourglass } from "lucide-react";
+import { CalendarClock, Clock, History, Hourglass, Repeat } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { Sheet } from "@/components/lazy-sheet";
 import { useUnits } from "@/components/patient-form";
 import type { Home } from "@/components/patient-home";
 import { useAction } from "@/components/providers";
-import { Badge, Button, Card, cx, Empty, ErrorState, LinkButton, ListSkeleton, PageTitle, Segmented, Select, Skeleton, Textarea } from "@/components/ui";
+import { Badge, Button, Card, cx, Empty, ErrorState, LinkButton, ListSkeleton, PageTitle, Segmented, Select, Skeleton, Textarea, Tile } from "@/components/ui";
 import { api } from "@/lib/api";
 import { q, type LateOfferRow } from "@/lib/queries";
 import { REQUEST_STATUS } from "@/lib/labels";
@@ -195,7 +195,7 @@ function Content() {
       ))}
 
       <section>
-        <h2 className="mb-2 font-semibold">Qual sessão você quer trocar?</h2>
+        <h2 className="mb-3 flex items-center gap-3 font-semibold"><Tile tone="info"><Repeat /></Tile>Qual sessão você quer trocar?</h2>
         {!upcoming.length ? (
           <Card><Empty art={<CalendarClock strokeWidth={1.2} className="size-10 text-ink-3" />} title="Nenhuma sessão futura" body="Quando houver sessões agendadas, elas aparecem aqui." action={<LinkButton variant="ghost" href="/app/agendar">Agendar</LinkButton>} /></Card>
         ) : (
@@ -219,7 +219,7 @@ function Content() {
       <div className="flex flex-col gap-4">
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-semibold">Lista de espera</h2>
+          <h2 className="flex items-center gap-3 font-semibold"><Tile tone="warn"><Hourglass /></Tile>Lista de espera</h2>
           <Button variant="ghost" onClick={() => qc.setQueryData(["open-wait"], true)}><Hourglass strokeWidth={1.5} className="size-4" />Entrar</Button>
         </div>
         {waitlist.data?.filter((w) => w.status === "ATIVA").map((w) => (
@@ -232,7 +232,7 @@ function Content() {
 
       {!!history.length && (
         <section>
-          <h2 className="mb-2 font-semibold">Histórico</h2>
+          <h2 className="mb-3 flex items-center gap-3 font-semibold"><Tile tone="accent"><History /></Tile>Histórico</h2>
           <ul className="card divide-y divide-line">
             {history.map((r) => (
               <li key={r.id} className="p-4">
