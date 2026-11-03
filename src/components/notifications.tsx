@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bell, BellOff, CalendarCheck, CalendarClock, Heart, Repeat, ShieldCheck, Sparkles, X, type LucideIcon } from "lucide-react";
+import { Bell, BellOff, CalendarCheck, CalendarClock, Heart, QrCode, Repeat, ShieldCheck, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { api } from "@/lib/api";
@@ -17,7 +17,7 @@ const KEY = ["notifications"];
 const useNotes = () => useQuery({ queryKey: KEY, queryFn: () => api<Notes>("/notifications"), refetchInterval: 30_000 });
 
 const ICONS: Record<string, LucideIcon> = {
-  PROGRESSO: Heart, LEMBRETE: CalendarClock, TROCA: Repeat, RENOVACAO: ShieldCheck, VAGA: Sparkles, TRATAMENTO: CalendarCheck,
+  PROGRESSO: Heart, LEMBRETE: CalendarClock, TROCA: Repeat, RENOVACAO: ShieldCheck, VAGA: Sparkles, TRATAMENTO: CalendarCheck, PAGAMENTO: QrCode,
 };
 
 export function BellButton({ onOpen, buttonRef }: { onOpen: () => void; buttonRef?: RefObject<HTMLButtonElement | null> }) {
@@ -35,13 +35,13 @@ export function BellButton({ onOpen, buttonRef }: { onOpen: () => void; buttonRe
   );
 }
 
-function NoteList({ onPick }: { onPick: (n: Note) => void }) {
+function NoteList({ onPick, onDismiss }: { onPick: (n: Note) => void; onDismiss: (n: Note) => void }) {
   const { data } = useNotes();
   if (!data?.items.length)
     return (
       <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
         <span className="flex size-14 items-center justify-center rounded-full bg-accent-soft text-accent"><BellOff strokeWidth={1.5} className="size-6" /></span>
-        <p className="font-display text-2xl">Tudo em dia</p>
+        <p className="font-display text-2xl">Tudo em dia por aqui</p>
         <p className="text-sm text-ink-2">Avisos sobre suas sessões aparecem aqui.</p>
       </div>
     );
@@ -50,8 +50,8 @@ function NoteList({ onPick }: { onPick: (n: Note) => void }) {
       {data.items.map((n) => {
         const Icon = ICONS[n.type] ?? Bell;
         return (
-          <li key={n.id} className="border-b border-line last:border-0">
-            <button type="button" onClick={() => onPick(n)} className="row-hover flex w-full gap-3 px-1 py-3.5 text-left">
+          <li key={n.id} className="flex items-start border-b border-line last:border-0">
+            <button type="button" onClick={() => onPick(n)} className="row-hover flex min-w-0 flex-1 gap-3 py-3.5 pl-1 text-left">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent"><Icon strokeWidth={1.5} className="size-[18px]" /></span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2">
@@ -62,6 +62,11 @@ function NoteList({ onPick }: { onPick: (n: Note) => void }) {
               </span>
               {!n.readAt && <span role="img" aria-label="Não lida" className="mt-2 size-2 shrink-0 rounded-full bg-accent" />}
             </button>
+            {/* Ícone pequeno, alvo de 44px: distinto do X de fechar o painel, que fica no cabeçalho */}
+            <button type="button" onClick={() => onDismiss(n)} aria-label="Apagar notificação" title="Apagar notificação"
+              className="mt-1.5 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:text-ink">
+              <X strokeWidth={1.75} className="size-3.5" />
+            </button>
           </li>
         );
       })}
@@ -69,14 +74,23 @@ function NoteList({ onPick }: { onPick: (n: Note) => void }) {
   );
 }
 
-function ReadAll() {
+function NoteActions() {
   const { data } = useNotes();
   const readAll = useAction({
     run: () => api("/notifications/read", { body: {} }),
     optimistic: { key: KEY, update: (old: Notes) => ({ unread: 0, items: old.items.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })) }) },
   });
-  if (!data?.unread) return null;
-  return <Button variant="ghost" className="w-full" onClick={() => readAll.mutate()}>Marcar todas como lidas</Button>;
+  const clearAll = useAction({
+    run: () => api("/notifications/dismiss", { body: {} }),
+    optimistic: { key: KEY, update: () => ({ unread: 0, items: [] }) },
+  });
+  if (!data?.items.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {!!data.unread && <Button variant="ghost" className="flex-1" onClick={() => readAll.mutate()}>Marcar todas como lidas</Button>}
+      <Button variant="ghost" className="flex-1" onClick={() => clearAll.mutate()}>Limpar todas</Button>
+    </div>
+  );
 }
 
 function Popover({ onClose, anchor, children }: { onClose: () => void; anchor: DOMRect; children: ReactNode }) {
@@ -100,7 +114,7 @@ function Popover({ onClose, anchor, children }: { onClose: () => void; anchor: D
         className="pop-in absolute flex max-h-[min(640px,calc(100dvh-32px))] w-[420px] flex-col rounded-2xl border border-line-strong bg-surface shadow-2xl outline-none">
         <header className="flex items-center justify-between px-5 pt-4 pb-2">
           <h2 className="font-display text-2xl">Notificações</h2>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="-mr-2 flex size-11 items-center justify-center rounded-full text-ink-2"><X strokeWidth={1.5} className="size-5" /></button>
+          <button type="button" onClick={onClose} aria-label="Fechar notificações" className="-mr-2 flex size-11 items-center justify-center rounded-full text-ink-2"><X strokeWidth={1.5} className="size-5" /></button>
         </header>
         {children}
       </div>
@@ -121,26 +135,33 @@ export function NotificationPanel({ open, anchor, onClose }: { open: boolean; an
       }),
     },
   });
+  const dismiss = useAction({
+    run: (n: Note) => api("/notifications/dismiss", { body: { id: n.id } }),
+    optimistic: {
+      key: KEY,
+      update: (old: Notes, n: Note) => ({ unread: n.readAt ? old.unread : Math.max(0, old.unread - 1), items: old.items.filter((x) => x.id !== n.id) }),
+    },
+  });
   const onPick = (n: Note) => {
     pick.mutate(n);
     onClose();
     if (n.href) router.push(n.href);
   };
-  const body = <NoteList onPick={onPick} />;
+  const body = <NoteList onPick={onPick} onDismiss={(n) => dismiss.mutate(n)} />;
   // anchor só existe quando o sino clicado é o da sidebar
   if (anchor) {
     if (!open) return null;
     return (
       <Popover onClose={onClose} anchor={anchor}>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">{body}</div>
-        <div className="p-4 empty:hidden"><ReadAll /></div>
+        <div className="px-4 pb-2 empty:hidden"><NoteActions /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2">{body}</div>
       </Popover>
     );
   }
   return (
     <Sheet open={open} onClose={onClose} title="Notificações">
+      <div className="mb-2 empty:hidden"><NoteActions /></div>
       {body}
-      <div className="mt-3 empty:hidden"><ReadAll /></div>
     </Sheet>
   );
 }

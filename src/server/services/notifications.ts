@@ -100,3 +100,4 @@ async function trySecondContact(item: Awaited<ReturnType<typeof repo.dueEmails>>
 export const listNotifications = repo.listNotifications;
 export const countUnread = repo.countUnread;
 export const markRead = repo.markRead;
+export const dismiss = repo.dismiss;

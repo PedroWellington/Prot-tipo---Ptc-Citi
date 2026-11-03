@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, CalendarPlus, Check, Clock, ExternalLink, FileText, MapPin, Navigation, QrCode, Repeat, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, CalendarPlus, Check, Clock, ExternalLink, FileText, MapPin, Navigation, Repeat, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
@@ -10,6 +10,7 @@ import { NOTA_ENDERECO } from "@/lib/unidades";
 import { RENEWAL_LABEL, SESSION_STATUS } from "@/lib/labels";
 import { countdown, fmtDate, fmtLong, fmtTime, fmtWeekShort } from "@/lib/time";
 import type { patientHome } from "@/server/services/patients";
+import { ExpiredNotice, PendingPaymentNotice } from "./payment-notices";
 import { ProgressRing } from "./progress-ring";
 import { useAction } from "./providers";
 import { Badge, Button, Card, cx, Empty, LinkButton, Skeleton, SuccessCheck } from "./ui";
@@ -201,6 +202,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
     return (
       <div className="flex flex-col gap-4">
         <h1 className="font-display text-[34px] leading-tight">Olá, {name}</h1>
+        {data.expiredPayment && <ExpiredNotice id={data.expiredPayment} />}
         <Card className="flex flex-col items-center text-center">
           <ProgressRing done={0} total={10} />
           <p className="mt-6 max-w-prose text-ink-2">{data.message}</p>
@@ -224,12 +226,8 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
         </Link>
       )}
 
-      {pendingPayment && (
-        <Link href={`/app/pagamento/${pendingPayment}`} className="card flex items-center gap-3 border-warn/40 p-4">
-          <QrCode strokeWidth={1.5} className="size-5 shrink-0 text-warn" />
-          <span className="text-sm"><b className="font-semibold">Pagamento pendente.</b> Conclua o PIX para garantir sua reserva.</span>
-        </Link>
-      )}
+      {data.expiredPayment && <ExpiredNotice id={data.expiredPayment} />}
+      {pendingPayment && <PendingPaymentNotice id={pendingPayment} />}
       {late && <LateCard late={late} />}
 
       <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">

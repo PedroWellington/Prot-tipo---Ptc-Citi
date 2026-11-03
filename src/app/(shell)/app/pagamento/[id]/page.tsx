@@ -1,11 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Info, Printer } from "lucide-react";
-import { use, useState } from "react";
+import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
+import { restorePendingNotice } from "@/components/payment-notices";
 import { haptic } from "@/components/providers";
 import { Badge, Button, Card, ErrorState, LinkButton, ListSkeleton, PageTitle, SuccessCheck } from "@/components/ui";
 import { api } from "@/lib/api";
+import { q } from "@/lib/queries";
 import { fmtStamp, fmtTime } from "@/lib/time";
 import type { paymentView } from "@/server/services/payments";
 
@@ -57,16 +60,26 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const { data: p, isLoading, error, refetch } = useQuery({
     queryKey: ["payment", id], queryFn: () => api<View>(`/me/payments/${id}`), placeholderData: undefined,
     // Tempo real leve: a confirmação da recepção aparece sozinha
-    refetchInterval: (q) => (q.state.data?.status === "AGUARDANDO" ? 5_000 : false),
+    refetchInterval: (query) => (query.state.data?.status === "AGUARDANDO" ? 5_000 : false),
   });
+  const router = useRouter();
+  const qc = useQueryClient();
+  useEffect(() => restorePendingNotice(id), [id]);
+  // Reserva vencida não tem tela própria: volta ao início, onde o aviso explica o que houve
+  const expired = p?.status === "EXPIRADO";
+  useEffect(() => {
+    if (!expired) return;
+    void qc.invalidateQueries({ queryKey: q.home.queryKey });
+    router.replace("/app");
+  }, [expired, router, qc]);
 
-  if (isLoading) return <ListSkeleton rows={3} />;
+  if (isLoading || expired) return <ListSkeleton rows={3} />;
   if (error || !p) return <ErrorState error={error} retry={refetch} />;
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageTitle eyebrow="Pagamento via PIX" title={p.status === "PAGO" ? "Comprovante" : p.status === "EXPIRADO" ? "Reserva expirada" : "Falta pouco"}
-        action={<Badge tone={p.status === "PAGO" ? "ok" : p.status === "EXPIRADO" ? "danger" : "warn"}>{p.status === "PAGO" ? "Pago" : p.status === "EXPIRADO" ? "Expirado" : "Aguardando pagamento"}</Badge>} />
+      <PageTitle eyebrow="Pagamento via PIX" title={p.status === "PAGO" ? "Comprovante" : "Falta pouco"}
+        action={<Badge tone={p.status === "PAGO" ? "ok" : "warn"}>{p.status === "PAGO" ? "Pago" : "Aguardando pagamento"}</Badge>} />
 
       {p.status === "AGUARDANDO" && (
         <div className="grid items-start gap-4 md:grid-cols-[300px_1fr]">
@@ -105,12 +118,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         </Card>
       )}
 
-      {p.status === "EXPIRADO" && (
-        <Card className="flex flex-col gap-3">
-          <p className="text-ink-2">O prazo terminou e o horário foi liberado. Nenhuma cobrança foi feita.</p>
-          <LinkButton href="/app/agendar">Agendar de novo</LinkButton>
-        </Card>
-      )}
     </div>
   );
 }

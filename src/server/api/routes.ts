@@ -207,6 +207,8 @@ route("GET", "/notifications", { summary: "Notificações e contador de não lid
 }));
 route("POST", "/notifications/read", { body: z.object({ id: z.string().optional() }), summary: "Marca como lida (uma ou todas)" },
   ({ user, body }) => notifications.markRead(user.id, body.id));
+route("POST", "/notifications/dismiss", { body: z.object({ id: z.string().optional() }), summary: "Apaga do sino (uma ou todas)" },
+  ({ user, body }) => notifications.dismiss(user.id, body.id));
 route("GET", "/files/:name", { summary: "Baixa arquivo enviado (restrito ao paciente dono e à equipe)" }, ({ params, user }) => uploads.readUpload(params.name, user));
 
 // ── Recepção ─────────────────────────────────────────────────

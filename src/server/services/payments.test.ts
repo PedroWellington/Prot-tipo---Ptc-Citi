@@ -3,6 +3,7 @@ import { hoursForDay } from "@/lib/schedule";
 import { prisma } from "../db";
 import { getUnit } from "../repositories/config";
 import { pendingPayments } from "../repositories/payments";
+import { patientHome } from "./patients";
 import { expirePayments } from "./payments";
 import type { CurrentUser } from "../auth/session";
 import { availableSlots, bookTreatment, reactivatePayment } from "./schedule";
@@ -64,6 +65,8 @@ describe.skipIf(!dbUp)("Expiração preguiçosa do PIX", () => {
     await expirePayments();
     expect((await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })).status).toBe("EXPIRADO");
     expect(await prisma.session.count({ where: { paymentId } })).toBe(0);
+    // A tela inicial avisa sem página própria
+    expect((await patientHome(patients[0].id)).expiredPayment).toBe(paymentId);
   });
 
   it("recepção reativa a reserva vencida enquanto o horário segue livre", async () => {

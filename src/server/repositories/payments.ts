@@ -47,6 +47,12 @@ export const patientPayments = (patientId: string) =>
     select: { id: true, status: true, amountCents: true, sessionCount: true, createdAt: true, paidAt: true, expiresAt: true },
   });
 
+/** Reserva que venceu na última semana: vira aviso na tela inicial até o paciente fechar. */
+export const recentExpiredPayment = async (patientId: string) =>
+  (await prisma.payment.findFirst({
+    where: { patientId, status: "EXPIRADO", expiresAt: { gt: new Date(Date.now() - 7 * 864e5) } }, orderBy: { expiresAt: "desc" }, select: { id: true },
+  }))?.id ?? null;
+
 export const firstSessionOf = (paymentId: string) =>
   prisma.session.findFirst({ where: { paymentId }, select: { unitId: true, physioId: true } });
 

@@ -328,6 +328,7 @@ model Notification {
   attempts      Int            @default(0)
   nextAttemptAt DateTime?
   readAt        DateTime?
+  dismissedAt   DateTime?
   createdAt     DateTime       @default(now())
 
   @@index([userId, createdAt])

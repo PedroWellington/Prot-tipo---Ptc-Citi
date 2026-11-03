@@ -5,6 +5,7 @@ import { pickMessage, phaseLabel, progressOf } from "@/lib/progress";
 import { prisma } from "../db";
 import { AppError, conflict, forbidden, notFound } from "../errors";
 import { audit, getSettings, listProgressMessages } from "../repositories/config";
+import { recentExpiredPayment } from "../repositories/payments";
 import { exportPatientData, findPatient, findPatientByUser, searchPatients, updatePatient } from "../repositories/patients";
 import { activeFutureSessions, cancelSessions, listTreatmentSessions } from "../repositories/sessions";
 import { findActiveTreatment, latestTreatment, treatmentDetail, updateTreatment } from "../repositories/treatments";
@@ -12,15 +13,19 @@ import * as users from "../repositories/users";
 import type { CurrentUser } from "../auth/session";
 import { hashPassword, sendInvite, type RegisterPayload } from "./auth";
 import { notify } from "./notifications";
+import { expirePayments } from "./payments";
 import { patientLate } from "./late";
 import { offerFreedSlot } from "./waitlist";
 import { patientRequests } from "./reschedule";
 
 /** Tudo que a tela "Meu tratamento" precisa, em uma resposta. */
 export async function patientHome(patientId: string) {
+  // Vence a reserva aqui também: a tela inicial mostra o aviso sem esperar o cron
+  await expirePayments();
   const t = await latestTreatment(patientId);
   const messages = await listProgressMessages();
-  if (!t) return { treatment: null, message: pickMessage(messages, 0, 10) };
+  const expiredPayment = await recentExpiredPayment(patientId);
+  if (!t) return { treatment: null, message: pickMessage(messages, 0, 10), expiredPayment };
   const [sessions, cfg, requests] = await Promise.all([
     listTreatmentSessions(t.id),
     getSettings(),
@@ -40,6 +45,7 @@ export async function patientHome(patientId: string) {
     sessions,
     nextSessionId: next?.id ?? null,
     pendingPayment: sessions.find((s) => s.payment?.status === "AGUARDANDO")?.payment?.id ?? null,
+    expiredPayment,
     late: await patientLate(patientId),
     pendingRequest: pending ? { id: pending.id, sessionId: pending.session.id, targetStartsAt: pending.targetStartsAt } : null,
     renewal: r && {
