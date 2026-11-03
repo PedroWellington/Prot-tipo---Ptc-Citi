@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import { AuthFrame } from "@/components/auth-frame";
+import { NewPasswordFields } from "@/components/password-fields";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
+import { passwordReady } from "@/lib/password";
 
 function Recuperar() {
   // Link de convite já traz a verificação: a pessoa vai direto ao código
@@ -14,6 +16,7 @@ function Recuperar() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pw, setPw] = useState({ password: "", confirm: "" });
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,7 +24,7 @@ function Recuperar() {
     setBusy(true); setError("");
     try {
       if (!id) setId((await api<{ verificationId: string }>("/auth/forgot", { body: f })).verificationId);
-      else { await api("/auth/reset", { body: { id, ...f } }); setDone(true); }
+      else { await api("/auth/reset", { body: { id, code: f.code, ...pw } }); setDone(true); }
     } catch (err) {
       setError(err instanceof ApiError && err.fields ? Object.values(err.fields)[0] : (err as Error).message);
     }
@@ -41,11 +44,11 @@ function Recuperar() {
         {!id ? <Input label="E-mail" name="email" type="email" required autoComplete="email" /> : (
           <>
             <Input label="Código" name="code" inputMode="numeric" maxLength={6} required autoComplete="one-time-code" />
-            <Input label="Nova senha" name="password" type="password" required autoComplete="new-password" hint="Pelo menos 8 caracteres, com letras e números." />
+            <NewPasswordFields value={pw} onChange={setPw} label={invite ? "Senha" : "Nova senha"} />
           </>
         )}
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-        <Button type="submit" variant="brand" loading={busy} className="w-full">{id ? "Redefinir senha" : "Enviar código"}</Button>
+        <Button type="submit" variant="brand" loading={busy} disabled={!!id && !passwordReady(pw.password, pw.confirm)} className="w-full">{invite ? "Criar senha" : id ? "Redefinir senha" : "Enviar código"}</Button>
       </form>
       <Link href="/login" className="mt-4 flex min-h-11 items-center justify-center text-sm text-ink-2">Voltar para o login</Link>
     </AuthFrame>

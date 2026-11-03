@@ -1,9 +1,25 @@
 import { describe, expect, it } from "vitest";
 import dados from "../../data/bairros-recife.json";
 import { buscarBairros, localizarBairro, ordenarPorDistancia, pontoNoPoligono, type Bairro } from "./bairros";
+import { passwordOk, passwordReady } from "./password";
 import { buildPixPayload, crc16 } from "./pix";
 
 const bairros = dados.bairros as unknown as Bairro[];
+
+describe("Senha", () => {
+  it("exige tamanho, letra e número", () => {
+    expect(passwordOk("abc12345")).toBe(true);
+    expect(passwordOk("abc1234")).toBe(false);
+    expect(passwordOk("12345678")).toBe(false);
+    expect(passwordOk("abcdefgh")).toBe(false);
+    expect(passwordOk(`a1${"x".repeat(71)}`)).toBe(false);
+  });
+  it("só libera com a confirmação igual", () => {
+    expect(passwordReady("abc12345", "abc12345")).toBe(true);
+    expect(passwordReady("abc12345", "abc12346")).toBe(false);
+    expect(passwordReady("curta1", "curta1")).toBe(false);
+  });
+});
 
 describe("PIX", () => {
   it("calcula o CRC16-CCITT-FALSE do vetor padrão", () => {

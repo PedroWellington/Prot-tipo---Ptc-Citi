@@ -61,7 +61,8 @@ async function register(type) {
     },
   }));
   ok(await c("/auth/register/verify", { body: { id: start.verificationId, code: await mailCode(email) } }));
-  ok(await c("/auth/register/complete", { body: { id: start.verificationId, password: "Teste1234" } }));
+  assert.equal((await c("/auth/register/complete", { body: { id: start.verificationId, password: "Teste1234", confirm: "Outra1234" } })).status, 422, "confirmação diferente");
+  ok(await c("/auth/register/complete", { body: { id: start.verificationId, password: "Teste1234", confirm: "Teste1234" } }));
   return c;
 }
 
@@ -256,7 +257,7 @@ step("CPF mascarado e unidades com horários");
   const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
   const corpo = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}`)).json();
   const id = corpo.HTML.match(/recuperar\?id=([0-9a-f-]{36})/)[1];
-  ok(await client()("/auth/reset", { body: { id, code, password: "Convite123" } }));
+  ok(await client()("/auth/reset", { body: { id, code, password: "Convite123", confirm: "Convite123" } }));
   const recepCf = await login(email, "Convite123");
   ok(await recepCf(`/desk/requests/${pedido.id}/approve`, { body: {} }));
 

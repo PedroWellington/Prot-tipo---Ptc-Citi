@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { AuthFrame } from "@/components/auth-frame";
+import { NewPasswordFields } from "@/components/password-fields";
 import { PatientForm } from "@/components/patient-form";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
+import { passwordReady } from "@/lib/password";
 
 const CONSENT = "Autorizo a Clínica Movimento a tratar meus dados pessoais e de saúde para o meu atendimento, conforme a LGPD. Posso baixar ou excluir meus dados a qualquer momento no meu perfil.";
 
@@ -15,6 +17,7 @@ export default function CadastroPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<{ field?: string; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pw, setPw] = useState({ password: "", confirm: "" });
 
   const run = (fn: (f: Record<string, FormDataEntryValue>) => Promise<void>) => async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,11 +58,11 @@ export default function CadastroPage() {
   return (
     <AuthFrame title="Crie sua senha" subtitle="Tudo certo com seu e-mail. Falta só a senha de acesso.">
       <form className="flex flex-col gap-4" onSubmit={run(async (f) => {
-        const r = await api<{ redirect: string }>("/auth/register/complete", { body: { id, password: f.password } });
+        const r = await api<{ redirect: string }>("/auth/register/complete", { body: { id, ...pw } });
         window.location.assign(r.redirect);
       })}>
-        <Input label="Senha" name="password" type="password" autoComplete="new-password" hint="Pelo menos 8 caracteres, com letras e números." required error={error?.msg} />
-        <Button type="submit" variant="brand" loading={busy} className="w-full">Concluir cadastro</Button>
+        <NewPasswordFields value={pw} onChange={setPw} error={error?.msg} />
+        <Button type="submit" variant="brand" loading={busy} disabled={!passwordReady(pw.password, pw.confirm)} className="w-full">Concluir cadastro</Button>
       </form>
     </AuthFrame>
   );

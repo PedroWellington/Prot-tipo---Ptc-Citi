@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
+import { PASSWORD_MAX, PASSWORD_RULES } from "@/lib/password";
 import { BOOKING_SIZES } from "@/lib/schedule";
 import { DAY, startOfRecifeDay } from "@/lib/time";
 import { AppError, badRequest, forbidden, notFound } from "../errors";
@@ -48,8 +49,13 @@ const CODE_RATE = { limit: 5, windowSec: 300, perEmail: 3 };
 export const MISS_REASONS = ["ALIVIO_DOR", "HORARIO", "TRANSPORTE", "CONVENIO", "SAUDE", "FINANCEIRO", "ESQUECIMENTO", "ATRASO", "OUTRO"] as const;
 
 const email = z.string().trim().toLowerCase().email("E-mail inválido").max(160);
-const password = z.string().min(8, "Use pelo menos 8 caracteres").max(72, "Use no máximo 72 caracteres")
-  .regex(/[a-zA-Z]/, "Inclua pelo menos uma letra").regex(/\d/, "Inclua pelo menos um número");
+const password = z.string().max(PASSWORD_MAX, `Use no máximo ${PASSWORD_MAX} caracteres`)
+  .superRefine((v, ctx) => {
+    const missing = PASSWORD_RULES.find((r) => !r.test(v));
+    if (missing) ctx.addIssue({ code: "custom", message: missing.label });
+  });
+const sameConfirm = { path: ["confirm"], message: "As senhas não coincidem" };
+const matches = (v: { password: string; confirm: string }) => v.password === v.confirm;
 const cpf = z.string().transform(onlyDigits).refine(isValidCpf, "CPF inválido");
 const phone = z.string().transform(onlyDigits).refine((v) => v.length >= 10 && v.length <= 13, "Telefone inválido");
 const optPhone = z.string().optional().transform((v) => (v ? onlyDigits(v) : undefined)).refine((v) => !v || v.length >= 10, "Telefone inválido");
@@ -113,11 +119,11 @@ route("POST", "/auth/register/start", { roles: "public", rate: CODE_RATE, body: 
   ({ body }) => auth.startRegistration(body));
 route("POST", "/auth/register/verify", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, code }), summary: "Confere o código de 6 dígitos" },
   ({ body }) => auth.verifyRegistration(body.id, body.code));
-route("POST", "/auth/register/complete", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, password }), summary: "Define a senha e cria a conta" },
+route("POST", "/auth/register/complete", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, password, confirm: z.string() }).refine(matches, sameConfirm), summary: "Define a senha, com confirmação, e cria a conta" },
   ({ body }) => auth.completeRegistration(body.id, body.password));
 route("POST", "/auth/forgot", { roles: "public", rate: CODE_RATE, body: z.object({ email }), summary: "Envia código de redefinição" },
   ({ body }) => auth.forgotPassword(body.email));
-route("POST", "/auth/reset", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, code, password }), summary: "Redefine a senha com o código" },
+route("POST", "/auth/reset", { roles: "public", rate: AUTH_RATE, body: z.object({ id: uuid, code, password, confirm: z.string() }).refine(matches, sameConfirm), summary: "Redefine a senha com o código e a confirmação" },
   ({ body }) => auth.resetPassword(body.id, body.code, body.password));
 route("POST", "/auth/password", { rate: AUTH_RATE, body: z.object({ current: z.string().min(1), next: password }), summary: "Troca a senha" },
   async ({ user, body }) => ({ ...(await auth.changePassword(user.id, body.current, body.next)), home: homeFor(user.role) }));

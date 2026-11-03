@@ -14,9 +14,9 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | POST | `/api/auth/logout` | público | Sair |
 | POST | `/api/auth/register/start` | público | Valida dados e envia o código por e-mail (limite 5/300s) |
 | POST | `/api/auth/register/verify` | público | Confere o código de 6 dígitos (limite 10/60s) |
-| POST | `/api/auth/register/complete` | público | Define a senha e cria a conta (limite 10/60s) |
+| POST | `/api/auth/register/complete` | público | Define a senha, com confirmação, e cria a conta (limite 10/60s) |
 | POST | `/api/auth/forgot` | público | Envia código de redefinição (limite 5/300s) |
-| POST | `/api/auth/reset` | público | Redefine a senha com o código (limite 10/60s) |
+| POST | `/api/auth/reset` | público | Redefine a senha com o código e a confirmação (limite 10/60s) |
 | POST | `/api/auth/password` | autenticado | Troca a senha (limite 10/60s) |
 | GET | `/api/units` | público | Unidades ativas (dados quase estáticos) |
 | GET | `/api/confirm/:token` | público | Dados do link de confirmação (limite 30/60s) |
