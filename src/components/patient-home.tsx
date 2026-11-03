@@ -69,10 +69,10 @@ function Hero({ name, done, total, message, finished, children }: { name: string
 // ── 2. Métricas ───────────────────────────────────────────────
 function Metric({ icon, tone, label, value, hint }: { icon: ReactNode; tone: Tone; label: string; value: ReactNode; hint?: string }) {
   return (
-    <div data-tone={tone} className="card stripe flex flex-col gap-2 p-4">
+    <div className="flex flex-col gap-2 rounded-2xl p-4">
       <Tile tone={tone}>{icon}</Tile>
       <p className="text-sm text-ink-2">{label}</p>
-      <p className="font-display text-[32px] leading-none tabular-nums">{value}</p>
+      <p className="band-num font-display text-[36px] leading-none tabular-nums">{value}</p>
       {hint && <p className="text-xs text-ink-3">{hint}</p>}
     </div>
   );
@@ -81,7 +81,7 @@ function Metric({ icon, tone, label, value, hint }: { icon: ReactNode; tone: Ton
 function Metrics({ done, total, sessions }: { done: number; total: number; sessions: SessionRow[] }) {
   const { presence, streak } = attendance(sessions);
   return (
-    <div className="grid grid-cols-2 gap-3 lg:col-span-4">
+    <div className="band card grid grid-cols-2 content-center gap-1 p-2 lg:col-span-4">
       <Metric icon={<CircleCheckBig />} tone="ok" label="Feitas" value={done} hint={`de ${total} sessões`} />
       <Metric icon={<Target />} tone="info" label="Restantes" value={total - done} />
       <Metric icon={<Percent />} tone={presence !== null && presence < 80 ? "warn" : "accent"} label="Presença" value={presence === null ? "–" : `${presence}%`} />

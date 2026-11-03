@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Acompanhe seu tratamento de fisioterapia.",
     start_url: "/",
     display: "standalone",
-    background_color: "#052e1f",
-    theme_color: "#052e1f",
+    background_color: "#123a6b",
+    theme_color: "#123a6b",
     lang: "pt-BR",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

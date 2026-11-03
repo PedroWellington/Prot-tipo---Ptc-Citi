@@ -19,7 +19,7 @@ import { tick } from "../services/cron";
 import { resetDemoStep, RESET_STEPS } from "../services/demo";
 import * as late from "../services/late";
 import * as analytics from "../services/analytics";
-import { assistant } from "../services/assistente";
+import { assistant, local } from "../services/assistente";
 import * as metrics from "../services/metrics";
 import * as notifications from "../services/notifications";
 import * as patients from "../services/patients";
@@ -332,9 +332,11 @@ route("GET", "/analytics/previsoes", {
 }, ({ query, user }) => analytics.previsoesAudited(user, query.unitId || undefined, query.semana, query.dias));
 route("GET", "/analytics/backtest", { roles: FRONT_DESK, summary: "Previsto x realizado em semanas e meses passados" }, () => analytics.backtest());
 route("POST", "/analytics/assistente", {
-  roles: FRONT_DESK, rate: { limit: 30, windowSec: 60 }, body: z.object({ text: z.string().trim().min(1).max(300) }),
-  summary: "Assistente local: pergunta em texto, resposta com os cálculos do sistema",
-}, ({ body, user }) => assistant.answer(body.text, user));
+  roles: FRONT_DESK, rate: { limit: 30, windowSec: 60 },
+  body: z.object({ text: z.string().trim().min(1).max(300), asked: z.array(z.string().max(300)).max(50).default([]) }),
+  summary: "Assistente local: pergunta em texto, resposta com os cálculos do sistema e perguntas relacionadas",
+}, ({ body, user }) => assistant.answer(body.text, user, body.asked));
+route("GET", "/analytics/assistente/inicio", { roles: FRONT_DESK, summary: "Nomes para as sugestões e o autocompletar (só nomes)" }, () => local.start());
 route("POST", "/analytics/export-audit", {
   roles: FRONT_DESK, body: z.object({ item: z.string().max(120) }), summary: "Registra exportação de PNG com nomes de pacientes",
 }, ({ body, user }) => cfg.audit(user.id, "EXPORTACAO_COM_NOMES", "Analytics", null, { item: body.item }));

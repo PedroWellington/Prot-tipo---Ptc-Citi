@@ -174,3 +174,57 @@ describe("Exportação PNG", () => {
     expect(scrub("ligue 81 98888-7777")).toBe("ligue •••");
   });
 });
+
+describe("Assistente: perguntas sugeridas", async () => {
+  const { autocomplete, followupsFor, readSize, starterNames, writeSize, SIZE_KEY } = await import("./assistente");
+
+  it("nunca repete o que já foi perguntado (sem diferença de acento ou maiúscula) e devolve 3 a 4", () => {
+    const asked = ["Previsão de faltas da próxima semana", "quais pacientes tem maior risco?"];
+    const out = followupsFor("faltas_semana", { top: "Helvira Lindoval" }, asked);
+    expect(out.length).toBeGreaterThanOrEqual(3);
+    expect(out.length).toBeLessThanOrEqual(4);
+    expect(out).not.toContain("Quais pacientes têm maior risco?");
+    expect(out.some((q) => q.includes("Helvira Lindoval"))).toBe(true);
+    const again = followupsFor("faltas_semana", { top: "Helvira Lindoval" }, [...asked, ...out]);
+    expect(again.filter((q) => out.includes(q))).toEqual([]);
+  });
+
+  it("cada intenção tem seguimentos ligados ao assunto", () => {
+    expect(followupsFor("perda_mes", {}, [])).toEqual(expect.arrayContaining(["Quanto eu recuperaria com lembretes?", "Qual unidade perde mais?", "Como reduzir as faltas da 6ª sessão?"]));
+    expect(followupsFor("risco_paciente", { name: "Nevina Galvarim" }, [])).toEqual(expect.arrayContaining(["Qual ação você sugere para Nevina Galvarim?", "O que mais pesa no risco de Nevina Galvarim?"]));
+  });
+
+  it("os nomes sugeridos vêm só dos pacientes do sistema e nunca carregam CPF", () => {
+    const rows = [{ name: "Helvira Lindoval", p: 0.2, cpf: "123.456.789-09" }, { name: "Isandro Fontarelo", p: 0.4, cpf: "98765432100" }];
+    const s = starterNames(rows);
+    expect(s.top).toBe("Isandro Fontarelo");
+    expect(s.names).toEqual(["Isandro Fontarelo", "Helvira Lindoval"]);
+    expect(JSON.stringify(s)).not.toMatch(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+    const sug = autocomplete("probabilidade da helv", s.names);
+    expect(sug).toEqual(["Qual a probabilidade de Helvira Lindoval faltar?"]);
+    expect(autocomplete("risco do isa", s.names)).toEqual(["Risco do paciente Isandro Fontarelo"]);
+    expect(autocomplete("probabilidade de zz", s.names)).toEqual([]);
+  });
+
+  it("o tamanho escolhido persiste e armazenamento bloqueado não quebra", () => {
+    const mem = new Map<string, string>();
+    const store = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    expect(readSize(store)).toBe("compacto");
+    writeSize(store, "ampliado");
+    expect(mem.get(SIZE_KEY)).toBe("ampliado");
+    expect(readSize(store)).toBe("ampliado");
+    const blocked = { getItem: () => { throw new Error("bloqueado"); }, setItem: () => { throw new Error("bloqueado"); } };
+    expect(readSize(blocked)).toBe("compacto");
+    expect(() => writeSize(blocked, "ampliado")).not.toThrow();
+  });
+
+  it("entende as perguntas de seguimento", () => {
+    expect(parseQuestion("Qual a probabilidade de Helvira Lindoval faltar?")).toMatchObject({ intent: "risco_paciente", name: "helvira lindoval" });
+    expect(parseQuestion("Qual ação você sugere para Helvira Lindoval?")).toMatchObject({ intent: "risco_paciente", focus: "acao", name: "helvira lindoval" });
+    expect(parseQuestion("O que mais pesa no risco de Helvira Lindoval?")).toMatchObject({ intent: "risco_paciente", focus: "fatores" });
+    expect(parseQuestion("Quanto eu recuperaria com lembretes?").intent).toBe("recuperar_lembretes");
+    expect(parseQuestion("Qual unidade perde mais?").intent).toBe("unidade_perde");
+    expect(parseQuestion("Quanto as faltas desta semana representam em dinheiro?").intent).toBe("dinheiro_semana");
+    expect(parseQuestion("Quem são os próximos pacientes de risco?").intent).toBe("pacientes_risco");
+  });
+});

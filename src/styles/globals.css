@@ -97,11 +97,25 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
 }
 /* Faixa superior colorida por categoria (só no claro: --stripe-mix é 0% no escuro) */
 .stripe { border-top: 3px solid color-mix(in srgb, var(--stripe-tone, var(--brand)) var(--stripe-mix), var(--line)); }
-.stripe[data-tone="ok"] { --stripe-tone: var(--brand); }
-.stripe[data-tone="accent"] { --stripe-tone: var(--chart-3); }
+.stripe[data-tone="ok"] { --stripe-tone: var(--ok); }
+.stripe[data-tone="accent"] { --stripe-tone: var(--chart-1); }
 .stripe[data-tone="info"] { --stripe-tone: var(--chart-2); }
-.stripe[data-tone="warn"] { --stripe-tone: var(--chart-5); }
+.stripe[data-tone="warn"] { --stripe-tone: var(--chart-3); }
 .stripe[data-tone="danger"] { --stripe-tone: var(--chart-4); }
+
+/* Cartão principal: cantos bem arredondados e a base em curva suave */
+.hero { border-radius: 32px 32px 50% 50% / 32px 32px 40px 40px; padding-bottom: 44px; }
+
+/* Faixa de indicadores grandes em azul-marinho: dentro dela os tokens viram os da faixa */
+.band {
+  background: var(--band-bg); border-color: transparent; color: var(--band-ink);
+  --ink: var(--band-ink); --ink-2: var(--band-ink-2); --ink-3: var(--band-ink-2); --line: var(--band-line);
+  --surface-2: rgb(255 255 255 / 0.1); --accent: var(--band-num);
+  --ok: var(--band-num); --ok-soft: rgb(255 255 255 / 0.12); --info: var(--band-num); --info-soft: rgb(255 255 255 / 0.12);
+  --warn: var(--band-num); --warn-soft: rgb(255 255 255 / 0.12); --danger: var(--band-num); --danger-soft: rgb(255 255 255 / 0.12);
+  --accent-soft: rgb(255 255 255 / 0.12);
+}
+.band .band-num { color: var(--band-num); }
 .stripe[data-tone="neutral"] { --stripe-tone: var(--line-strong); }
 /* Ícone em quadrado arredondado com fundo tonal */
 .tile { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
@@ -326,8 +340,17 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 
 /* Assistente: acima da barra de abas no celular, com margem segura; no desktop, no canto */
 .assistant-fab { bottom: calc(76px + env(safe-area-inset-bottom)); }
-@media (min-width: 640px) { .assistant-panel { bottom: calc(136px + env(safe-area-inset-bottom)); max-height: min(640px, calc(100dvh - 160px)); } }
+/* Celular: tela cheia nos dois tamanhos. Desktop: popover (compacto) ou janela grande centralizada (ampliado) */
+.assistant-panel { inset: 0; height: 100dvh; }
+@media (min-width: 640px) {
+  .assistant-panel { inset: auto; right: 24px; bottom: calc(136px + env(safe-area-inset-bottom)); width: 420px; height: auto; max-height: min(640px, calc(100dvh - 160px)); border-radius: 20px; }
+  .assistant-panel[data-size="ampliado"] {
+    right: auto; bottom: auto; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(880px, 94vw); height: 80vh; max-height: none; border-radius: 24px;
+  }
+}
 @media (min-width: 1024px) {
   .assistant-fab { bottom: 24px; }
   .assistant-panel { bottom: 84px; max-height: min(640px, calc(100dvh - 108px)); }
+  .assistant-panel[data-size="ampliado"] { bottom: auto; }
 }

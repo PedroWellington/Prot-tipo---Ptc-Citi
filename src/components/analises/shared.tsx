@@ -28,7 +28,7 @@ export function Figure({ label, value, hint, tone = "accent", icon }: { label: s
     <>
       <Tile tone={tone} className="mb-3">{icon}</Tile>
       <p className="pr-10 text-sm text-ink-2">{label}</p>
-      <p className="mt-1 font-display text-[32px] leading-none tabular-nums">{value}</p>
+      <p className="band-num mt-1 font-display text-[32px] leading-none tabular-nums">{value}</p>
       {hint && <p className="mt-2 text-sm text-ink-3">{hint}</p>}
     </>
   );

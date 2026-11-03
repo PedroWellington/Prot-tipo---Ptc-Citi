@@ -204,6 +204,7 @@ export function previsoes(unitId: string | undefined, semana: "atual" | "proxima
 
     const summarize = (list: typeof all) => {
       const exp = list.reduce((a, x) => a + (1 - x.f.p), 0);
+      const expectedLoss = list.reduce((a, x) => a + x.f.value * (1 - x.f.p), 0);
       const sd = Math.sqrt(list.reduce((a, x) => a + x.f.p * (1 - x.f.p), 0));
       const group = (key: (x: (typeof all)[number]) => string, order?: string[]) => {
         const m = new Map<string, { key: string; sessions: number; expected: number }>();
@@ -218,7 +219,7 @@ export function previsoes(unitId: string | undefined, semana: "atual" | "proxima
         return order ? order.filter((k) => m.has(k)).map((k) => out.find((g) => g.key === k)!) : out.sort((a, b) => b.expected - a.expected);
       };
       return {
-        sessions: list.length, expected: exp, p80: [Math.max(0, exp - 1.2816 * sd), exp + 1.2816 * sd] as [number, number],
+        sessions: list.length, expected: exp, expectedLoss, p80: [Math.max(0, exp - 1.2816 * sd), exp + 1.2816 * sd] as [number, number],
         rate: list.length ? exp / list.length : 0,
         byUnit: group((x) => unitName(x.f.unit)),
         byWeekday: group((x) => WEEKDAYS[recifeParts(x.row.startsAt).weekday], WEEKDAYS),

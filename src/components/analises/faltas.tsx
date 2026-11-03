@@ -31,7 +31,7 @@ export function FaltasTab({ f, now }: { f: Filters; now: number }) {
   if (error || !d) return <ErrorState error={error} retry={refetch} />;
 
   const stat = (item: string, icon: ReactNode, tone: Tone, label: string, value: string, hint?: string) => (
-    <ExportCard key={item} tone={tone} className="p-4 sm:p-5" spec={() => ({ item, title: label, filters: filt, body: { kind: "stats", items: [{ label, value, hint }] } })}>
+    <ExportCard key={item} className="band p-4 sm:p-5" spec={() => ({ item, title: label, filters: filt, body: { kind: "stats", items: [{ label, value, hint }] } })}>
       <Figure icon={icon} tone={tone} label={label} value={value} hint={hint} />
     </ExportCard>
   );

@@ -25,7 +25,8 @@ function Analises() {
   const [days, setDays] = useState("180");
   const [unit, setUnit] = useState("");
   const { data: units } = useUnits();
-  const [now] = useState(() => Date.now());
+  // Arredondado ao minuto: o servidor e o navegador montam o mesmo link do CSV (sem aviso de hidratação)
+  const [now] = useState(() => Math.floor(Date.now() / 60_000) * 60_000);
   const f: Filters = {
     unitId: unit, unidade: units?.find((u) => u.id === unit)?.name ?? "Todas", dias: Number(days),
     periodo: PERIODS.find((p) => p.value === days)!.label,

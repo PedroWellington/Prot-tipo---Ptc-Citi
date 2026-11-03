@@ -1,4 +1,4 @@
-import { matchNames, parseQuestion, SHORTCUTS, type Parsed } from "@/lib/assistente";
+import { followupsFor, matchNames, parseQuestion, SHORTCUTS, starterNames, type Parsed } from "@/lib/assistente";
 import { simulateLoss } from "@/lib/previsao";
 import { fmtDate, fmtTime, fmtWeekShort } from "@/lib/time";
 import type { CurrentUser } from "../auth/session";
@@ -13,6 +13,8 @@ export type Answer = {
   bars?: { label: string; value: number; display: string }[];
   link?: { href: string; label: string };
   choices?: { label: string; text: string }[];
+  /** "Quer saber mais?": perguntas ligadas ao assunto, sem as já feitas na conversa. */
+  followups?: string[];
   /** Nome do item no PNG; ausente = resposta sem números (não exporta). */
   export?: { item: string; title: string; filters: { unidade: string; periodo: string } };
   /** Pacientes citados: o PNG os troca por iniciais, salvo "Incluir nomes". */
@@ -27,7 +29,7 @@ export type Answer = {
 export interface AssistantProvider {
   readonly name: string;
   readonly enabled: boolean;
-  answer(text: string, user: CurrentUser): Promise<Answer>;
+  answer(text: string, user: CurrentUser, asked?: string[]): Promise<Answer>;
 }
 
 export class ExternalLLMProvider implements AssistantProvider {
@@ -51,8 +53,22 @@ export class LocalAssistantProvider implements AssistantProvider {
   readonly name = "local";
   readonly enabled = true;
 
-  async answer(text: string, user: CurrentUser): Promise<Answer> {
+  async answer(text: string, user: CurrentUser, asked: string[] = []): Promise<Answer> {
     const q = parseQuestion(text);
+    const a = await this.respond(q, user);
+    if (!q.intent) return a;
+    // Nome real do paciente de maior risco agora (só o nome, nunca CPF)
+    const top = (await previsoes(undefined, "atual", 180)).patients[0]?.name ?? null;
+    return { ...a, followups: followupsFor(q.intent, { top, name: a.names?.length === 1 ? a.names[0] : null }, [...asked, text]) };
+  }
+
+  /** Primeira tela: nomes reais para "Experimente" e para o autocompletar. */
+  async start() {
+    const [a, b] = await Promise.all([previsoes(undefined, "atual", 180), previsoes(undefined, "proxima", 180)]);
+    return starterNames([...a.patients, ...b.patients].map((p) => ({ name: p.name, p: p.p })));
+  }
+
+  private async respond(q: Parsed, user: CurrentUser): Promise<Answer> {
     const units = await listUnits();
     const unit = q.unit ? units.find((u) => u.code === q.unit) : undefined;
     const unidade = unit?.name ?? "Todas";
@@ -140,6 +156,41 @@ export class LocalAssistantProvider implements AssistantProvider {
           export: { item: "reduzir-faltas-6a-sessao", title: "Como reduzir as faltas da 6ª sessão", filters: { unidade, periodo: currentMonth() } },
         };
       }
+      case "recuperar_lembretes": {
+        const f = await financeiro(currentMonth(), unit?.id, 180);
+        const r20 = simulateLoss(f.sim, { reduce6pp: 0, remindersPct: 20, saturdayPct: 0 });
+        const r35 = simulateLoss(f.sim, { reduce6pp: 0, remindersPct: 35, saturdayPct: 0 });
+        const open = f.sim.filter((s) => !s.confirmed).length;
+        return {
+          text: `Há ${open} sessões ainda sem confirmação neste mês. Se os lembretes interativos cortarem 20% das faltas delas, você recuperaria cerca de ${brl(r20.saved)}; com 35%, ${brl(r35.saved)}. A perda futura esperada hoje é ${brl(r20.before)}.`,
+          numbers: [{ label: "Com 20% menos faltas", value: brl(r20.saved) }, { label: "Com 35% menos faltas", value: brl(r35.saved) }, { label: "Perda futura hoje", value: brl(r20.before) }, { label: "Sessões sem confirmação", value: String(open) }],
+          link: { href: desk ? "/recepcao/previsoes" : "/admin?aba=financeiro", label: "Abrir o simulador" },
+          export: { item: "recuperar-com-lembretes", title: "Quanto os lembretes recuperariam", filters: { unidade, periodo: currentMonth() } },
+        };
+      }
+      case "unidade_perde": {
+        const f = await financeiro(currentMonth(), undefined, 180);
+        const rows = f.breakdowns.unidade;
+        const worst = rows[0];
+        return {
+          text: worst ? `${worst.key} perde mais neste mês: ${brl(worst.totalLoss)} entre perdas já ocorridas (${brl(worst.pastLoss)}) e previstas (${brl(worst.expectedLoss)}). ${rows.slice(1).map((r) => `${r.key}: ${brl(r.totalLoss)}`).join(" · ")}.` : "Ainda não há perdas registradas ou previstas neste mês.",
+          bars: rows.map((r) => ({ label: r.key, value: r.totalLoss, display: brl(r.totalLoss) })),
+          numbers: worst ? [{ label: `Perda em ${worst.key}`, value: brl(worst.totalLoss) }, { label: "Já ocorrida", value: brl(worst.pastLoss) }, { label: "Prevista", value: brl(worst.expectedLoss) }] : undefined,
+          link: { href: tab("financeiro"), label: "Ver detalhes" },
+          export: { item: "perda-por-unidade", title: "Perda por unidade no mês", filters: { unidade: "Todas", periodo: currentMonth() } },
+        };
+      }
+      case "dinheiro_semana": {
+        const semana = q.period === "proxima_semana" ? "proxima" : "atual";
+        const w = (await previsoes(unit?.id, semana, 180)).week;
+        return {
+          text: `As ${num(w.expected)} faltas esperadas ${semana === "proxima" ? "na próxima semana" : "até o fim desta semana"} representam cerca de ${brl(w.expectedLoss)} que a clínica deixaria de receber, em ${w.sessions} sessões agendadas.`,
+          numbers: [{ label: "Valor em risco", value: brl(w.expectedLoss) }, { label: "Faltas esperadas", value: num(w.expected) }, { label: "Faixa de 80%", value: `${num(w.p80[0])} a ${num(w.p80[1])} faltas` }],
+          bars: w.byUnit.map((g) => ({ label: g.key, value: g.expected, display: `${num(g.expected)} faltas` })),
+          link: { href: tab("previsoes"), label: "Ver detalhes" },
+          export: { item: "faltas-semana-em-dinheiro", title: "Faltas da semana em dinheiro", filters: { unidade, periodo: semana === "proxima" ? "proxima-semana" : "semana-atual" } },
+        };
+      }
       default:
         return { text: "Não entendi a pergunta. Tente um destes atalhos:", choices: SHORTCUTS.filter((s) => !s.text.endsWith(" ")) };
     }
@@ -158,8 +209,14 @@ export class LocalAssistantProvider implements AssistantProvider {
     const p = found[0];
     await audit(user.id, "RISCO_PACIENTE_CONSULTADO", "PatientProfile", p.patientId, { via: "assistente" });
     const level = p.level === "alto" ? "alto" : p.level === "medio" ? "médio" : "baixo";
+    const base = `chance estimada de ${pct(p.p)} de faltar na próxima sessão (${fmtWeekShort(p.startsAt)} às ${fmtTime(p.startsAt)}, ${p.unit})`;
+    const text = q.focus === "acao"
+      ? `Para ${p.name} (${base}), a ação sugerida é: ${p.action.toLowerCase()}. ${p.level === "baixo" ? "O risco é baixo; o lembrete automático costuma bastar." : "Fazer isso até a véspera dá tempo de oferecer o horário à lista de espera se não der certo."}`
+      : q.focus === "fatores"
+        ? `O que mais pesa no risco de ${p.name} (${pct(p.p)}): ${p.factors.length ? p.factors.join("; ") : "nada fora do comum; vale a taxa do grupo"}. A base é a taxa do grupo (${pct(p.segmentRate)}), ajustada pelo histórico próprio de ${p.sample} sessões (confiança ${p.confidence}).`
+        : `${p.name}: ${base}. Risco ${level}, confiança ${p.confidence} (${p.sample} sessões de histórico). ${p.factors.length ? `Fatores: ${p.factors.join(", ")}.` : "Sem fatores de alerta; vale a taxa do grupo."} Sugestão: ${p.action.toLowerCase()}.`;
     return {
-      text: `${p.name}: chance estimada de ${pct(p.p)} de faltar na próxima sessão (${fmtWeekShort(p.startsAt)} às ${fmtTime(p.startsAt)}, ${p.unit}). Risco ${level}, confiança ${p.confidence} (${p.sample} sessões de histórico). ${p.factors.length ? `Fatores: ${p.factors.join(", ")}.` : "Sem fatores de alerta; vale a taxa do grupo."} Sugestão: ${p.action.toLowerCase()}.`,
+      text,
       numbers: [{ label: "Chance de faltar", value: pct(p.p) }, { label: "Taxa do grupo", value: pct(p.segmentRate) }, { label: "Confiança", value: p.confidence }, { label: "Próxima sessão", value: `${fmtDate(p.startsAt)} ${fmtTime(p.startsAt)}` }],
       link: { href, label: "Ver detalhes" },
       // O nome não entra no arquivo: o PNG pode circular fora da clínica
@@ -169,4 +226,5 @@ export class LocalAssistantProvider implements AssistantProvider {
   }
 }
 
-export const assistant: AssistantProvider = new LocalAssistantProvider();
+export const local = new LocalAssistantProvider();
+export const assistant: AssistantProvider = local;

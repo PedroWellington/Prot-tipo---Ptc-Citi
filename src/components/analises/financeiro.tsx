@@ -43,19 +43,19 @@ export function FinanceCards({ d, f }: { d: Data; f: Filters }) {
   const range = (r: { p80: [number, number] }) => `80%: ${brl(r.p80[0])} a ${brl(r.p80[1])}`;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-      <ExportCard tone="ok" spec={card("receita-realizada", "Receita realizada", "Até hoje", brl(c.realized), `${c.realizedCount} sessões realizadas`)}>
+      <ExportCard className="band" spec={card("receita-realizada", "Receita realizada", "Até hoje", brl(c.realized), `${c.realizedCount} sessões realizadas`)}>
         <Figure icon={<CircleDollarSign />} tone="ok" label="Receita realizada até hoje" value={brl(c.realized)} hint={`${c.realizedCount} sessões realizadas`} />
       </ExportCard>
-      <ExportCard tone="info" spec={card("receita-prevista", "Receita prevista no fim do mês", "Esperada", brl(c.revenue.expected), range(c.revenue))}>
+      <ExportCard className="band" spec={card("receita-prevista", "Receita prevista no fim do mês", "Esperada", brl(c.revenue.expected), range(c.revenue))}>
         <Figure icon={<TrendingUp />} tone="info" label="Receita prevista no fim do mês" value={brl(c.revenue.expected)} hint={range(c.revenue)} />
       </ExportCard>
-      <ExportCard tone="danger" spec={card("perda-prevista", "Perda prevista no mês", "Esperada", brl(c.loss.expected), range(c.loss))}>
+      <ExportCard className="band" spec={card("perda-prevista", "Perda prevista no mês", "Esperada", brl(c.loss.expected), range(c.loss))}>
         <Figure icon={<TrendingDown />} tone="danger" label="Perda prevista" value={brl(c.loss.expected)} hint={range(c.loss)} />
       </ExportCard>
-      <ExportCard tone="warn" spec={card("perda-ocorrida", "Perda já ocorrida", "Faltas e desmarcações tardias", brl(c.pastLoss), "no mês até agora")}>
+      <ExportCard className="band" spec={card("perda-ocorrida", "Perda já ocorrida", "Faltas e desmarcações tardias", brl(c.pastLoss), "no mês até agora")}>
         <Figure icon={<PiggyBank />} tone="warn" label="Perda já ocorrida" value={brl(c.pastLoss)} hint="faltas e desmarcações tardias" />
       </ExportCard>
-      <ExportCard tone="accent" spec={card("comparecimento-previsto", "Comparecimento previsto", "Sessões ainda agendadas", c.attendance === null ? "–" : pct(c.attendance), `${c.futureCount} sessões`)}>
+      <ExportCard className="band" spec={card("comparecimento-previsto", "Comparecimento previsto", "Sessões ainda agendadas", c.attendance === null ? "–" : pct(c.attendance), `${c.futureCount} sessões`)}>
         <Figure icon={<Users />} tone="accent" label="Comparecimento previsto" value={c.attendance === null ? "–" : pct(c.attendance)} hint={`${c.futureCount} sessões ainda agendadas`} />
       </ExportCard>
     </div>
