@@ -48,9 +48,16 @@ export const listAgenda = (where: Prisma.SessionWhereInput, take = 300) =>
 /** Sessões que ocupam horário no intervalo, para checagem de conflito. */
 export const busySessions = (unitId: string, from: Date, to: Date, db: Db = prisma) =>
   db.session.findMany({
-    where: { unitId, status: { in: ACTIVE }, startsAt: { gte: from, lt: to } },
+    where: {
+      unitId, status: { in: ACTIVE }, startsAt: { gte: from, lt: to },
+      // Reserva de PIX vencida não ocupa a agenda, mesmo antes de alguém liberar a linha
+      OR: [{ paymentId: null }, { payment: { OR: [{ status: { not: "AGUARDANDO" } }, { expiresAt: { gt: new Date() } }] } }],
+    },
     select: { startsAt: true, physioId: true },
   });
+
+export const physioBusyAt = async (physioId: string, startsAt: Date) =>
+  (await prisma.session.count({ where: { physioId, startsAt, status: { in: ACTIVE } } })) > 0;
 
 export const heldSlots = (unitId: string, from: Date, to: Date, db: Db = prisma) =>
   db.waitlistEntry.findMany({

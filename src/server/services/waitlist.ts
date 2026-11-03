@@ -2,7 +2,7 @@ import { fmtLong, fmtTime, HOUR, recifeParts } from "@/lib/time";
 import { conflict, forbidden, notFound } from "../errors";
 import { audit, getSettings } from "../repositories/config";
 import * as repo from "../repositories/requests";
-import { createSession, nextActiveSession, updateSession } from "../repositories/sessions";
+import { createSession, nextActiveSession, physioBusyAt, updateSession } from "../repositories/sessions";
 import { notify } from "./notifications";
 import { withSlotLock } from "./schedule";
 
@@ -21,7 +21,8 @@ export async function leaveWaitlist(id: string, patientId: string | null) {
 
 /** Vaga liberada: oferece ao primeiro da fila daquele horário e segura por tempo limitado. */
 export async function offerFreedSlot(unitId: string, startsAt: Date, physioId: string, excludeId?: string) {
-  if (startsAt <= new Date()) return;
+  // Uma reserva na mesma transação que liberou o horário pode já tê-lo ocupado de novo
+  if (startsAt <= new Date() || (await physioBusyAt(physioId, startsAt))) return;
   const { weekday, hour } = recifeParts(startsAt);
   const entry = await repo.nextInLine(unitId, weekday, hour, excludeId);
   if (!entry) return;

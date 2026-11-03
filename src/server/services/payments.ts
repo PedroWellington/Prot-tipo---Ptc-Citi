@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import QRCode from "qrcode";
-import { fmtLong, fmtStamp } from "@/lib/time";
+import { fmtLong, fmtStamp, fmtTime } from "@/lib/time";
 import type { CurrentUser } from "../auth/session";
 import { prisma } from "../db";
 import { AppError, conflict, forbidden, notFound } from "../errors";
@@ -36,6 +36,7 @@ export async function createPayment(
 }
 
 export async function paymentView(id: string, patientId: string | null) {
+  await expirePayments();
   const p = await repo.findPayment(id);
   if (!p || (patientId && p.patientId !== patientId)) throw notFound("Pagamento");
   const provider = paymentProvider();
@@ -53,7 +54,10 @@ async function markPaid(id: string, actorId: string | null) {
   const p = await repo.findPayment(id);
   if (!p) throw notFound("Pagamento");
   // Condicional: confirmação e expiração podem acontecer ao mesmo tempo, e só uma vence
-  if (!(await repo.settlePayment(id, actorId))) throw conflict(p.status === "PAGO" ? "Este pagamento já foi confirmado." : "Este pagamento expirou. O horário foi liberado.");
+  if (!(await repo.settlePayment(id, actorId))) {
+    if (p.status === "PAGO") throw conflict("Este pagamento já foi confirmado.");
+    throw new AppError(409, "PAGAMENTO_EXPIRADO", `A reserva venceu às ${fmtTime(p.expiresAt)} e os horários foram liberados. Se ainda estiverem livres, você pode reativá-la.`);
+  }
   const paidAt = new Date();
   await audit(actorId, "PAGAMENTO_CONFIRMADO", "Payment", id, { modo: actorId ? "manual" : "automatico" });
   await notify(p.patient.userId, {
@@ -64,6 +68,7 @@ async function markPaid(id: string, actorId: string | null) {
 }
 
 export async function confirmManually(id: string, user: CurrentUser) {
+  await expirePayments();
   const first = await repo.firstSessionOf(id);
   if (first) await assertDeskAccess(user, first.unitId, first.physioId);
   return markPaid(id, user.id);
@@ -80,28 +85,46 @@ export async function handleWebhook(rawBody: string, signature: string | null) {
   if (p.status === "AGUARDANDO") await markPaid(p.id, null);
 }
 
-/** Cron: reserva vencida devolve os horários. As sessões nunca pagas são apagadas para não sujar as métricas. */
-export async function expirePayments() {
-  for (const p of await repo.expiredPayments()) {
-    const freed = await prisma.$transaction(async (tx) => {
-      if (!(await repo.expirePayment(p.id, tx))) return null;
-      const sessions = await repo.deleteUnpaidSessions(p.id, tx);
-      if (p.treatmentId) await repo.releaseTreatment(p.treatmentId, p.createdTreatment, p.sessionCount, tx);
-      await audit(null, "PAGAMENTO_EXPIRADO", "Payment", p.id, undefined, tx);
-      return sessions;
-    });
-    if (!freed) continue;
+type Released = Awaited<ReturnType<typeof repo.expiredPayments>>[number] & { freed: { unitId: string; startsAt: Date; physioId: string }[] };
+
+/**
+ * Expiração preguiçosa: quem lista pagamentos ou reserva horários chama isto na própria transação,
+ * então a reserva vence na hora certa sem depender do cron. As sessões nunca pagas são apagadas para não sujar as métricas.
+ */
+export async function releaseExpired(tx: Prisma.TransactionClient): Promise<Released[]> {
+  const released: Released[] = [];
+  for (const p of await repo.expiredPayments(tx)) {
+    // Condicional: com duas transações vendo o mesmo vencido, só uma libera
+    if (!(await repo.expirePayment(p.id, tx))) continue;
+    const freed = await repo.deleteUnpaidSessions(p.id, tx);
+    if (p.treatmentId) await repo.releaseTreatment(p.treatmentId, p.sessionCount, tx);
+    await audit(null, "PAGAMENTO_EXPIRADO", "Payment", p.id, { sessoes: freed.map((s) => ({ ...s, startsAt: s.startsAt.toISOString() })) }, tx);
+    released.push({ ...p, freed });
+  }
+  return released;
+}
+
+/** Avisos depois do commit: paciente sabe que perdeu a reserva e a fila de espera recebe a vaga. */
+export async function announceReleased(released: Released[]) {
+  for (const p of released) {
     await notify(p.patient.userId, {
       type: "PAGAMENTO", title: "Reserva expirada",
-      body: `Não recebemos o pagamento a tempo, e o horário de ${fmtLong(freed[0]?.startsAt ?? new Date())} foi liberado. Você pode agendar de novo quando quiser.`,
+      body: `Não recebemos o pagamento a tempo, e o horário de ${fmtLong(p.freed[0]?.startsAt ?? new Date())} foi liberado. Você pode agendar de novo quando quiser.`,
       href: "/app/agendar",
     });
-    for (const s of freed) await offerFreedSlot(s.unitId, s.startsAt, s.physioId);
+    for (const s of p.freed) await offerFreedSlot(s.unitId, s.startsAt, s.physioId);
   }
 }
 
-export const patientPayments = repo.patientPayments;
+export const expirePayments = async () => announceReleased(await prisma.$transaction(releaseExpired));
+
+export async function patientPayments(patientId: string) {
+  await expirePayments();
+  return repo.patientPayments(patientId);
+}
+
 export async function pendingPayments(user: CurrentUser) {
+  await expirePayments();
   const scope = await deskScope(user);
   return scope ? repo.pendingPayments(scope) : [];
 }

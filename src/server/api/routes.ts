@@ -235,6 +235,7 @@ route("POST", "/desk/patients/:id/treatment", {
 }, ({ params, user, body }) => schedule.bookTreatment({ ...body, patientId: params.id }, user.id));
 route("GET", "/desk/payments", { roles: DESK_OR_PHYSIO, summary: "Pagamentos aguardando confirmação" }, ({ user }) => payments.pendingPayments(user));
 route("POST", "/desk/payments/:id/confirm", { roles: DESK_OR_PHYSIO, summary: "Confirma o PIX manualmente" }, ({ params, user }) => payments.confirmManually(params.id, user));
+route("POST", "/desk/payments/:id/reactivate", { roles: DESK_OR_PHYSIO, summary: "Reativa uma reserva de PIX vencida se os horários continuam livres" }, ({ params, user }) => schedule.reactivatePayment(params.id, user));
 route("POST", "/desk/sessions/:id/checkin", { roles: DESK_OR_PHYSIO, summary: "Check-in; cancela ofertas de vaga pendentes" }, ({ params, user }) => late.checkIn(params.id, user));
 route("POST", "/desk/sessions/:id/late", { roles: FRONT_DESK, summary: "Paciente atrasado: inicia o fluxo manualmente" }, ({ params, user }) => late.startLate(params.id, user.id));
 route("GET", "/desk/sessions/:id/late", { roles: FRONT_DESK, summary: "Linha do tempo do atraso" }, ({ params }) => late.lateTimeline(params.id));

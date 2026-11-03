@@ -2,14 +2,17 @@ import { Prisma } from "@prisma/client";
 import { freePhysiosAt, hoursForDay, isPeakHour, planSessions, type BusySlot, type WeeklySlot } from "@/lib/schedule";
 import { atRecife, DAY, dayKey, recifeParts, startOfRecifeDay } from "@/lib/time";
 import { prisma, type Db } from "../db";
+import type { CurrentUser } from "../auth/session";
 import { badRequest, conflict, notFound, slotTaken } from "../errors";
-import { audit, getUnit, listUnits } from "../repositories/config";
+import { audit, getSettings, getUnit, listUnits } from "../repositories/config";
+import * as payments from "../repositories/payments";
 import { findPatient } from "../repositories/patients";
 import { createRenewal, reopenRenewal } from "../repositories/requests";
 import { busySessions, createSessions, heldSlots, holidaysBetween, patientActiveTimes } from "../repositories/sessions";
 import { createTreatment, extendTreatment, findActiveTreatment } from "../repositories/treatments";
+import { assertDeskAccess } from "./access";
 import { notify } from "./notifications";
-import { createPayment } from "./payments";
+import { announceReleased, createPayment, releaseExpired } from "./payments";
 
 export const AUTHORIZED_BATCH = 5;
 const WEEKS_AHEAD = 26;
@@ -17,13 +20,17 @@ const WEEKS_AHEAD = 26;
 /** Serializa reservas por unidade; os índices únicos parciais são a segunda barreira. */
 export async function withSlotLock<T>(unitId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   try {
-    return await prisma.$transaction(
+    const [result, released] = await prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${unitId}))`;
-        return fn(tx);
+        // Antes de reservar, solta os PIX vencidos: a linha antiga bateria nos índices únicos do horário
+        const released = await releaseExpired(tx);
+        return [await fn(tx), released] as const;
       },
       { timeout: 15_000 },
     );
+    await announceReleased(released);
+    return result;
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw slotTaken();
     throw err;
@@ -159,6 +166,40 @@ export async function bookTreatment(input: BookInput, actorId: string) {
     return { treatmentId: treatment.id, firstSession: plan.dates[0], lastSession: plan.dates[count - 1], paymentId: payment?.id ?? null, count };
   });
   return result;
+}
+
+/** Recepção recebeu um PIX depois do prazo: devolve a reserva se os mesmos horários continuam livres. */
+export async function reactivatePayment(id: string, user: CurrentUser) {
+  const p = await payments.findPayment(id);
+  if (!p) throw notFound("Pagamento");
+  if (p.status !== "EXPIRADO") throw conflict("Só uma reserva expirada pode ser reativada.");
+  const record = await payments.expiryRecord(id);
+  const slots = (record?.sessoes ?? []).map((s) => ({ ...s, startsAt: new Date(s.startsAt) }));
+  if (!slots.length) throw conflict("Não há registro dos horários desta reserva. Agende de novo pelo paciente.");
+  const { unitId, physioId } = slots[0];
+  await assertDeskAccess(user, unitId, physioId);
+  const unit = await getUnit(unitId);
+  if (!unit) throw notFound("Unidade");
+  const now = new Date();
+  if (slots[0].startsAt <= now) throw conflict("O primeiro horário desta reserva já passou. Agende de novo pelo paciente.");
+
+  await withSlotLock(unitId, async (tx) => {
+    const { busy } = await occupancy(unitId, now, new Date(slots[slots.length - 1].startsAt.getTime() + 1), tx);
+    if (slots.some((s) => !freePhysiosAt(s.startsAt, [s.physioId], busy, unit.chairs).length))
+      throw conflict("Algum desses horários já foi ocupado. Agende de novo pelo paciente.");
+    // Como no agendamento: entra no tratamento em andamento; se a expiração o apagou, abre outro
+    const reuse = await findActiveTreatment(p.patientId, tx);
+    const treatment = reuse ?? await createTreatment({ patientId: p.patientId, unitId, physioId, totalSessions: slots.length }, tx);
+    if (reuse) await extendTreatment(reuse.id, slots.length, tx);
+    const offset = reuse ? reuse.totalSessions : 0;
+    await createSessions(slots.map((s, i) => ({
+      treatmentId: treatment.id, patientId: p.patientId, unitId, physioId: s.physioId, number: offset + i + 1, startsAt: s.startsAt, paymentId: id,
+    })), tx);
+    const cfg = await getSettings();
+    if (!(await payments.reactivatePayment(id, { treatmentId: treatment.id, createdTreatment: !reuse, expiresAt: new Date(Date.now() + cfg.pix_hold_minutes * 60_000) }, tx)))
+      throw conflict("Esta reserva já foi reativada.");
+    await audit(user.id, "PAGAMENTO_REATIVADO", "Payment", id, undefined, tx);
+  });
 }
 
 /** Unidades com os próximos horários: tela "Unidades". */
