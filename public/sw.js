@@ -1,4 +1,5 @@
-const SHELL = "mv-shell-v1";
+// Trocar a versão apaga no activate os assets antigos que o cache-first ainda serviria
+const SHELL = "mv-shell-v2";
 const DATA = "mv-data";
 const OFFLINE = "/offline";
 // Só leituras do próprio paciente; o logout apaga este cache

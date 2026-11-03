@@ -12,10 +12,13 @@ export function syncThemeColor() {
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", color));
 }
 
+// Chave nova: versões antigas, com o escuro como padrão, deixaram "mv-theme" salvo nos navegadores
+const THEME_KEY = "mv-tema";
+
 export function toggleTheme() {
   const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   document.documentElement.dataset.theme = next;
-  persist("mv-theme", next);
+  persist(THEME_KEY, next);
   syncThemeColor();
 }
 
@@ -50,5 +53,6 @@ export function toggleSidebar() {
   content?.animate([{ transform: `translateX(${collapsing ? SIDE_SHIFT : -SIDE_SHIFT}px)` }, { transform: "none" }], options);
 }
 
-// Roda antes da primeira pintura: sem flash de tema nem de sidebar
-export const THEME_SCRIPT = `(function(){var d=document.documentElement;function g(k){try{var v=localStorage.getItem(k);if(v)return v}catch(e){}var m=document.cookie.match(new RegExp(k+"=([a-z]+)"));return m&&m[1]}d.dataset.theme=g("mv-theme")||"light";d.dataset.sidebar=g("mv-sidebar")||"open"})()`;
+// Roda antes da primeira pintura: sem flash de tema nem de sidebar. Só aceita "dark"; qualquer outro valor vira o claro.
+// Também apaga a chave antiga, que fazia telas abrirem escuras.
+export const THEME_SCRIPT = `(function(){var d=document.documentElement;function g(k){try{var v=localStorage.getItem(k);if(v)return v}catch(e){}var m=document.cookie.match(new RegExp("(?:^|; )"+k+"=([a-z]+)"));return m&&m[1]}try{localStorage.removeItem("mv-theme")}catch(e){}document.cookie="mv-theme=; path=/; max-age=0";d.dataset.theme=g("${THEME_KEY}")==="dark"?"dark":"light";d.dataset.sidebar=g("mv-sidebar")||"open"})()`;
