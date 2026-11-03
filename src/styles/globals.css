@@ -227,8 +227,14 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 /* Texto sai primeiro e rápido; ao expandir, volta depois que a sidebar abriu */
 .nav-label { white-space: nowrap; transition: opacity 260ms ease-out 300ms, transform 260ms ease-out 300ms; }
 :root[data-sidebar="collapsed"] .nav-label { opacity: 0; transform: translateX(-8px); transition-duration: 150ms; transition-delay: 0ms; }
-.side-divider { transition: opacity 150ms; }
-:root[data-sidebar="collapsed"] .side-divider { opacity: 0; }
+/* Recolhida: a mesma borda sobe para cima dos ícones empilhados e encolhe para o trilho (52px de 232px, margem de 12px).
+   Largura fixa e só transform: nada de layout por quadro, e nada muda quando a sidebar termina de encolher */
+.side-divider {
+  width: calc(var(--side-open) - 24px);
+  transform-origin: left;
+  transition: transform var(--side-time) var(--side-ease);
+}
+:root[data-sidebar="collapsed"] .side-divider { transform: translateY(-64px) scaleX(calc(52 / 232)); }
 
 .side-foot > * { flex-shrink: 0; }
 .side-toggle, .side-nav, .side-foot > * { transition: transform var(--side-time) var(--side-ease); }
