@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
+import { NOTA_ENDERECO } from "@/lib/unidades";
 import { RENEWAL_LABEL, SESSION_STATUS } from "@/lib/labels";
 import { countdown, fmtDate, fmtLong, fmtTime, fmtWeekShort } from "@/lib/time";
 import type { patientHome } from "@/server/services/patients";
@@ -183,6 +184,7 @@ function UnitCard({ unit }: { unit: Full["treatment"]["unit"] }) {
       <h2 className="flex items-center gap-2 font-semibold"><MapPin strokeWidth={1.5} className="size-5 text-accent" />Sua unidade</h2>
       <p className="mt-2 font-display text-2xl">{unit.name}</p>
       <p className="text-sm text-ink-2">{unit.address}</p>
+      <p className="text-xs text-ink-3">{NOTA_ENDERECO}</p>
       <Link href="/app/unidades" className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-accent">Ver a mais perto de você</Link>
     </Card>
   );

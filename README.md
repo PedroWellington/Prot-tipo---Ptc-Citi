@@ -1,6 +1,6 @@
 # Clínica Movimento
 
-> **Protótipo com dados fictícios.** Pessoas, convênios, telefones, e-mails e endereços do seed são inventados. A clínica não é um serviço real em produção. O PIX não confirma sozinho e o WhatsApp é simulado (veja abaixo).
+> **Protótipo com dados fictícios.** Pessoas, convênios, telefones e e-mails do seed são inventados. Os endereços das unidades são locais públicos ilustrativos, sem número e sem relação com nenhum estabelecimento. A clínica não é um serviço real em produção. O PIX não confirma sozinho e o WhatsApp é simulado (veja abaixo).
 
 Sistema web de uma rede de fisioterapia com duas unidades em Recife (Boa Viagem e Casa Forte). Ataca as causas reais de abandono do tratamento: progresso visível com mensagens educativas, renovação antecipada do convênio com horário guardado, troca de horário self-service, confirmação interativa, lista de espera e métrica de faltas padronizada.
 
@@ -112,6 +112,10 @@ Para conectar o `WhatsAppCloudChannel` (API oficial da Meta), é preciso conta W
 Fonte: [Dados Abertos do Recife, conjunto "Área urbana", recurso "Bairros do Recife"](https://dados.recife.pe.gov.br/dataset/area-urbana), Prefeitura do Recife, licença [ODbL](http://www.opendefinition.org/licenses/odc-odbl). Os polígonos foram simplificados com tolerância de cerca de 16 m.
 
 As coordenadas do dispositivo ficam só na sessão do navegador e nunca vão para o servidor. Só o bairro é salvo, se o paciente quiser. Sem permissão, ou em HTTP (o navegador só libera a localização em HTTPS ou localhost), a origem é o bairro cadastrado ou escolhido.
+
+## Endereços das unidades
+
+Ajuste em `src/lib/unidades.ts` ou em Admin > Unidades. As coordenadas vêm do [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL): `way/174874801` e `way/673898374`. Para atualizar um banco já populado sem rodar o seed e sem apagar nada: `npm run db:unidades`.
 
 ## Decisões técnicas
 

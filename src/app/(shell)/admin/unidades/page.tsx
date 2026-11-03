@@ -6,6 +6,7 @@ import { useAction } from "@/components/providers";
 import { Button, Card, ErrorState, Input, ListSkeleton, PageTitle, Select, Toggle } from "@/components/ui";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
+import { NOTA_ENDERECO } from "@/lib/unidades";
 import type { listHolidays, listUnits } from "@/server/repositories/config";
 
 type Unit = Awaited<ReturnType<typeof listUnits>>[number];
@@ -32,7 +33,7 @@ function UnitForm({ u }: { u: Unit }) {
           lateToleranceMin: Number(f.lateToleranceMin), slotHoldMin: Number(f.slotHoldMin),
         });
       }}>
-        <Input label="Endereço" name="address" defaultValue={u.address} required />
+        <Input label="Endereço" name="address" defaultValue={u.address} hint={NOTA_ENDERECO} required />
         <Input label="Telefone" name="phone" defaultValue={u.phone} required />
         <div className="grid grid-cols-3 gap-3">
           <Input label="Cadeiras" name="chairs" type="number" min={1} defaultValue={u.chairs} />

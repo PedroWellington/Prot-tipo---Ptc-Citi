@@ -3,6 +3,7 @@ import dados from "../../data/bairros-recife.json";
 import { buscarBairros, localizarBairro, ordenarPorDistancia, pontoNoPoligono, type Bairro } from "./bairros";
 import { passwordOk, passwordReady } from "./password";
 import { buildPixPayload, crc16 } from "./pix";
+import { UNIDADES } from "./unidades";
 
 const bairros = dados.bairros as unknown as Bairro[];
 
@@ -59,8 +60,7 @@ describe("Bairros", () => {
   });
 
   it("identifica o bairro pelas coordenadas das unidades", () => {
-    expect(localizarBairro({ lat: -8.1197, lng: -34.906 }, bairros)?.bairro.nome).toBe("Boa Viagem");
-    expect(localizarBairro({ lat: -8.0339, lng: -34.9186 }, bairros)?.bairro.nome).toBe("Casa Forte");
+    for (const u of UNIDADES) expect(localizarBairro(u, bairros)?.bairro.nome).toBe(u.name);
   });
 
   it("fora de Recife usa o centroide mais próximo e avisa que não é exato", () => {
@@ -76,7 +76,7 @@ describe("Bairros", () => {
   });
 
   it("ordena as unidades pela mais próxima", () => {
-    const unidades = [{ id: "bv", lat: -8.1197, lng: -34.906 }, { id: "cf", lat: -8.0376, lng: -34.917 }];
+    const unidades = UNIDADES.map((u) => ({ id: u.code.toLowerCase(), lat: u.lat, lng: u.lng }));
     const pina = bairros.find((b) => b.nome === "Pina")!.centroide;
     const apipucos = bairros.find((b) => b.nome === "Apipucos")!.centroide;
     expect(ordenarPorDistancia(pina, unidades)[0].id).toBe("bv");

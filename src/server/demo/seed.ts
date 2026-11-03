@@ -3,17 +3,14 @@ import { MENSAGENS_PROGRESSO } from "../../../content/mensagens-progresso";
 import dadosBairros from "../../../data/bairros-recife.json";
 import { weeklyOccurrences, type WeeklySlot } from "../../lib/schedule";
 import { DAY, HOUR } from "../../lib/time";
+import { UNIDADES } from "../../lib/unidades";
 import { SETTING_DEFAULTS } from "../repositories/config";
 
 type Db = PrismaClient;
 
 export const HISTORY_TOTAL = 160;
 
-// Endereços e telefones fictícios; coordenadas aproximadas dos bairros, a confirmar em Admin > Unidades
-const UNITS = [
-  { code: "BV", name: "Boa Viagem", address: "Rua das Acácias Imaginárias, 100, Boa Viagem", phone: "(81) 0000-0001", lat: -8.1197, lng: -34.906, chairs: 4 },
-  { code: "CF", name: "Casa Forte", address: "Alameda dos Ipês Fictícios, 200, Casa Forte", phone: "(81) 0000-0002", lat: -8.0376, lng: -34.917, chairs: 3 },
-];
+const UNITS = UNIDADES;
 
 const HOLIDAYS = [
   ["2026-11-15", "Proclamação da República"], ["2026-11-20", "Consciência Negra"], ["2026-12-08", "Nossa Senhora da Conceição"],

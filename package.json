@@ -13,6 +13,7 @@
     "icons": "node scripts/gerar-icones.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:unidades": "tsx scripts/atualizar-unidades.ts",
     "db:reset": "prisma migrate reset --force",
     "docs:api": "tsx scripts/gerar-api-md.ts"
   },

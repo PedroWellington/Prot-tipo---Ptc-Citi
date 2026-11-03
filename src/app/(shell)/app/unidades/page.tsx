@@ -10,6 +10,7 @@ import { Badge, Button, Card, ErrorState, LinkButton, ListSkeleton, PageTitle, S
 import { api } from "@/lib/api";
 import { localizarBairro, ordenarPorDistancia, type Point } from "@/lib/bairros";
 import { q } from "@/lib/queries";
+import { NOTA_ENDERECO } from "@/lib/unidades";
 import { fmtTime, fmtWeekShort } from "@/lib/time";
 import type { unitsOverview } from "@/server/services/schedule";
 
@@ -44,7 +45,7 @@ function UnitCard({ u, km, nearest }: { u: Unit; km: number | null; nearest: boo
         {nearest && <Badge tone="accent"><LocateFixed className="size-3.5" />Mais perto de você</Badge>}
       </div>
       <ul className="mt-3 flex flex-col gap-1.5 text-sm text-ink-2">
-        <li className="flex gap-2"><MapPin strokeWidth={1.5} className="size-4 shrink-0" />{u.address}</li>
+        <li className="flex gap-2"><MapPin strokeWidth={1.5} className="size-4 shrink-0" /><span>{u.address}<span className="block text-xs text-ink-3">{NOTA_ENDERECO}</span></span></li>
         <li className="flex gap-2"><Clock strokeWidth={1.5} className="size-4 shrink-0" />Seg a sex, {u.openHour}h às {u.closeHour}h{u.saturdayEnabled && ` · Sáb, ${u.satOpenHour}h às ${u.satCloseHour}h`}</li>
         <li className="flex gap-2"><Phone strokeWidth={1.5} className="size-4 shrink-0" />{u.phone}</li>
       </ul>

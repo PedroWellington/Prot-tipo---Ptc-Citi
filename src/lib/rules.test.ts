@@ -3,6 +3,7 @@ import { formatCpfInput, isValidCpf, maskCpf } from "./cpf";
 import { computeSessionMetrics, type MetricRow } from "./metrics";
 import { phaseLabel, pickMessage, progressOf } from "./progress";
 import { freePhysiosAt, haversineKm, hourBand, hoursForDay, isPeakHour, planSessions, rescheduleBlock } from "./schedule";
+import { UNIDADES } from "./unidades";
 import { atRecife, dayKey, fmtRelative, HOUR, recifeParts } from "./time";
 
 describe("CPF", () => {
@@ -101,9 +102,9 @@ describe("Agenda", () => {
   });
 
   it("calcula distância entre as unidades", () => {
-    const km = haversineKm({ lat: -8.1197, lng: -34.906 }, { lat: -8.0376, lng: -34.917 });
-    expect(km).toBeGreaterThan(9);
-    expect(km).toBeLessThan(10);
+    const km = haversineKm(UNIDADES[0], UNIDADES[1]);
+    expect(km).toBeGreaterThan(11);
+    expect(km).toBeLessThan(12);
   });
 
   it("guarda UTC e devolve o horário de Recife", () => {
