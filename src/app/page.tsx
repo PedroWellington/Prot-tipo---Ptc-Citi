@@ -89,7 +89,7 @@ export default async function HomePage() {
               <h1 id="inicio-t" className="mt-4 font-display text-[40px] leading-[1.02] sm:text-[56px]">{c["hero.titulo"]}</h1>
               <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-2">{c["hero.texto"]}</p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href={AGENDAR} className="btn btn-brand min-h-12 px-6 text-base">Agendar tratamento</Link>
+                <Link href={AGENDAR} prefetch={false} className="btn btn-brand min-h-12 px-6 text-base">Agendar tratamento</Link>
                 <a href="#clinica" className="btn btn-line min-h-12 px-6 text-base">Conheça a clínica</a>
               </div>
             </div>
@@ -265,7 +265,7 @@ export default async function HomePage() {
                 ))}
               </ul>
             </div>
-            <Link href={AGENDAR} className="btn btn-brand min-h-12 px-6 text-base"><CalendarCheck strokeWidth={1.8} className="size-5" />Entrar para agendar</Link>
+            <Link href={AGENDAR} prefetch={false} className="btn btn-brand min-h-12 px-6 text-base"><CalendarCheck strokeWidth={1.8} className="size-5" />Entrar para agendar</Link>
           </div>
         </Section>
       </main>

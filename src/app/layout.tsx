@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import type { ReactNode } from "react";
-import { Providers } from "@/components/providers";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "@/styles/globals.css";
@@ -29,7 +28,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body>
         <ScrollProgress />
-        <Providers>{children}</Providers>
+        {/* React Query e avisos só entram onde são usados (área logada, cadastro, link de confirmação):
+            a página pública e o login baixam menos JavaScript */}
+        {children}
       </body>
     </html>
   );

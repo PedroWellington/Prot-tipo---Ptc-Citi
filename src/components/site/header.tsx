@@ -29,11 +29,11 @@ function AuthButtons({ home, onNavigate, stacked }: { home: string | null; onNav
   return (
     <div className={cx("flex gap-2", stacked && "flex-col")}>
       {home ? (
-        <Link href={home} onClick={onNavigate} className="btn btn-primary min-w-28">Minha área</Link>
+        <Link href={home} prefetch={false} onClick={onNavigate} className="btn btn-primary min-w-28">Minha área</Link>
       ) : (
         <>
-          <Link href="/cadastro" onClick={onNavigate} className={cx("btn btn-line min-w-28", !stacked && "hidden md:inline-flex")}>Criar conta</Link>
-          <Link href="/login" onClick={onNavigate} className="btn btn-primary min-w-28">Entrar</Link>
+          <Link href="/cadastro" prefetch={false} onClick={onNavigate} className={cx("btn btn-line min-w-28", !stacked && "hidden md:inline-flex")}>Criar conta</Link>
+          <Link href="/login" prefetch={false} onClick={onNavigate} className="btn btn-primary min-w-28">Entrar</Link>
         </>
       )}
     </div>
@@ -70,7 +70,7 @@ export function SiteHeader() {
     <header className="site-header sticky top-0 z-40 border-b border-line bg-surface">
       <a href="#conteudo" className="sr-only rounded-lg bg-accent-fill px-4 py-2 text-on-accent focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50">Pular para o conteúdo</a>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <a href="#inicio" aria-label="Movimento, início" className="shrink-0"><Logo size={22} /></a>
+        <a href="#inicio" className="shrink-0"><Logo size={22} /></a>
         <nav aria-label="Seções da página" className="hidden flex-1 justify-center xl:flex">
           <ul className="flex gap-1">
             {SECTIONS.map(([id, label]) => (
