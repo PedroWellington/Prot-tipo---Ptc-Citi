@@ -172,6 +172,12 @@ textarea.field { padding-block: 12px; }
 
 /* Leaflet no tema */
 .leaflet-container { background: var(--surface-2); font-family: inherit; border-radius: 16px; z-index: 0; }
+.leaflet-tile-pane { filter: var(--map-filter, none); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface-2); color: var(--ink); box-shadow: var(--shadow); }
+.leaflet-container a.leaflet-popup-close-button { color: var(--ink-3); }
+.leaflet-bar a { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.leaflet-control-attribution { background: var(--surface) !important; color: var(--ink-3); }
+.leaflet-control-attribution a { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }

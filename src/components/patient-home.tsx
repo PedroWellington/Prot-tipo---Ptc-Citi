@@ -237,7 +237,7 @@ function Phases({ done, total }: { done: number; total: number }) {
                 {i < current ? <Check className="size-4" /> : i + 1}
               </span>
             </span>
-            <span className={cx("text-xs sm:text-sm", i === current ? "font-semibold text-ink" : "text-ink-3")}>{s.name}</span>
+            <span className={cx("w-full text-[10px] leading-tight hyphens-auto min-[390px]:text-[11px] sm:text-sm", i === current ? "font-semibold text-ink" : "text-ink-3")}>{s.name}</span>
           </li>
         ))}
       </ol>
@@ -440,6 +440,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
     refetchInterval: 30_000,
   });
 
+  // Sem pacote: o mesmo desenho do painel em andamento, com tudo zerado
   if (!data.treatment)
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
@@ -447,12 +448,21 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
         <Hero name={name} done={0} total={10} message={data.message}>
           <LinkButton variant="brand" href="/app/agendar" className="flex-1 sm:flex-none"><CalendarPlus strokeWidth={1.5} className="size-4" />Agendar meu tratamento</LinkButton>
         </Hero>
-        <div className="flex flex-col gap-4 lg:col-span-4">
-          <PainChart sessions={[]} />
-          <Shortcuts />
-        </div>
+        <Metrics done={0} total={10} sessions={[]} />
+        <Card className="flex flex-col lg:col-span-5">
+          <SectionTitle icon={<CalendarClock />} tone="info">Próxima sessão</SectionTitle>
+          <Empty art={<CalendarPlus strokeWidth={1.2} className="size-10 text-brand" />} title="Nenhuma sessão ainda" body="Escolha 2 horários na semana e o plano de 10 sessões fica pronto."
+            action={<LinkButton variant="ghost" href="/app/agendar">Ver horários livres</LinkButton>} />
+        </Card>
+        <PainChart sessions={[]} className="lg:col-span-7" />
         <Phases done={0} total={10} />
-        <div className="lg:col-span-12"><Achievements done={0} total={10} sessions={[]} /></div>
+        <div className={cx("flex flex-col gap-4 lg:col-span-7", below)}>
+          <Exercises items={[]} />
+        </div>
+        <div className={cx("flex flex-col gap-4 lg:col-span-5", below)}>
+          <Shortcuts />
+          <Achievements done={0} total={10} sessions={[]} />
+        </div>
       </div>
     );
 
@@ -485,9 +495,11 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
       <Metrics done={t.done} total={t.total} sessions={sessions} />
 
       {next ? <NextCard s={next} unit={t.unit} pending={!!pendingRequest} /> : (
-        <Card className="lg:col-span-5">
+        <Card className="flex flex-col lg:col-span-5">
+          <SectionTitle icon={<CalendarClock />} tone="info">Próxima sessão</SectionTitle>
           {ended
-            ? <Empty art={<Award strokeWidth={1.2} className="size-10 text-brand" />} title={t.finished ? "Tratamento concluído" : "Tratamento encerrado"} body="Precisando, é só começar um novo plano." />
+            ? <Empty art={<Award strokeWidth={1.2} className="size-10 text-brand" />} title={t.finished ? "Tratamento concluído" : "Tratamento encerrado"} body="Precisando, é só começar um novo plano."
+                action={<LinkButton variant="ghost" href="/app/agendar">Ver horários livres</LinkButton>} />
             : <Empty art={<CalendarClock strokeWidth={1.2} className="size-10 text-ink-3" />} title="Sem sessões futuras" body="Fale com a recepção para retomar sua agenda." />}
         </Card>
       )}
