@@ -18,6 +18,8 @@ import * as auth from "../services/auth";
 import { tick } from "../services/cron";
 import { resetDemoStep, RESET_STEPS } from "../services/demo";
 import * as late from "../services/late";
+import * as analytics from "../services/analytics";
+import { assistant } from "../services/assistente";
 import * as metrics from "../services/metrics";
 import * as notifications from "../services/notifications";
 import * as patients from "../services/patients";
@@ -318,6 +320,26 @@ route("POST", "/webhooks/whatsapp", { roles: "public", raw: true, summary: "Resp
 
 // ── Administrador ────────────────────────────────────────────
 route("GET", "/admin/dashboard", { roles: ADMIN, query: period, summary: "Métricas por período e unidade" }, ({ query }) => metrics.dashboard(query.from, query.to, query.unitId));
+// ── Análises (admin e recepção; a fisioterapeuta não vê) ────────
+const historyDays = z.coerce.number().int().refine((n) => [30, 90, 180].includes(n)).default(180);
+route("GET", "/analytics/financeiro", {
+  roles: FRONT_DESK, summary: "Receita realizada, prevista e perda do mês, com faixa de confiança",
+  query: z.object({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(), unitId: z.string().optional(), dias: historyDays }),
+}, ({ query }) => analytics.financeiro(query.mes ?? analytics.currentMonth(), query.unitId || undefined, query.dias));
+route("GET", "/analytics/previsoes", {
+  roles: FRONT_DESK, summary: "Faltas previstas e risco por paciente (consulta auditada)",
+  query: z.object({ unitId: z.string().optional(), semana: z.enum(["atual", "proxima"]).default("atual"), dias: historyDays }),
+}, ({ query, user }) => analytics.previsoesAudited(user, query.unitId || undefined, query.semana, query.dias));
+route("GET", "/analytics/backtest", { roles: FRONT_DESK, summary: "Previsto x realizado em semanas e meses passados" }, () => analytics.backtest());
+route("POST", "/analytics/assistente", {
+  roles: FRONT_DESK, rate: { limit: 30, windowSec: 60 }, body: z.object({ text: z.string().trim().min(1).max(300) }),
+  summary: "Assistente local: pergunta em texto, resposta com os cálculos do sistema",
+}, ({ body, user }) => assistant.answer(body.text, user));
+route("POST", "/analytics/export-audit", {
+  roles: FRONT_DESK, body: z.object({ item: z.string().max(120) }), summary: "Registra exportação de PNG com nomes de pacientes",
+}, ({ body, user }) => cfg.audit(user.id, "EXPORTACAO_COM_NOMES", "Analytics", null, { item: body.item }));
+route("POST", "/desk/sessions/:id/remind", { roles: FRONT_DESK, summary: "Envia lembrete agora (app, e-mail e WhatsApp simulado)" }, ({ params, user }) => analytics.remindSession(params.id, user));
+
 route("GET", "/admin/export.csv", { roles: ADMIN, query: period, summary: "Relatório de sessões em CSV (sem dados pessoais)" }, async ({ query, user }) => {
   await cfg.audit(user.id, "RELATORIO_EXPORTADO", "Session");
   return new Response(await metrics.sessionsCsv(query.from, query.to, query.unitId), {

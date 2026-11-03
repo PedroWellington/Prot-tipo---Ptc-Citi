@@ -26,6 +26,13 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-brand: var(--brand);
+  --color-chrome: var(--chrome);
+  --color-nav-ink: var(--nav-ink);
+  --color-tab-ink: var(--tab-ink);
+  --color-tab-active: var(--tab-active-bg);
+  --color-tab-active-ink: var(--tab-active-ink);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
   --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
   --font-display: var(--font-instrument-serif), Georgia, serif;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -69,7 +76,7 @@ body::before {
 button, a, [role="button"], label { touch-action: manipulation; }
 button { cursor: pointer; }
 input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no foco */
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: var(--focus-w, 2px) solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 
 /* Superfícies */
 .card {
@@ -79,7 +86,23 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
   box-shadow: var(--shadow);
 }
 /* Cartão principal: gradiente verde suave, texto em --ink (contraste forte nos dois temas) */
-.hero { background: var(--hero); border-color: var(--hero-line); }
+.hero {
+  background: var(--hero); border-color: var(--hero-line);
+  /* Dentro do cartão principal os tokens viram os do hero: texto, anel, selo e botão acompanham o gradiente */
+  --ink: var(--hero-ink); --ink-2: var(--hero-ink-2); --ink-3: var(--hero-ink-3); --line: var(--hero-track);
+  --ring-a: var(--hero-ring-a); --ring-b: var(--hero-ring-b); --ring-c: var(--hero-ring-c);
+  --accent: var(--hero-badge-ink); --accent-soft: var(--hero-badge-bg);
+  --cta: var(--hero-cta); --on-cta: var(--hero-on-cta);
+  color: var(--ink);
+}
+/* Faixa superior colorida por categoria (só no claro: --stripe-mix é 0% no escuro) */
+.stripe { border-top: 3px solid color-mix(in srgb, var(--stripe-tone, var(--brand)) var(--stripe-mix), var(--line)); }
+.stripe[data-tone="ok"] { --stripe-tone: var(--brand); }
+.stripe[data-tone="accent"] { --stripe-tone: var(--chart-3); }
+.stripe[data-tone="info"] { --stripe-tone: var(--chart-2); }
+.stripe[data-tone="warn"] { --stripe-tone: var(--chart-5); }
+.stripe[data-tone="danger"] { --stripe-tone: var(--chart-4); }
+.stripe[data-tone="neutral"] { --stripe-tone: var(--line-strong); }
 /* Ícone em quadrado arredondado com fundo tonal */
 .tile { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
 .tile > svg { width: 20px; height: 20px; }
@@ -118,7 +141,7 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
 .btn-primary { background: var(--accent-fill); color: var(--on-accent); }
 .btn-brand { background: var(--cta); color: var(--on-cta); text-shadow: var(--cta-shadow); }
 .btn-ghost { background: var(--accent-soft); color: var(--ink); }
-.btn-line { border: 1px solid var(--line-strong); color: var(--ink); }
+.btn-line { border: 1px solid var(--btn-line-border); color: var(--ink); }
 .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
 
 @media (hover: hover) {
@@ -293,4 +316,18 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 
 @media print {
   aside, header, nav, .scroll-bar, .btn { display: none !important; }
+}
+
+/* Baixar PNG: no desktop aparece ao passar o mouse ou focar o cartão; no toque fica sempre visível */
+@media (hover: hover) {
+  .export-card .export-btn { opacity: 0; transition: opacity 150ms; }
+  .export-card:hover .export-btn, .export-card:focus-within .export-btn { opacity: 1; }
+}
+
+/* Assistente: acima da barra de abas no celular, com margem segura; no desktop, no canto */
+.assistant-fab { bottom: calc(76px + env(safe-area-inset-bottom)); }
+@media (min-width: 640px) { .assistant-panel { bottom: calc(136px + env(safe-area-inset-bottom)); max-height: min(640px, calc(100dvh - 160px)); } }
+@media (min-width: 1024px) {
+  .assistant-fab { bottom: 24px; }
+  .assistant-panel { bottom: 84px; max-height: min(640px, calc(100dvh - 108px)); }
 }

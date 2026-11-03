@@ -9,7 +9,7 @@
 
 /* Tema escuro: "modo noturno de hospital". Base azul-petróleo / cinza azulado; o verde só em ações e estados ativos.
    Contraste (WCAG AA): ink ≥ 10.8:1, ink-2 ≥ 8:1, ink-3 ≥ 5.6:1 e acentos ≥ 5:1 sobre todas as superfícies, inclusive surface-2. */
-:root[data-theme="dark"] {
+:root[data-theme="dark"], [data-theme="dark"] {
   --bg: #0e1a20;
   --surface: #1a2d35;
   --surface-2: #213840;
@@ -50,46 +50,101 @@
   --cta-shadow: none;
   /* Mapa: inverte os blocos do OpenStreetMap para o tom noturno, sem trocar de provedor */
   --map-filter: invert(1) hue-rotate(185deg) brightness(0.85) contrast(0.9) saturate(0.7);
+  /* Nomes criados para o claro; aqui repetem os valores de antes, então o escuro não muda */
+  --chrome: var(--surface);
+  --nav-ink: var(--ink-2);
+  --tab-ink: var(--ink-3);
+  --tab-active-bg: transparent;
+  --tab-active-ink: var(--accent);
+  --teal: #5fc9c3;
+  --teal-soft: rgb(95 201 195 / 0.14);
+  --chart-3: #4fb6b4;
+  --chart-4: #ef9aa8;
+  --chart-5: #e2b86b;
+  --stripe-mix: 0%;
+  /* Barras das métricas de faltas: no escuro seguem todas na cor de antes */
+  --bar-1: var(--chart-1); --bar-2: var(--chart-1); --bar-3: var(--chart-1); --bar-4: var(--chart-1); --bar-5: var(--chart-1);
+  --btn-line-border: var(--line-strong);
+  --focus-w: 2px;
+  --hero-ink: var(--ink);
+  --hero-ink-2: var(--ink-2);
+  --hero-ink-3: var(--ink-3);
+  --hero-track: var(--line);
+  --hero-ring-a: var(--ring-a);
+  --hero-ring-b: var(--ring-b);
+  --hero-ring-c: var(--ring-c);
+  --hero-badge-bg: var(--accent-soft);
+  --hero-badge-ink: var(--accent);
+  --hero-cta: var(--cta);
+  --hero-on-cta: var(--on-cta);
   color-scheme: dark;
 }
 
-/* Tema claro: o padrão */
-:root, :root[data-theme="light"] {
-  --bg: #edf3ef;
+/* Tema claro: o padrão. Clínica viva: verde-água no fundo, cartões brancos que saltam, verde forte nas ações.
+   Contraste (WCAG AA), conferido: ink 14:1; ink-2 ≥ 5.8:1 e ink-3 ≥ 4.9:1 (inclusive na barra lateral);
+   texto branco ≥ 4.5:1 em accent-fill e em todo o gradiente do cartão principal; badges ≥ 4.9:1 sobre o fundo tonal.
+   --brand, --chart-* e as cores de apoio (turquesa, âmbar, coral) são só para ícones, barras e linhas, sempre com rótulo em texto ao lado. */
+:root, [data-theme="light"] {
+  --bg: #e3f3ec;
   --surface: #ffffff;
-  --surface-2: #e4eee8;
-  --sidebar: #e0ebe4;
-  --line: rgb(6 60 38 / 0.11);
-  --line-strong: rgb(6 60 38 / 0.22);
-  --ink: #04170f;
-  --ink-2: #2a463d;
-  --ink-3: #4a655c;
-  --brand: var(--green-500);
-  --accent: #0a7a52;
-  --accent-soft: rgb(15 157 107 / 0.12);
-  --accent-fill: var(--green-700);
+  --surface-2: #eaf5ef;
+  --sidebar: #d3ebe0;
+  --chrome: #d3ebe0;
+  --line: rgb(6 60 38 / 0.12);
+  --line-strong: rgb(6 60 38 / 0.24);
+  --ink: #06261d;
+  --ink-2: #3f5c54;
+  --ink-3: #4a6760;
+  --brand: #0b8f63;
+  --accent: #087a55;
+  --accent-soft: rgb(11 143 99 / 0.14);
+  --accent-fill: #0a875d;
   --on-accent: #ffffff;
-  --nav-active: rgb(15 157 107 / 0.13);
-  --nav-active-ink: #0a7a52;
-  --warn: #8f5300;
-  --warn-soft: #fcefd7;
-  --info: #1a5bbf;
-  --info-soft: #e3edfc;
-  --danger: #b0283b;
-  --danger-soft: #fce6e9;
-  --ok: #0a7a52;
-  --ok-soft: #daf2e6;
-  --mesh-a: rgb(15 157 107 / 0.12);
-  --shadow: 0 1px 2px rgb(6 60 38 / 0.06), 0 6px 20px -10px rgb(6 60 38 / 0.18);
-  --hero: linear-gradient(135deg, #dff5ea 0%, #d5efe2 50%, #e3effa 100%);
-  --hero-line: rgb(15 157 107 / 0.22);
-  --chart-1: #0f9d6b;
-  --chart-2: #3b74d6;
-  /* Só para linhas finas, anel de progresso e CTAs principais (texto branco ≥ 4.9:1 em toda a faixa) */
-  --brand-gradient: linear-gradient(100deg, #0b8058 0%, #0f7f8c 55%, #1769b8 100%);
-  --ring-a: #0f9d6b;
-  --ring-b: #14a3a0;
-  --ring-c: #3b74d6;
+  --nav-active: #0a875d;
+  --nav-active-ink: #ffffff;
+  --nav-ink: #0d4a3a;
+  --tab-ink: #0d4a3a;
+  --tab-active-bg: #0a875d;
+  --tab-active-ink: #ffffff;
+  --warn: #8a5300;
+  --warn-soft: #fde9c4;
+  --info: #1559b0;
+  --info-soft: #dbe9fb;
+  --danger: #a8322a;
+  --danger-soft: #fde0dc;
+  --ok: #06704e;
+  --ok-soft: #cdeedd;
+  --teal: #0a6b68;
+  --teal-soft: #cdf0ee;
+  --mesh-a: rgb(18 165 160 / 0.14);
+  --shadow: 0 1px 2px rgb(6 60 38 / 0.08), 0 8px 24px -10px rgb(11 143 99 / 0.28);
+  --hero: linear-gradient(125deg, #0a875d 0%, #0c7b82 55%, #1769c4 100%);
+  --hero-line: transparent;
+  --hero-ink: #ffffff;
+  --hero-ink-2: #ffffff;
+  --hero-ink-3: #ffffff;
+  --hero-track: rgb(255 255 255 / 0.25);
+  --hero-ring-a: #b6f5d8;
+  --hero-ring-b: #ffffff;
+  --hero-ring-c: #bfe3ff;
+  --hero-badge-bg: rgb(255 255 255 / 0.18);
+  --hero-badge-ink: #ffffff;
+  --hero-cta: #ffffff;
+  --hero-on-cta: #087a55;
+  --chart-1: #0b8f63;
+  --chart-2: #2f7de1;
+  --chart-3: #12a5a0;
+  --chart-4: #ef6a5b;
+  --chart-5: #f2a516;
+  --stripe-mix: 100%;
+  --bar-1: var(--chart-1); --bar-2: var(--chart-2); --bar-3: var(--chart-3); --bar-4: var(--chart-4); --bar-5: var(--chart-5);
+  --btn-line-border: #0a875d;
+  --focus-w: 3px;
+  /* Linhas finas, anel e CTAs: branco ≥ 4.5:1 em toda a faixa */
+  --brand-gradient: linear-gradient(100deg, #0a875d 0%, #0c7b82 55%, #1769c4 100%);
+  --ring-a: #0b8f63;
+  --ring-b: #12a5a0;
+  --ring-c: #2f7de1;
   --cta: var(--brand-gradient);
   --on-cta: #ffffff;
   --cta-shadow: 0 1px 1px rgb(0 0 0 / 0.2);

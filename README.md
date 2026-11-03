@@ -117,6 +117,23 @@ As coordenadas do dispositivo ficam só na sessão do navegador e nunca vão par
 
 Ajuste em `src/lib/unidades.ts` ou em Admin > Unidades. As coordenadas vêm do [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL): `way/174874801` e `way/673898374`. Para atualizar um banco já populado sem rodar o seed e sem apagar nada: `npm run db:unidades`.
 
+## Análises: como calculamos as previsões
+
+Tudo roda no servidor da clínica, sem API externa nem modelo de linguagem. Funções puras em `src/lib/previsao.ts` (testadas em `previsao.test.ts`); os dados vêm de `src/server/services/analytics.ts`, com cache de 5 minutos.
+
+- **Chance de comparecer** de cada sessão agendada: `p = 1 − taxa de falta do segmento` (tipo de paciente × número da sessão × faixa de horário × unidade), com os últimos 6 meses (o filtro de período troca para 30 ou 90 dias). Taxa = faltas ÷ (realizadas + faltas).
+- **Poucos dados**: suavização Beta em cascata. Cada nível é puxado para o pai com peso de 20 sessões: `(faltas + 20 × taxa_do_pai) ÷ (sessões + 20)`, na ordem geral → tipo → tipo + sessão → tipo + sessão + horário + unidade. Usa o segmento mais específico com pelo menos 30 sessões; senão, sobe um nível.
+- **Renovação pendente** (sessão pré-reservada de convênio): usa a taxa da 6ª sessão de convênio.
+- **Fora da previsão**: sessões com pagamento pendente ou reserva vencida.
+- **Mês**: receita = realizadas + Σ valor × p; perda = faltas e desmarcações tardias já ocorridas + Σ valor × (1 − p). Faixas de 80% e 90% por 2.000 sorteios de Bernoulli por sessão (Monte Carlo, ~100 ms). Valores em Admin > Parâmetros (padrão: particular R$ 110, convênio R$ 55).
+- **Risco por paciente**: `(faltas + 0,5 × desmarcações tardias + 6 × taxa_do_segmento) ÷ (sessões + 6)`, ajustado por fatores explicáveis (faltou a última ×1,4; 2+ atrasos ×1,15; 2+ trocas ×1,1; 4+ presenças seguidas ×0,75; já confirmou ×0,6), limitado a 2–90%. Só comportamento de atendimento: nada de idade, sexo, bairro, nome ou CPF. Confiança pela amostra (< 3 sessões baixa, < 8 média). Toda consulta fica no log de auditoria.
+- **Backtest** (aba Previsões): o modelo é treinado só com o que existia antes de cada semana ou mês passado e comparado com o realizado (MAPE; AUC e acurácia por paciente). O histórico da demonstração é sintético (faltas sorteadas por grupo), então o risco individual quase não supera o do grupo.
+- **Assistente**: entende a pergunta por regras e dicionário (`src/lib/assistente.ts`) e responde com os mesmos cálculos. `AssistantProvider` tem a implementação local ativa; `ExternalLLMProvider` existe desativado e só deve ser ligado com contrato de dados (LGPD), anonimização e aprovação da clínica.
+- **PNG**: gerado no navegador (canvas, 1200 px × 2), carregado só no clique; nomes de pacientes saem como iniciais salvo "Incluir nomes" (auditado); CPF, telefone e e-mail são filtrados de qualquer texto.
+- **Dados de demonstração na Neon**: `npx tsx --env-file=.env.neon scripts/ajustar-demo.ts` (idempotente; só toca usuários `@exemplo.test`).
+
+Previsão estatística com dados fictícios de demonstração, sem garantia de resultado.
+
 ## Decisões técnicas
 
 - **Camadas:** `src/server/api/routes.ts` (tabela de rotas com perfis e Zod) → `services/` (regras) → `repositories/` (Prisma). Regras puras e testadas ficam em `src/lib/`.

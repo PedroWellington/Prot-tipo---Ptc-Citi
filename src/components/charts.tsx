@@ -71,11 +71,11 @@ export function Bars({ rows, label }: { rows: { key: string; rate: number }[]; l
   const max = Math.max(1, ...rows.map((r) => r.rate));
   return (
     <ul aria-label={label} className="flex flex-col gap-3">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <li key={r.key}>
           <div className="mb-1 flex justify-between text-sm"><span className="text-ink-2">{r.key}</span><span className="font-semibold tabular-nums">{fmt(r.rate)}</span></div>
           <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-            <div className="bar-h h-full rounded-full" style={{ width: `${(r.rate / max) * 100}%`, background: "var(--chart-1)" }} />
+            <div className="bar-h h-full rounded-full" style={{ width: `${(r.rate / max) * 100}%`, background: `var(--bar-${(i % 5) + 1})` }} />
           </div>
         </li>
       ))}

@@ -69,7 +69,7 @@ function Hero({ name, done, total, message, finished, children }: { name: string
 // ── 2. Métricas ───────────────────────────────────────────────
 function Metric({ icon, tone, label, value, hint }: { icon: ReactNode; tone: Tone; label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="card flex flex-col gap-2 p-4">
+    <div data-tone={tone} className="card stripe flex flex-col gap-2 p-4">
       <Tile tone={tone}>{icon}</Tile>
       <p className="text-sm text-ink-2">{label}</p>
       <p className="font-display text-[32px] leading-none tabular-nums">{value}</p>
@@ -391,7 +391,7 @@ function Shortcuts() {
   return (
     <nav aria-label="Atalhos" className="grid grid-cols-4 gap-2">
       {SHORTCUTS.map((s) => (
-        <Link key={s.href} href={s.href} className="card row-hover flex flex-col items-center gap-2 p-3 text-center text-sm font-medium transition-transform active:scale-[.97]">
+        <Link key={s.href} href={s.href} data-tone={s.tone} className="card stripe row-hover flex flex-col items-center gap-2 p-3 text-center text-sm font-medium transition-transform active:scale-[.97]">
           <Tile tone={s.tone}>{s.icon}</Tile>{s.label}
         </Link>
       ))}

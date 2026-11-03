@@ -1,13 +1,14 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CalendarPlus, ClipboardList, FileClock, HeartPulse, Hourglass, LayoutDashboard, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, Type, User, Users, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarPlus, ChartColumn, ClipboardList, FileClock, HeartPulse, Hourglass, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { toggleSidebar } from "@/lib/theme";
+import { AssistantButton } from "./assistant/button";
 import { BellButton, NotificationPanel } from "./notifications";
 import { ThemeToggle } from "./theme-toggle";
 import { cx, Logo, LogoMark } from "./ui";
@@ -22,6 +23,7 @@ const DESK: Item[] = [
   { href: "/recepcao/pagamentos", label: "Pagamentos", icon: QrCode },
   { href: "/recepcao/whatsapp", label: "WhatsApp", icon: MessageCircle },
   { href: "/recepcao/pacientes", label: "Pacientes", icon: Users },
+  { href: "/recepcao/previsoes", label: "Previsões", icon: TrendingUp },
 ];
 
 const DESK_FOR_PHYSIO = DESK.filter((d) => ["/recepcao/trocas", "/recepcao/renovacoes", "/recepcao/pagamentos"].includes(d.href));
@@ -40,13 +42,14 @@ export const NAV: Record<string, Item[]> = {
     { href: "/fisio/pacientes", label: "Pacientes", icon: ClipboardList },
   ],
   ADMIN: [
-    { href: "/admin", label: "Métricas", icon: LayoutDashboard },
+    { href: "/admin", label: "Análises", icon: ChartColumn },
     { href: "/admin/usuarios", label: "Equipe", icon: Users },
     { href: "/admin/unidades", label: "Unidades", icon: Settings },
     { href: "/admin/parametros", label: "Parâmetros", icon: SlidersHorizontal },
     { href: "/admin/textos", label: "Textos", icon: Type },
     { href: "/admin/auditoria", label: "Auditoria", icon: FileClock },
-    ...DESK.map((d) => ({ ...d, label: d.label === "Agenda" ? "Recepção" : d.label })),
+    // Previsões já é uma aba de Análises
+    ...DESK.filter((d) => d.href !== "/recepcao/previsoes").map((d) => ({ ...d, label: d.label === "Agenda" ? "Recepção" : d.label })),
   ],
 };
 
@@ -64,7 +67,7 @@ const SideNav = memo(function SideNav({ items, path }: { items: Item[]; path: st
     <nav aria-label="Principal" className="side-nav flex flex-1 flex-col gap-0.5 overflow-y-auto">
       {items.map((i) => (
         <Link key={i.href} href={i.href} prefetch aria-label={i.label} aria-current={isActive(path, i.href) ? "page" : undefined}
-          className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] pl-[13px] text-[15px]", isActive(path, i.href) ? "border-accent bg-nav-active font-semibold text-nav-active-ink" : "row-hover border-transparent text-ink-2")}>
+          className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] pl-[13px] text-[15px]", isActive(path, i.href) ? "border-accent bg-nav-active font-semibold text-nav-active-ink" : "row-hover border-transparent text-nav-ink")}>
           <i.icon strokeWidth={1.5} className="size-5 shrink-0" />
           <span className="nav-label truncate">{i.label}</span>
           <span aria-hidden className="nav-tip">{i.label}</span>
@@ -76,12 +79,12 @@ const SideNav = memo(function SideNav({ items, path }: { items: Item[]; path: st
 
 const Tabs = memo(function Tabs({ items, path }: { items: Item[]; path: string }) {
   return (
-    <nav aria-label="Abas" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav aria-label="Abas" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
       <ul className="flex overflow-x-auto overscroll-contain">
         {items.map((i) => (
           <li key={i.href} className={cx("min-w-0 flex-1", items.length > 5 && "min-w-[72px] shrink-0")}>
             <Link href={i.href} prefetch aria-current={isActive(path, i.href) ? "page" : undefined}
-              className={cx("flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]", isActive(path, i.href) ? "font-semibold text-accent" : "text-ink-3")}>
+              className={cx("mx-0.5 my-1 flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px]", isActive(path, i.href) ? "bg-tab-active font-semibold text-tab-active-ink" : "text-tab-ink")}>
               <i.icon strokeWidth={1.5} className="size-[22px]" />
               <span className="max-w-full truncate px-0.5">{i.label}</span>
             </Link>
@@ -123,6 +126,8 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
   const path = usePathname();
   // Unidade sem recepção: a fisioterapeuta assume as filas dos próprios pacientes
   const items = deskless ? [...NAV.FISIOTERAPEUTA, ...DESK_FOR_PHYSIO] : NAV[role];
+  // Análises e assistente: só administração e recepção (o servidor confere de novo em cada rota)
+  const analyst = role === "ADMIN" || role === "RECEPCAO";
   const sideBell = useRef<HTMLButtonElement>(null);
   // Guardar a rota em vez de um booleano: navegar fecha o painel e nada além do clique no sino abre
   const [notesAt, setNotesAt] = useState<string | null>(null);
@@ -187,10 +192,11 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
             )}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1760px] px-4 pt-6 pb-[calc(96px+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pt-8 lg:pb-10">{children}</main>
+        <main className={cx("mx-auto w-full max-w-[1760px] px-4 pt-6 sm:px-6 lg:px-8 lg:pt-8", analyst ? "pb-[calc(148px+env(safe-area-inset-bottom))] lg:pb-24" : "pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-10")}>{children}</main>
       </div>
 
       <Tabs items={items} path={path} />
+      {analyst && <AssistantButton />}
       <NotificationPanel open={notesAt === path} anchor={anchor} onClose={() => setNotesAt(null)} />
     </div>
   );

@@ -217,7 +217,7 @@ export function SuccessCheck() {
 
 export function Stat({ label, value, hint, icon, tone }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode; tone?: Tone }) {
   return (
-    <div className="card p-4 sm:p-5">
+    <div data-tone={tone} className={cx("card p-4 sm:p-5", !!icon && "stripe")}>
       {icon && <Tile tone={tone} className="mb-3">{icon}</Tile>}
       <p className="text-sm text-ink-2">{label}</p>
       <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{value}</p>
