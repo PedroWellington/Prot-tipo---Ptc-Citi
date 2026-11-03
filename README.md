@@ -68,7 +68,7 @@ Em Admin > Equipe, "Novo" envia um convite por e-mail para a pessoa criar a pró
 
 ## Interface
 
-Tema claro e escuro com botão em todos os perfis; a primeira visita segue o sistema. A sidebar recolhe pelo botão ou pela tecla `[`, e o M do logo também expande.
+Tema claro e escuro com botão em todos os perfis; todo mundo começa no claro, e a escolha fica salva no navegador. A sidebar recolhe pelo botão ou pela tecla `[`, e o M do logo também expande.
 
 ## Trocar a cor verde
 

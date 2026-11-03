@@ -8,7 +8,7 @@
   }
 
 /* Tema escuro: clínica premium, calmo e sóbrio. Sem preto puro, sem néon. */
-:root, :root[data-theme="dark"] {
+:root[data-theme="dark"] {
   --bg: #0f1613;
   --surface: #151e1a;
   --surface-2: #1b2621;
@@ -44,8 +44,8 @@
   color-scheme: dark;
 }
 
-/* Tema claro */
-:root[data-theme="light"] {
+/* Tema claro: o padrão */
+:root, :root[data-theme="light"] {
   --bg: #f3f8f5;
   --surface: #ffffff;
   --surface-2: #e8f1ec;

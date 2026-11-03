@@ -51,4 +51,4 @@ export function toggleSidebar() {
 }
 
 // Roda antes da primeira pintura: sem flash de tema nem de sidebar
-export const THEME_SCRIPT = `(function(){var d=document.documentElement;function g(k){try{var v=localStorage.getItem(k);if(v)return v}catch(e){}var m=document.cookie.match(new RegExp(k+"=([a-z]+)"));return m&&m[1]}d.dataset.theme=g("mv-theme")||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");d.dataset.sidebar=g("mv-sidebar")||"open"})()`;
+export const THEME_SCRIPT = `(function(){var d=document.documentElement;function g(k){try{var v=localStorage.getItem(k);if(v)return v}catch(e){}var m=document.cookie.match(new RegExp(k+"=([a-z]+)"));return m&&m[1]}d.dataset.theme=g("mv-theme")||"light";d.dataset.sidebar=g("mv-sidebar")||"open"})()`;
