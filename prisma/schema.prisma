@@ -514,3 +514,27 @@ model SiteContent {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/// Google Agenda por usuário da equipe. Tokens cifrados (AES-256-GCM, chave em GOOGLE_TOKEN_KEY)
+model GoogleConnection {
+  userId          String    @id
+  accessTokenEnc  String
+  refreshTokenEnc String
+  expiresAt       DateTime
+  calendarId      String
+  includeFullName Boolean   @default(false)
+  lastSyncAt      DateTime?
+  lastError       String?
+  createdAt       DateTime  @default(now())
+}
+
+/// Evento criado por sessão: o id é determinístico, então reenviar não duplica
+model GoogleEvent {
+  userId    String
+  sessionId String
+  eventId   String
+  hash      String
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, sessionId])
+}

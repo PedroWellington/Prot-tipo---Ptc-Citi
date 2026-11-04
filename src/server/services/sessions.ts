@@ -210,9 +210,9 @@ export async function tokenAction(token: string, action: "confirmar" | "trocar" 
   return { redirect: action === "trocar" ? `/app/troca?sessao=${row.sessionId}` : null };
 }
 
-export const unitAgenda = (unitId: string | undefined, from: Date, to: Date) =>
-  sessions.listAgenda({ startsAt: { gte: from, lt: to }, unitId });
+export const unitAgenda = (unitId: string | undefined, from: Date, to: Date, take?: number) =>
+  sessions.listAgenda({ startsAt: { gte: from, lt: to }, unitId }, take);
 
-export const physioAgenda = (physioId: string, from: Date, to: Date) =>
-  sessions.listAgenda({ startsAt: { gte: from, lt: to }, physioId });
+export const physioAgenda = (physioId: string, from: Date, to: Date, take?: number) =>
+  sessions.listAgenda({ startsAt: { gte: from, lt: to }, physioId }, take);
 

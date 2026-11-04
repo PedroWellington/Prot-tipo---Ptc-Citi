@@ -31,10 +31,48 @@ const store = () => { try { return localStorage; } catch { return null; } };
 
 let seq = 0;
 
+/** Lê a resposta em linhas JSON: etapas ("Consultando…") chegam na hora; a resposta conferida, no fim. */
+async function streamAnswer(body: unknown, onStep: (s: string) => void): Promise<Answer> {
+  const res = await fetch("/api/analytics/assistente", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .catch(() => { throw new Error("Sem conexão. Verifique sua internet e tente de novo."); });
+  if (res.status === 401) { location.href = "/login"; throw new Error("Sessão expirada"); }
+  if (!res.ok || !res.body) {
+    const j = await res.json().catch(() => null);
+    throw new Error(j?.error?.message ?? "Não consegui responder agora. Tente de novo.");
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buf += value;
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const ev = JSON.parse(line) as { type: "status"; text: string } | { type: "answer"; answer: Answer };
+      if (ev.type === "status") onStep(ev.text);
+      else return ev.answer;
+    }
+    if (done) throw new Error("Não consegui responder agora. Tente de novo.");
+  }
+}
+
+/** O texto aparece em poucos quadros, palavra a palavra; com movimento reduzido, de uma vez. */
+function Reveal({ text, className }: { text: string; className?: string }) {
+  const [shown, setShown] = useState(() => (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches ? text.length : 0));
+  useEffect(() => {
+    if (shown >= text.length) return;
+    const id = requestAnimationFrame(() => setShown((n) => { const next = text.indexOf(" ", n + Math.max(8, Math.ceil(text.length / 30))); return next < 0 ? text.length : next; }));
+    return () => cancelAnimationFrame(id);
+  }, [shown, text]);
+  return <p className={className}>{text.slice(0, shown)}<span className="sr-only">{text.slice(shown)}</span></p>;
+}
+
 export default function AssistantPanel({ open, onClose, anchor }: { open: boolean; onClose: () => void; anchor: RefObject<HTMLButtonElement | null> }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState("Analisando");
   const [size, setSize] = useState<PanelSize>(() => readSize(store()));
   const [history, setHistory] = useState<string[]>(readHistory);
   const panel = useRef<HTMLDivElement>(null);
@@ -80,8 +118,11 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
     const h = [...history.filter((x) => fold(x) !== fold(q)), q];
     setHistory(h);
     saveHistory(h);
+    setStep("Analisando");
+    // Contexto curto: perguntas e as respostas da IA em iniciais (memo), nunca com nomes completos
+    const context = msgs.slice(-6).flatMap((m) => (m.role === "user" ? [{ role: "user", text: m.text }] : m.answer?.memo ? [{ role: "assistant", text: m.answer.memo }] : []) as { role: "user" | "assistant"; text: string }[]);
     try {
-      const answer = await api<Answer>("/analytics/assistente", { body: { text: q, asked } });
+      const answer = await streamAnswer({ text: q, asked, history: context }, setStep);
       const id = ++seq;
       scrollTo.current = id;
       setMsgs((m) => [...m, { id, role: "bot", text: answer.text, answer }]);
@@ -106,7 +147,7 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
           <span aria-hidden className="tile bg-accent-soft text-accent"><Sparkles /></span>
           <div className="min-w-0 flex-1">
             <h2 className="font-semibold">Assistente</h2>
-            <p className="truncate text-xs text-ink-3">Responde com os cálculos de Análises</p>
+            <p className="truncate text-xs text-ink-3">Pergunte qualquer coisa sobre os dados da clínica</p>
           </div>
           {!!msgs.length && (
             <button type="button" onClick={reset} className="flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink-2">
@@ -130,7 +171,8 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
                 <BotAnswer key={m.id} m={m} wide={wide} asked={askedSet} onAsk={ask} onExpand={() => resize("ampliado")} onClose={onClose} />
               ))}
               {busy && (
-                <div role="status" aria-label="Calculando a resposta" className="flex max-w-[95%] flex-col gap-2 rounded-2xl rounded-bl-md bg-surface-2 p-3">
+                <div role="status" aria-label={`${step}…`} className="flex max-w-[95%] flex-col gap-2 rounded-2xl rounded-bl-md bg-surface-2 p-3">
+                  <p className="assistant-thinking text-xs font-medium text-ink-2">{step}…</p>
                   <Skeleton className="h-3.5 w-3/4" /><Skeleton className="h-3.5 w-1/2" /><Skeleton className="h-14 w-full" />
                 </div>
               )}
@@ -148,11 +190,11 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
               </div>
             )}
             <form onSubmit={submit} className="flex items-center gap-2 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-              <input ref={input} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder="Ex.: qual a probabilidade de Helvira faltar?"
+              <input ref={input} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder="Pergunte sobre faltas, agenda, receita, convênios…"
                 aria-label="Pergunta ao assistente" autoComplete="off" className="field min-h-11 flex-1" />
               <button type="submit" disabled={busy || !text.trim()} aria-label="Enviar pergunta" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-fill text-on-accent disabled:opacity-50"><ArrowUp strokeWidth={2} className="size-5" /></button>
             </form>
-            <p className="px-4 pb-3 text-[11px] text-ink-3">Estimativas estatísticas com dados fictícios de demonstração</p>
+            <p className="px-4 pb-3 text-[11px] text-ink-3">Respostas geradas por IA com base nos dados do sistema. Podem conter erros. Dados fictícios de demonstração.</p>
           </div>
 
           {wide && (
@@ -220,7 +262,8 @@ function BotAnswer({ m, wide, asked, onAsk, onExpand, onClose }: { m: Msg; wide:
   return (
     <div data-msg={m.id} className="relative max-w-[97%] scroll-mt-2 rounded-2xl rounded-bl-md bg-surface-2 p-3 text-sm">
       {a?.export && <ExportButton spec={() => specOf(a)} className="relative float-right -mt-1 -mr-1 ml-2" />}
-      <p className={cx("whitespace-pre-line", !wide && rich && "line-clamp-4")}>{m.text}</p>
+      {a?.notice && <p className="mb-1 inline-flex rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-3">{a.notice}</p>}
+      <Reveal text={m.text} className={cx("whitespace-pre-line", !wide && rich && "line-clamp-4")} />
       <div className="mt-1 flex flex-wrap items-center gap-x-4">
         {!wide && rich && (
           <button type="button" onClick={onExpand} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-accent">

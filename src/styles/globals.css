@@ -292,7 +292,10 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
   transform-origin: left;
   transition: transform var(--side-time) var(--side-ease);
 }
-:root[data-sidebar="collapsed"] .side-divider { transform: translateY(-64px) scaleX(calc(52 / 232)); }
+:root[data-sidebar="collapsed"] .side-divider { transform: translateY(-84px) scaleX(calc(52 / 232)); }
+/* Recolhida: a casa sobe para cima do "sair" na pilha do rodapé, e a linha vai junto para cima dela */
+.side-home { transition: transform var(--side-time) var(--side-ease); }
+:root[data-sidebar="collapsed"] .side-home { transform: translateY(-64px); }
 
 .side-foot > * { flex-shrink: 0; }
 .side-toggle, .side-nav, .side-foot > * { transition: transform var(--side-time) var(--side-ease); }

@@ -260,3 +260,12 @@ export function accuracy(scores: number[], labels: boolean[], threshold: number)
   if (!scores.length) return null;
   return scores.filter((s, i) => (s >= threshold) === labels[i]).length / scores.length;
 }
+
+/**
+ * Chance de pelo menos uma falta entre sessões independentes: 1 − Π(1 − taxa de falta).
+ * Faixa de sensibilidade: as mesmas contas com as taxas 20% menores e 20% maiores (incerteza do modelo por segmento).
+ */
+export function atLeastOneMiss(missRates: number[]) {
+  const at = (k: number) => 1 - missRates.reduce((a, r) => a * (1 - Math.min(1, r * k)), 1);
+  return { p: at(1), range: [at(0.8), at(1.2)] as [number, number], method: "1 − produto das chances de comparecimento de cada sessão agendada" };
+}

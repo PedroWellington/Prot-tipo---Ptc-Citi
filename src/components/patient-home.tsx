@@ -14,6 +14,7 @@ import { SESSION_STATUS, type Tone } from "@/lib/labels";
 import { attendance, STAGES, stageOf } from "@/lib/progress";
 import { countdown, fmtLong, fmtTime, fmtWeekShort } from "@/lib/time";
 import type { patientHome } from "@/server/services/patients";
+import { AddToCalendar, MiniMonth } from "./patient-calendar";
 import { ExpiredNotice, PendingPaymentNotice } from "./payment-notices";
 import { ProgressRing } from "./progress-ring";
 import { useAction } from "./providers";
@@ -24,6 +25,8 @@ type Full = Extract<Home, { sessions: unknown }>;
 type SessionRow = Full["sessions"][number];
 
 const DAY_MS = 86_400_000;
+// Endereço público da unidade: é o que vai para o evento do calendário
+const placeOf = (u: { name: string; address: string }) => `Clínica Movimento - ${u.name}, ${u.address}`;
 const initials = (name: string) => name.split(" ").filter((w) => !w.endsWith(".")).slice(0, 2).map((w) => w[0]).join("");
 
 export function HomeSkeleton() {
@@ -156,6 +159,7 @@ function NextCard({ s, unit, pending }: { s: SessionRow; unit: Full["treatment"]
       {s.provisional && <p className="mt-3 text-sm text-warn">Horário pré-reservado, aguardando a liberação do convênio.</p>}
       {unpaid && <p className="mt-3 text-sm text-warn">Reservada: confirma depois do pagamento.</p>}
       {confirmed && s.painScore === null && <PainPicker sessionId={s.id} />}
+      {!unpaid && <div className="mt-4"><AddToCalendar event={{ id: s.id, startsAt: s.startsAt, place: placeOf(unit) }} /></div>}
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
         {!confirmed && !unpaid && <Button variant="brand" className="flex-1" onClick={() => confirm.mutate(s.id)}>Confirmar</Button>}
         {unpaid ? null : pending ? <Badge tone="warn" className="min-h-11 px-4">Troca em andamento</Badge> : (
@@ -351,7 +355,7 @@ const DOT: Record<string, string> = {
   FALTA: "bg-danger-soft text-danger", DESMARCADA: "bg-warn-soft text-warn", REAGENDADA: "ring-1 ring-line text-ink-3",
 };
 
-function Timeline({ sessions, nextId }: { sessions: SessionRow[]; nextId: string | null }) {
+function Timeline({ sessions, nextId, unit, now }: { sessions: SessionRow[]; nextId: string | null; unit: Full["treatment"]["unit"]; now: number }) {
   const shown = sessions.filter((s) => s.status !== "REAGENDADA");
   return (
     <Card>
@@ -371,6 +375,9 @@ function Timeline({ sessions, nextId }: { sessions: SessionRow[]; nextId: string
               {s.status !== "AGENDADA" && s.status !== "REALIZADA" && !isNext && <Badge tone={SESSION_STATUS[s.status].tone}>{SESSION_STATUS[s.status].label}</Badge>}
               {s.provisional && <Badge tone="warn">Pré-reserva</Badge>}
               {s.payment?.status === "AGUARDANDO" && <Badge tone="warn">A pagar</Badge>}
+              {(s.status === "AGENDADA" || s.status === "CONFIRMADA") && s.payment?.status !== "AGUARDANDO" && new Date(s.startsAt).getTime() > now && (
+                <AddToCalendar compact event={{ id: s.id, startsAt: s.startsAt, place: placeOf(unit) }} />
+              )}
             </li>
           );
         })}
@@ -509,10 +516,11 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
 
       <div className={cx("flex flex-col gap-4 lg:col-span-7", below)}>
         <Exercises items={recent.length ? recent : t.guidances.slice(0, 3)} />
-        <Timeline sessions={sessions} nextId={data.nextSessionId} />
+        <Timeline sessions={sessions} nextId={data.nextSessionId} unit={t.unit} now={serverAt} />
       </div>
       <div className={cx("flex flex-col gap-4 lg:col-span-5", below)}>
         <Shortcuts />
+        <MiniMonth sessions={sessions.filter((s) => s.status !== "REAGENDADA")} now={serverAt} />
         {renewal && !ended && <RenewalCard r={renewal} />}
         <Achievements done={t.done} total={t.total} sessions={sessions} />
         <UnitCard unit={t.unit} />

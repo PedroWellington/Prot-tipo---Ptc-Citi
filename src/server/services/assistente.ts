@@ -1,10 +1,9 @@
-import { followupsFor, matchNames, parseQuestion, SHORTCUTS, starterNames, type Parsed } from "@/lib/assistente";
-import { simulateLoss } from "@/lib/previsao";
-import { fmtDate, fmtTime, fmtWeekShort } from "@/lib/time";
+import { followupsFor, matchNames, OFF_TOPIC, offTopicChoices, parseQuestion, starterNames, type Parsed } from "@/lib/assistente";
+import { atLeastOneMiss, simulateLoss } from "@/lib/previsao";
+import { DAY, fmtDate, fmtTime, fmtWeekShort, startOfRecifeDay } from "@/lib/time";
 import type { CurrentUser } from "../auth/session";
-import { AppError } from "../errors";
 import { audit, listUnits } from "../repositories/config";
-import { currentMonth, financeiro, previsoes } from "./analytics";
+import { currentMonth, financeiro, futureRisk, previsoes } from "./analytics";
 import { dashboard } from "./metrics";
 
 export type Answer = {
@@ -19,25 +18,24 @@ export type Answer = {
   export?: { item: string; title: string; filters: { unidade: string; periodo: string } };
   /** Pacientes citados: o PNG os troca por iniciais, salvo "Incluir nomes". */
   names?: string[];
+  /** "ia" = modelo de linguagem com ferramentas; "basico" = regras locais. */
+  mode?: "ia" | "basico";
+  provider?: string;
+  /** Aviso discreto: "Modo básico" ou "Limite gratuito atingido, usando modo básico". */
+  notice?: string;
+  /** Texto com iniciais e identificadores (sem nomes), devolvido pelo navegador como contexto da próxima pergunta. */
+  memo?: string;
+  tools?: string[];
 };
 
 /**
- * Ponto de troca do "cérebro" do assistente. Hoje só a implementação local responde (regras + cálculos do sistema).
- * Um modelo de linguagem externo ficaria em ExternalLLMProvider, desativado: ligar exigiria contrato de tratamento
- * de dados (LGPD), anonimização antes do envio e aprovação da clínica. Nenhum texto sai do servidor hoje.
+ * Modo básico do assistente: entende por regras e dicionário (com correção de erros de digitação) e responde com os
+ * mesmos cálculos de Análises. É o que roda sem chave de IA, quando o limite gratuito acaba ou quando a IA falha.
+ * A IA (Groq/Gemini com ferramentas) fica em src/server/assistant.
  */
 export interface AssistantProvider {
   readonly name: string;
-  readonly enabled: boolean;
   answer(text: string, user: CurrentUser, asked?: string[]): Promise<Answer>;
-}
-
-export class ExternalLLMProvider implements AssistantProvider {
-  readonly name = "llm-externo";
-  readonly enabled = false;
-  async answer(): Promise<Answer> {
-    throw new AppError(501, "DESATIVADO", "O assistente com modelo externo está desativado. Só a versão local responde.");
-  }
 }
 
 const pct = (n: number) => `${(n * 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`;
@@ -51,12 +49,11 @@ const monthLabel = (ym: string) => { const [y, m] = ym.split("-"); return `${m}/
 
 export class LocalAssistantProvider implements AssistantProvider {
   readonly name = "local";
-  readonly enabled = true;
 
   async answer(text: string, user: CurrentUser, asked: string[] = []): Promise<Answer> {
     const q = parseQuestion(text);
+    if (!q.intent) return { text: OFF_TOPIC, choices: offTopicChoices([...asked, text]) };
     const a = await this.respond(q, user);
-    if (!q.intent) return a;
     // Nome real do paciente de maior risco agora (só o nome, nunca CPF)
     const top = (await previsoes(undefined, "atual", 180)).patients[0]?.name ?? null;
     return { ...a, followups: followupsFor(q.intent, { top, name: a.names?.length === 1 ? a.names[0] : null }, [...asked, text]) };
@@ -76,6 +73,23 @@ export class LocalAssistantProvider implements AssistantProvider {
     const tab = (aba: string) => (desk ? (aba === "financeiro" ? "/recepcao/previsoes#financeiro" : "/recepcao/previsoes") : `/admin?aba=${aba}`);
 
     switch (q.intent) {
+      case "faltas_dia": {
+        const today = startOfRecifeDay(new Date()).getTime();
+        const from = new Date(q.period === "amanha" ? today + DAY : today), to = new Date(from.getTime() + DAY);
+        const risk = await futureRisk(from, to, unit?.id);
+        const rates = risk.sessions.map((s) => s.missRate);
+        const one = atLeastOneMiss(rates);
+        const exp = rates.reduce((a, r) => a + r, 0);
+        const quando = q.period === "amanha" ? "amanhã" : "hoje";
+        return {
+          text: rates.length
+            ? `Para ${quando} (${fmtDate(from)}, ${unidade.toLowerCase() === "todas" ? "todas as unidades" : unidade}) há ${rates.length} sessões agendadas. A chance estimada de pelo menos 1 paciente faltar é de ${pct(one.p)} (sensibilidade: ${pct(one.range[0])} a ${pct(one.range[1])}), com cerca de ${num(exp)} faltas esperadas. Método: 1 menos o produto das chances de comparecimento de cada sessão, com base em ${risk.sample} sessões dos últimos ${risk.historyDays} dias.`
+            : `Não há sessões agendadas para ${quando} (${fmtDate(from)}) com esses filtros.`,
+          numbers: rates.length ? [{ label: "Pelo menos 1 falta", value: pct(one.p) }, { label: "Faltas esperadas", value: num(exp) }, { label: "Sessões", value: String(rates.length) }] : undefined,
+          link: { href: tab("previsoes"), label: "Ver detalhes" },
+          export: rates.length ? { item: "previsao-faltas-dia", title: `Previsão de faltas · ${quando}`, filters: { unidade, periodo: fmtDate(from) } } : undefined,
+        };
+      }
       case "faltas_semana": {
         const semana = q.period === "proxima_semana" ? "proxima" : "atual";
         const d = await previsoes(unit?.id, semana, 180);
@@ -192,7 +206,7 @@ export class LocalAssistantProvider implements AssistantProvider {
         };
       }
       default:
-        return { text: "Não entendi a pergunta. Tente um destes atalhos:", choices: SHORTCUTS.filter((s) => !s.text.endsWith(" ")) };
+        return { text: OFF_TOPIC, choices: offTopicChoices([]) };
     }
   }
 
@@ -227,4 +241,3 @@ export class LocalAssistantProvider implements AssistantProvider {
 }
 
 export const local = new LocalAssistantProvider();
-export const assistant: AssistantProvider = local;

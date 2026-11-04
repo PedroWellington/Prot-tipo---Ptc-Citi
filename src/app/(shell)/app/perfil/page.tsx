@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bell, CreditCard, Info, Download, IdCard, KeyRound, LogOut, MapPin, MessageCircle, Moon, ShieldCheck, Trash2, UsersRound } from "lucide-react";
+import { Bell, CreditCard, Download, Home, IdCard, KeyRound, LogOut, MapPin, MessageCircle, Moon, ShieldCheck, Trash2, UsersRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { logout } from "@/components/app-shell";
 import { toggleTheme } from "@/lib/theme";
@@ -107,12 +107,12 @@ export default function Page() {
             <Button variant="ghost" className="justify-start" onClick={() => setSheet("senha")}><KeyRound strokeWidth={1.5} className="size-4" />Trocar senha</Button>
             <Button variant="ghost" className="justify-start" onClick={toggleTheme}><Moon strokeWidth={1.5} className="size-4" />Alternar tema</Button>
             <Button variant="ghost" className="justify-start" onClick={() => window.location.assign("/api/me/export")}><Download strokeWidth={1.5} className="size-4" />Baixar meus dados</Button>
-            <Link href="/" prefetch={false} className="btn btn-ghost justify-start"><Info strokeWidth={1.5} className="size-4" />Sobre a clínica</Link>
             <Button variant="ghost" className="justify-start" onClick={logout}><LogOut strokeWidth={1.5} className="size-4" />Sair</Button>
             <Button variant="danger" className="justify-start" onClick={() => setSheet("excluir")}><Trash2 strokeWidth={1.5} className="size-4" />Excluir conta</Button>
           </Card>
         </div>
       </div>
+      <Link href="/" prefetch={false} className="btn btn-line mt-4 w-full"><Home strokeWidth={1.5} className="size-4" />Voltar à página inicial</Link>
 
       <Sheet open={sheet === "senha"} onClose={() => setSheet(null)} title="Trocar senha">
         <form onSubmit={submit((b) => password.mutate(b))} className="flex flex-col gap-4">

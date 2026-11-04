@@ -18,8 +18,11 @@ import * as auth from "../services/auth";
 import { tick } from "../services/cron";
 import { resetDemoStep, RESET_STEPS } from "../services/demo";
 import * as late from "../services/late";
+import * as agenda from "../services/agenda";
 import * as analytics from "../services/analytics";
-import { assistant, local } from "../services/assistente";
+import { askAssistant, assistantStatus, defaultDeps } from "../assistant/engine";
+import { local } from "../services/assistente";
+import * as google from "../services/google";
 import * as metrics from "../services/metrics";
 import * as notifications from "../services/notifications";
 import * as patients from "../services/patients";
@@ -88,9 +91,14 @@ const period = z.object({
   return { from: q.from ?? new Date(to.getTime() - 90 * DAY), to, unitId: q.unitId || undefined };
 });
 
-const dayQuery = z.object({ date: z.coerce.date().optional(), unitId: z.string().optional() }).transform((q) => {
+// dias=7: a semana inteira (segunda a domingo) em uma chamada
+const dayQuery = z.object({ date: z.coerce.date().optional(), unitId: z.string().optional(), dias: z.coerce.number().int().refine((n) => n === 1 || n === 7).default(1) }).transform((q) => {
   const from = startOfRecifeDay(q.date ?? new Date());
-  return { from, to: new Date(from.getTime() + DAY), unitId: q.unitId || undefined };
+  return { from, to: new Date(from.getTime() + q.dias * DAY), unitId: q.unitId || undefined, take: q.dias === 7 ? 1500 : 300 };
+});
+const monthQuery = z.object({
+  mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), unitId: z.string().max(40).optional(), physioId: z.string().max(40).optional(),
+  status: z.enum(["AGENDADA", "CONFIRMADA", "REALIZADA", "FALTA", "DESMARCADA", "REAGENDADA"]).optional(), q: z.string().trim().max(80).optional(),
 });
 
 const booking = z.object({
@@ -224,7 +232,10 @@ route("GET", "/files/:name", { summary: "Baixa arquivo enviado (restrito ao paci
 // ── Recepção ─────────────────────────────────────────────────
 const deskUnit = (c: Ctx) => (c.user.role === "RECEPCAO" ? (c.user.unitId ?? undefined) : undefined);
 
-route("GET", "/desk/agenda", { roles: FRONT_DESK, query: dayQuery, summary: "Agenda do dia por unidade" }, ({ query }) => sessions.unitAgenda(query.unitId, query.from, query.to));
+route("GET", "/desk/agenda", { roles: FRONT_DESK, query: dayQuery, summary: "Agenda do dia (ou da semana, dias=7) por unidade; recepção só a própria" },
+  (c) => sessions.unitAgenda(deskUnit(c) ?? c.query.unitId, c.query.from, c.query.to, c.query.take));
+route("GET", "/agenda/month", { roles: CLINICAL, query: monthQuery, summary: "Mês da agenda: contagens por dia e status (uma consulta agregada)" },
+  ({ user, query: { mes, ...f } }) => agenda.monthAgenda(mes, agenda.agendaScope(user, { unitId: f.unitId || undefined, physioId: f.physioId || undefined, status: f.status, q: f.q || undefined })));
 route("GET", "/desk/requests", { roles: DESK_OR_PHYSIO, summary: "Fila de solicitações com conflitos e alternativas" }, ({ user }) => reschedule.requestQueue(user));
 route("POST", "/desk/requests/:id/approve", { roles: DESK_OR_PHYSIO, summary: "Aprova a troca" }, ({ params, user }) => reschedule.approveRequest(params.id, user));
 route("POST", "/desk/requests/:id/reject", {
@@ -262,7 +273,7 @@ route("POST", "/desk/sessions/:id/miss", { roles: FRONT_DESK, body: missBody, su
 // ── Fisioterapeuta ───────────────────────────────────────────
 route("GET", "/physio/agenda", { roles: PHYSIO, query: dayQuery, summary: "Agenda própria do dia" }, ({ user, query }) => {
   if (!user.physio) throw forbidden();
-  return sessions.physioAgenda(user.physio.id, query.from, query.to);
+  return sessions.physioAgenda(user.physio.id, query.from, query.to, query.take);
 });
 route("POST", "/physio/sessions/:id/done", { roles: PHYSIO, summary: "Marca sessão como realizada" }, ({ params, user }) => sessions.markDone(params.id, user));
 route("POST", "/physio/sessions/:id/miss", { roles: PHYSIO, body: missBody, summary: "Registra falta ou desmarcação com motivo" }, ({ params, body, user }) => sessions.markMissed(params.id, body, user));
@@ -297,6 +308,16 @@ route("POST", "/physio/treatments/:id/guidance", { roles: PHYSIO, raw: true, sum
   });
   await cfg.audit(user.id, "ORIENTACAO_ENVIADA", "Treatment", t.id);
 });
+
+// ── Google Agenda (equipe; opcional, desligado sem as variáveis) ──
+route("GET", "/google/status", { roles: CLINICAL, summary: "Estado da conexão com o Google Agenda (sem tokens)" }, ({ user }) => google.status(user));
+route("GET", "/google/connect", { roles: CLINICAL, rate: AUTH_RATE, summary: "Inicia o OAuth 2.0 (PKCE + state, escopo calendar.app.created)" }, async ({ user }) => google.startConnect(user));
+route("GET", "/google/callback", { roles: CLINICAL, rate: AUTH_RATE, summary: "Volta do Google: confere state, troca o código e cria o calendário dedicado" }, ({ req, user }) => google.finishConnect(req, user));
+route("POST", "/google/sync", { roles: CLINICAL, rate: { limit: 6, windowSec: 60 }, summary: "Sincronizar agora" }, async ({ user }) => (await google.syncUser(user.id, { manual: true })) ?? { ok: false, error: google.SYNC_ERROR });
+route("PATCH", "/google/settings", { roles: CLINICAL, body: z.object({ includeFullName: z.boolean() }), summary: "Incluir nome completo nos eventos (padrão: só iniciais)" },
+  ({ user, body }) => google.setIncludeFullName(user, body.includeFullName));
+route("POST", "/google/disconnect", { roles: CLINICAL, body: z.object({ removeEvents: z.boolean().default(false) }), summary: "Revoga o token e apaga a conexão (opcional: remove os eventos)" },
+  ({ user, body }) => google.disconnect(user, body.removeEvents));
 
 // ── Agendador: na Vercel não há processo contínuo, algo externo chama esta rota ──
 route("GET", "/cron/tick", { roles: "public", summary: "Lembretes, atrasos, expirações e fila de e-mail (Bearer CRON_SECRET)" }, async ({ req }) => {
@@ -336,9 +357,28 @@ route("GET", "/analytics/previsoes", {
 route("GET", "/analytics/backtest", { roles: FRONT_DESK, summary: "Previsto x realizado em semanas e meses passados" }, () => analytics.backtest());
 route("POST", "/analytics/assistente", {
   roles: FRONT_DESK, rate: { limit: 30, windowSec: 60 },
-  body: z.object({ text: z.string().trim().min(1).max(300), asked: z.array(z.string().max(300)).max(50).default([]) }),
-  summary: "Assistente local: pergunta em texto, resposta com os cálculos do sistema e perguntas relacionadas",
-}, ({ body, user }) => assistant.answer(body.text, user, body.asked));
+  body: z.object({
+    text: z.string().trim().min(1).max(300), asked: z.array(z.string().max(300)).max(50).default([]),
+    history: z.array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(1200) })).max(6).default([]),
+  }),
+  summary: "Assistente (IA gratuita com ferramentas de leitura, ou modo básico): resposta em NDJSON com etapas e o resultado final",
+}, ({ body, user }) => {
+  // Linhas JSON: {"type":"status"} enquanto analisa, {"type":"answer"} no fim. Erro vira resposta do modo básico, nunca erro técnico
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(ctl) {
+      const send = (o: unknown) => ctl.enqueue(enc.encode(`${JSON.stringify(o)}\n`));
+      try {
+        send({ type: "answer", answer: await askAssistant(body, user, defaultDeps(), send) });
+      } catch {
+        send({ type: "answer", answer: { ...(await local.answer(body.text, user, body.asked).catch(() => ({ text: "Não consegui responder agora. Tente de novo." }))), mode: "basico", notice: "Modo básico" } });
+      }
+      ctl.close();
+    },
+  });
+  return Promise.resolve(new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } }));
+});
+route("GET", "/admin/assistente", { roles: ADMIN, summary: "Estado do assistente: IA ativa, reserva, uso do dia e limite (sem chaves)" }, () => assistantStatus());
 route("GET", "/analytics/assistente/inicio", { roles: FRONT_DESK, summary: "Nomes para as sugestões e o autocompletar (só nomes)" }, () => local.start());
 route("POST", "/analytics/export-audit", {
   roles: FRONT_DESK, body: z.object({ item: z.string().max(120) }), summary: "Registra exportação de PNG com nomes de pacientes",

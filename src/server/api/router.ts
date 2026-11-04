@@ -5,6 +5,7 @@ import { z } from "zod";
 import { currentUser, type CurrentUser } from "../auth/session";
 import { AppError, forbidden } from "../errors";
 import { hitRateLimit } from "../repositories/rate-limit";
+import { syncConnectedSoon } from "../services/google";
 import { processQueue } from "../services/notifications";
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
@@ -112,7 +113,7 @@ export async function dispatch(req: Request, parts: string[]) {
 
     const result = await r.handler({ req, params, body, query, user: user! } as never);
     // Depois da resposta e do commit; no serverless um setTimeout morreria com a função
-    if (req.method !== "GET") after(() => processQueue().catch(console.error));
+    if (req.method !== "GET") after(() => Promise.all([processQueue().catch(console.error), syncConnectedSoon().catch(() => {})]));
     if (result instanceof Response) return result;
     return NextResponse.json(result ?? { ok: true });
   } catch (err) {

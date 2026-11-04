@@ -1,3 +1,4 @@
+import { syncConnectedSoon } from "./google";
 import { runLate } from "./late";
 import { processQueue } from "./notifications";
 import { expirePayments } from "./payments";
@@ -10,6 +11,8 @@ export async function tick() {
   await expirePayments();
   await runLate();
   await processQueue();
+  // Lembrete muda status de sessão sem passar pela API: o Google também precisa saber
+  await syncConnectedSoon().catch(() => {});
 }
 
 export function startCron() {

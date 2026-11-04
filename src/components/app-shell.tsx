@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CalendarPlus, ChartColumn, ClipboardList, FileClock, HeartPulse, Hourglass, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarPlus, ChartColumn, ClipboardList, FileClock, HeartPulse, Home, Hourglass, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
@@ -52,6 +52,17 @@ export const NAV: Record<string, Item[]> = {
     ...DESK.filter((d) => d.href !== "/recepcao/previsoes").map((d) => ({ ...d, label: d.label === "Agenda" ? "Recepção" : d.label })),
   ],
 };
+
+/** Rodapé da sidebar, em todos os perfis: leva à página pública. Recolhida, só o ícone com tooltip. */
+export function HomeLink() {
+  return (
+    <Link href="/" prefetch={false} aria-label="Voltar à página inicial" className="side-home nav-link row-hover relative mb-1 flex min-h-11 items-center gap-3 rounded-xl pl-4 text-sm text-nav-ink">
+      <Home strokeWidth={1.5} className="size-5 shrink-0" />
+      <span className="nav-label truncate">Voltar à página inicial</span>
+      <span aria-hidden className="nav-tip">Voltar à página inicial</span>
+    </Link>
+  );
+}
 
 export async function logout() {
   await api("/auth/logout", { body: {} });
@@ -171,8 +182,8 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
           <SideNav items={items} path={path} />
           <div className="pt-3">
             <div className="side-divider border-t border-line pb-2" />
+            <HomeLink />
             <p className="nav-label truncate px-4 pb-1 text-sm text-ink-2">{name}</p>
-            <Link href="/" prefetch={false} className="nav-label block truncate px-4 pb-1 text-xs text-ink-3 underline-offset-2 hover:underline">Sobre a clínica</Link>
             <div className="side-foot flex pl-1">
               <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
               <ThemeToggle />
@@ -186,6 +197,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface pr-2 pl-4 lg:hidden" style={{ paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}>
           <Link href={items[0].href} aria-label="Início"><Logo size={22} /></Link>
           <div className="flex items-center">
+            <Link href="/" prefetch={false} aria-label="Voltar à página inicial" title="Voltar à página inicial" className="flex size-11 items-center justify-center rounded-full text-ink-2"><Home strokeWidth={1.5} className="size-5" /></Link>
             <ThemeToggle />
             <BellButton onOpen={openFromHeader} />
             {role !== "PACIENTE" && (

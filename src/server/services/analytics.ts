@@ -254,6 +254,30 @@ export function previsoes(unitId: string | undefined, semana: "atual" | "proxima
   });
 }
 
+/**
+ * Chance de falta de cada sessão agendada no intervalo, com o mesmo modelo das abas Previsões e Financeiro.
+ * Sem nome nem contato: só o necessário para somar e para o assistente.
+ */
+export function futureRisk(from: Date, to: Date, unitId: string | undefined, historyDays = 180) {
+  return cached(`risk:${from.getTime()}:${to.getTime()}:${unitId}:${historyDays}`, async () => {
+    const now = new Date();
+    const [cfg, units] = await Promise.all([getSettings(), listUnits()]);
+    const rows = await history(new Date(now.getTime() - historyDays * DAY), now);
+    const { model, used } = modelAt(rows, now, historyDays);
+    const price = (t: PatientType) => (t === "CONVENIO" ? cfg.price_convenio : cfg.price_particular);
+    const start = from > now ? from : now;
+    const rowsF = to > start ? await prisma.session.findMany({ where: futureWhere(start, to, unitId), select: futureSelect, orderBy: { startsAt: "asc" } }) : [];
+    const unitName = (code: string) => units.find((u) => u.code === code)?.name ?? code;
+    return {
+      sessions: rowsF.map((s) => {
+        const f = toFuture(s, model, price);
+        return { id: s.id, patientId: s.patientId, startsAt: s.startsAt, unit: unitName(f.unit), type: typeLabel(f.type), band: f.band, number: f.number, missRate: f.rate, value: f.value, confirmed: f.confirmed };
+      }),
+      sample: used.length, historyDays,
+    };
+  });
+}
+
 /** Consultar risco por paciente fica no log de auditoria (quem consultou e quando). */
 export async function previsoesAudited(user: CurrentUser, unitId: string | undefined, semana: "atual" | "proxima", historyDays: number) {
   const data = await previsoes(unitId, semana, historyDays);

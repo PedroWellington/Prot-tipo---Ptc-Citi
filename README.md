@@ -56,7 +56,7 @@ Os telefones do seed começam com `81 00000`: assinantes iniciados em 0 não exi
 |---|---|
 | Público | `/login`, `/cadastro`, `/recuperar`, `/trocar-senha`, `/c/[token]`, `/offline` |
 | Paciente | `/app` (Meu tratamento), `/app/agendar`, `/app/pagamento/[id]`, `/app/troca`, `/app/unidades`, `/app/perfil` |
-| Recepção | `/recepcao` (dia), `/recepcao/trocas`, `/recepcao/renovacoes`, `/recepcao/espera`, `/recepcao/pagamentos`, `/recepcao/whatsapp`, `/recepcao/pacientes` |
+| Recepção | `/recepcao` (agenda: dia, semana e mês), `/recepcao/trocas`, `/recepcao/renovacoes`, `/recepcao/espera`, `/recepcao/pagamentos`, `/recepcao/whatsapp`, `/recepcao/pacientes` |
 | Fisioterapeuta | `/fisio`, `/fisio/pacientes`, `/fisio/pacientes/[id]` |
 | Admin | `/admin` (métricas), `/admin/usuarios`, `/admin/unidades`, `/admin/parametros`, `/admin/textos`, `/admin/auditoria`, e as telas da recepção |
 
@@ -135,7 +135,7 @@ As licenças foram conferidas foto a foto pela API do Wikimedia Commons (campo `
 
 ## Análises: como calculamos as previsões
 
-Tudo roda no servidor da clínica, sem API externa nem modelo de linguagem. Funções puras em `src/lib/previsao.ts` (testadas em `previsao.test.ts`); os dados vêm de `src/server/services/analytics.ts`, com cache de 5 minutos.
+As contas rodam no servidor da clínica, sem API externa (o assistente com IA só lê os resultados). Funções puras em `src/lib/previsao.ts` (testadas em `previsao.test.ts`); os dados vêm de `src/server/services/analytics.ts`, com cache de 5 minutos.
 
 - **Chance de comparecer** de cada sessão agendada: `p = 1 − taxa de falta do segmento` (tipo de paciente × número da sessão × faixa de horário × unidade), com os últimos 6 meses (o filtro de período troca para 30 ou 90 dias). Taxa = faltas ÷ (realizadas + faltas).
 - **Poucos dados**: suavização Beta em cascata. Cada nível é puxado para o pai com peso de 20 sessões: `(faltas + 20 × taxa_do_pai) ÷ (sessões + 20)`, na ordem geral → tipo → tipo + sessão → tipo + sessão + horário + unidade. Usa o segmento mais específico com pelo menos 30 sessões; senão, sobe um nível.
@@ -144,11 +144,48 @@ Tudo roda no servidor da clínica, sem API externa nem modelo de linguagem. Fun�
 - **Mês**: receita = realizadas + Σ valor × p; perda = faltas e desmarcações tardias já ocorridas + Σ valor × (1 − p). Faixas de 80% e 90% por 2.000 sorteios de Bernoulli por sessão (Monte Carlo, ~100 ms). Valores em Admin > Parâmetros (padrão: particular R$ 110, convênio R$ 55).
 - **Risco por paciente**: `(faltas + 0,5 × desmarcações tardias + 6 × taxa_do_segmento) ÷ (sessões + 6)`, ajustado por fatores explicáveis (faltou a última ×1,4; 2+ atrasos ×1,15; 2+ trocas ×1,1; 4+ presenças seguidas ×0,75; já confirmou ×0,6), limitado a 2–90%. Só comportamento de atendimento: nada de idade, sexo, bairro, nome ou CPF. Confiança pela amostra (< 3 sessões baixa, < 8 média). Toda consulta fica no log de auditoria.
 - **Backtest** (aba Previsões): o modelo é treinado só com o que existia antes de cada semana ou mês passado e comparado com o realizado (MAPE; AUC e acurácia por paciente). O histórico da demonstração é sintético (faltas sorteadas por grupo), então o risco individual quase não supera o do grupo.
-- **Assistente**: entende a pergunta por regras e dicionário (`src/lib/assistente.ts`) e responde com os mesmos cálculos. `AssistantProvider` tem a implementação local ativa; `ExternalLLMProvider` existe desativado e só deve ser ligado com contrato de dados (LGPD), anonimização e aprovação da clínica.
+- **Assistente**: veja "Assistente com IA gratuita" abaixo. Sem chave de IA, o modo básico entende por regras e dicionário (`src/lib/assistente.ts`, com correção de erros de digitação) e usa os mesmos cálculos.
+- **Pelo menos 1 falta** (hoje, amanhã, um período): `1 − Π(1 − taxa de falta de cada sessão agendada)`, com as taxas do modelo acima. A faixa mostrada é de sensibilidade: a mesma conta com as taxas 20% menores e 20% maiores.
 - **PNG**: gerado no navegador (canvas, 1200 px × 2), carregado só no clique; nomes de pacientes saem como iniciais salvo "Incluir nomes" (auditado); CPF, telefone e e-mail são filtrados de qualquer texto.
 - **Dados de demonstração na Neon**: `npx tsx --env-file=.env.neon scripts/ajustar-demo.ts` (idempotente; só toca usuários `@exemplo.test`).
 
 Previsão estatística com dados fictícios de demonstração, sem garantia de resultado.
+
+## Agenda: dia, semana e mês
+
+Recepção, fisioterapeuta e admin alternam **Dia | Semana | Mês** no topo da agenda (a última escolha fica no navegador). O mês vem de **uma consulta agregada** (`GET /api/agenda/month`: contagens por dia e status, atrasos e renovações pendentes, sem carregar sessão por sessão), com cache de 30 s e o mês seguinte pré-carregado. Dia cheio = 85% ou mais de cadeiras × horas abertas. Unidade, status, busca e fisioterapeuta valem nas três visões. Fisioterapeuta vê só os próprios pacientes, recepção só a própria unidade, admin tudo (`agendaScope` em `src/server/services/agenda.ts`). O paciente vê um mini calendário com as próprias sessões na aba Tratamento.
+
+## Google Agenda (opcional)
+
+**Paciente** (sem login no Google): cada sessão futura tem "Adicionar ao Google Agenda" (link padrão de criação de evento) e um arquivo `.ics` para outros calendários, com lembrete de 1 hora. O evento leva título, data, hora e o endereço público da unidade. Nada de CPF, telefone, e-mail ou observações.
+
+**Equipe** (desligado por padrão): com as variáveis abaixo, o botão "Google Agenda" da tela de Agenda conecta a conta por OAuth 2.0 com PKCE e `state`. O escopo é só `calendar.app.created`: o app cria um calendário dedicado "Clínica Movimento" e mexe apenas nele, sem acesso à agenda pessoal. A sincronização vai do sistema para o Google: depois de cada escrita na API e no cron, cria, atualiza e remove eventos (dos últimos 7 dias aos próximos 60). O id do evento é determinístico, então rodar de novo não duplica. Token expirado é renovado, limite de uso espera e tenta uma vez, e falha vira o aviso "Não foi possível sincronizar" com o botão "Sincronizar agora". O evento mostra só as iniciais ("Sessão - M.S."), a unidade e o horário; "Incluir nome completo" vem desligado. Tokens ficam cifrados (AES-256-GCM) no banco. "Desconectar" revoga o token no Google, apaga os tokens locais e, se marcado, remove o calendário com os eventos. Conexão, desconexão e sincronizações vão para o log de auditoria. A conexão é por usuário: cada um sincroniza a própria agenda (fisioterapeuta: os próprios pacientes; recepção: a unidade; admin: tudo).
+
+Como configurar (sem segredos no repositório):
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e ative a **Google Calendar API**.
+2. **Tela de consentimento OAuth**: tipo Externo, em **modo de teste**, adicione os e-mails da equipe como **usuários de teste** e inclua o escopo `.../auth/calendar.app.created`.
+3. **Credenciais → Criar ID do cliente OAuth → Aplicativo da Web**. Em "URIs de redirecionamento autorizados", coloque `https://SEU-DOMINIO/api/google/callback` (e `http://localhost:3000/api/google/callback` para desenvolvimento).
+4. No `.env` local e nas variáveis da Vercel: `GOOGLE_CALENDAR_ENABLED=true`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (a mesma URI do passo 3) e `GOOGLE_TOKEN_KEY` (gere com `openssl rand -base64 48`). Sem elas, o botão aparece desabilitado com "Integração com Google Agenda não configurada".
+
+## Assistente com IA gratuita
+
+O campo aceita qualquer pergunta sobre os dados da clínica. Um modelo **Llama na Groq** (plano gratuito, API no formato da OpenAI) entende a pergunta e chama **ferramentas de leitura** do servidor (`src/server/assistant/tools.ts`): faltas por período, previsão de faltas, receita e perda, risco de um paciente, pacientes de maior risco, sessões do dia, ocupação, renovações, lista de espera, trocas, pagamentos pendentes, horários livres, comparação e simulação. Os parâmetros são validados com Zod e as contas são as mesmas das abas Financeiro e Previsões. **O modelo não recebe o banco e não faz contas**: todo número da resposta é conferido contra os resultados das ferramentas; se aparecer um número que não veio delas, o servidor pede para reescrever e, se insistir, responde no modo básico.
+
+- **Modelos** (documentação da Groq em novembro de 2026): `ASSISTANT_MODEL=llama-3.3-70b-versatile` (principal, com tool calling) e `ASSISTANT_MODEL_FALLBACK=llama-3.1-8b-instant` (menor e mais rápido). Temperatura 0,1, no máximo 4 rodadas de ferramentas, 600 tokens por resposta, 12 s por chamada.
+- **Cadeia de reservas**: erro 429 → espera curta e tenta de novo → modelo menor → Gemini (se `GEMINI_API_KEY` existir; desligado por padrão) → modo básico, com o aviso "Limite gratuito atingido, usando modo básico". Sem chave, ou com `ASSISTANT_PROVIDER=local`, tudo roda no modo básico.
+- **Limites para não estourar a cota**: 6 perguntas por minuto e 60 por dia por pessoa, `ASSISTANT_DAILY_LIMIT` no total do dia (padrão 300), e respostas idênticas ficam 5 min em cache. Admin > Parâmetros mostra a IA ativa, a reserva, o uso do dia e o limite.
+- **Respostas**: as etapas ("Consultando previsão de faltas…") chegam em streaming; o texto aparece depois de conferido. Fora do tema, a resposta é exatamente "Não consigo responder essa pergunta com base nos dados cadastrados no sistema.", com 3 sugestões.
+
+**O que vai para o provedor de IA**: a pergunta digitada, as perguntas e respostas anteriores da mesma conversa (com pacientes em iniciais) e os resultados agregados das ferramentas: contagens, taxas, valores em reais, datas, nomes de unidades e pacientes como iniciais + identificador interno (ex.: `M.S. (P-abcdef)`). O nome completo é trocado só no servidor, na resposta final para admin e recepção. **Nunca vai**: CPF, telefone, e-mail, endereço, convênio/carteirinha, dor ou observações clínicas. Uma última barreira (`sanitize`) remove essas chaves e qualquer texto com cara de CPF, telefone ou e-mail. Texto do banco e do usuário é tratado como dado, nunca como instrução, e só existem ferramentas de leitura. Cada consulta vai para o log de auditoria (usuário, pergunta, ferramentas, provedor), sem os dados devolvidos.
+
+**Política de dados do plano gratuito** (conferida em novembro de 2026; confira de novo antes de usar dados reais):
+
+- **Groq**: segundo [console.groq.com/docs/your-data](https://console.groq.com/docs/your-data), entradas e saídas de inferência **não ficam guardadas por padrão**; podem ser registradas por até 30 dias só para investigar erros de confiabilidade ou abuso, e dá para ligar a Retenção Zero (ZDR) em Data Controls. A página não diz se os dados servem para treino.
+- **Gemini**: no plano gratuito, o Google pode usar o conteúdo para melhorar seus produtos, e revisores humanos podem ler. Por isso fica desligado por padrão.
+- Neste protótipo só vão **dados fictícios de demonstração, agregados**. Com dados reais de pacientes, use plano pago com contrato de tratamento de dados (LGPD) ou o modo básico.
+
+**Chave gratuita da Groq**: entre em [console.groq.com](https://console.groq.com/), crie uma conta, abra **API Keys → Create API Key** e coloque o valor em `GROQ_API_KEY` no `.env` e nas variáveis da Vercel (só no servidor; nunca no repositório nem em variável `NEXT_PUBLIC_`). Gemini (opcional): chave em [aistudio.google.com](https://aistudio.google.com/apikey), em `GEMINI_API_KEY`.
 
 ## Decisões técnicas
 

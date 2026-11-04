@@ -5,18 +5,30 @@ import { CalendarDays, Check, CircleCheckBig, Clock, MessageCircleHeart } from "
 import Link from "next/link";
 import { useState } from "react";
 import { AgendaRow, isOpen, type AgendaItem } from "@/components/agenda-row";
+import { DayList, MODES, MonthView, useMode, weekStartOf, WeekView } from "@/components/agenda-views";
 import { DayNav } from "@/components/day-nav";
+import { GoogleButton } from "@/components/google-calendar";
 import { MissSheet, type MissInput } from "@/components/miss-sheet";
 import { useAction } from "@/components/providers";
-import { Button, Empty, ErrorState, ListSkeleton, PageTitle, Stat } from "@/components/ui";
+import { Button, Empty, ErrorState, ListSkeleton, PageTitle, Segmented, Stat } from "@/components/ui";
 import { api } from "@/lib/api";
 
-export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless }: { initial: AgendaItem[]; day: number; serverAt: number; deskless: boolean }) {
+const NO_FILTERS = { status: "", search: "", physio: "" };
+const NO_PARAMS = {};
+
+export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless, google }: { initial: AgendaItem[]; day: number; serverAt: number; deskless: boolean; google: boolean }) {
   const [day, setDay] = useState(firstDay);
+  const [mode, setMode] = useMode();
+  const week = weekStartOf(day);
+  const weekQ = useQuery({
+    queryKey: ["physio-agenda-semana", week], enabled: mode === "semana", staleTime: 20_000,
+    queryFn: () => api<AgendaItem[]>(`/physio/agenda?dias=7&date=${new Date(week).toISOString()}`),
+  });
+  const openDay = (d: number) => { setDay(d); setMode("dia"); };
   const [miss, setMiss] = useState<string | null>(null);
   const key = ["physio-agenda", day];
   const { data, isLoading, isPlaceholderData, error, refetch } = useQuery({
-    queryKey: key, refetchInterval: 30_000,
+    queryKey: key, refetchInterval: mode === "dia" ? 30_000 : false, enabled: mode === "dia" || day === firstDay,
     initialData: day === firstDay ? initial : undefined, initialDataUpdatedAt: day === firstDay ? serverAt : undefined,
     queryFn: () => api<AgendaItem[]>(`/physio/agenda?date=${new Date(day).toISOString()}`),
   });
@@ -43,9 +55,13 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless }: { i
 
   return (
     <>
-      <PageTitle eyebrow="Fisioterapeuta" title="Minha agenda" />
+      <PageTitle eyebrow="Fisioterapeuta" title="Minha agenda" action={<GoogleButton configured={google} />} />
       <div className="flex flex-col gap-4">
-        <DayNav day={day} onChange={setDay} />
+        <Segmented label="Visão da agenda" value={mode} onChange={setMode} options={MODES} />
+        {mode !== "mes" && <DayNav day={mode === "semana" ? week : day} onChange={setDay} week={mode === "semana"} />}
+        {mode === "semana" && <WeekView start={week} rows={weekQ.data?.filter((s) => s.status !== "REAGENDADA")} loading={weekQ.isLoading} onDay={openDay} />}
+        {mode === "mes" && <MonthView day={day} params={NO_PARAMS} onOpenDay={openDay} renderDay={(d) => <DayList day={d} endpoint="/physio/agenda" filters={NO_FILTERS} />} />}
+        {mode === "dia" && <>
         <div className="grid grid-cols-3 gap-3">
           <Stat label="Sessões" value={rows?.length ?? 0} icon={<CalendarDays />} tone="info" />
           <Stat label="Realizadas" value={rows?.filter((s) => s.status === "REALIZADA").length ?? 0} icon={<CircleCheckBig />} tone="ok" />
@@ -81,6 +97,7 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless }: { i
             })}
           </ul>
         )}
+        </>}
       </div>
       <MissSheet open={!!miss} onClose={() => setMiss(null)} onSubmit={(v) => miss && missed.mutate({ ...v, id: miss })} />
     </>
