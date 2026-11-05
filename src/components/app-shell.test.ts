@@ -21,3 +21,32 @@ describe("Botão Voltar à página inicial", () => {
     expect(divider < home && home < name).toBe(true);
   });
 });
+
+describe("Barra inferior do celular", () => {
+  const tabs = (role: string, client = new QueryClient()) => {
+    const html = renderToStaticMarkup(
+      createElement(QueryClientProvider, { client }, createElement(AppShell as (p: { role: string; name: string }) => ReturnType<typeof AppShell>, { role, name: "Pessoa Teste" })),
+    );
+    return html.slice(html.indexOf('aria-label="Abas"'));
+  };
+
+  it.each(["PACIENTE", "RECEPCAO", "ADMIN"])("%s: no máximo 5 itens e sem rolagem lateral", (role) => {
+    const bar = tabs(role);
+    expect(bar.match(/<li /g)?.length).toBeLessThanOrEqual(5);
+    expect(bar).not.toContain("overflow-x-auto");
+  });
+
+  it("paciente: 4 abas + Mais (Unidades, Perfil e Voltar à página inicial ficam na folha)", () => {
+    const bar = tabs("PACIENTE");
+    for (const label of ["Tratamento", "Mobilidade", "Agendar", "Troca", "Mais"]) expect(bar).toContain(`>${label}</span>`);
+    expect(bar).not.toContain('href="/app/perfil"');
+    expect(bar).toContain('aria-haspopup="dialog"');
+  });
+
+  it("cadeado na Mobilidade só enquanto o pagamento aguarda", () => {
+    expect(tabs("PACIENTE")).not.toContain("liberada após a confirmação do pagamento");
+    const client = new QueryClient();
+    client.setQueryData(["home"], { treatment: null, awaiting: { id: "p1" } });
+    expect(tabs("PACIENTE", client)).toContain('aria-label="Mobilidade (liberada após a confirmação do pagamento)"');
+  });
+});

@@ -1,7 +1,7 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
-import { Activity, CalendarClock, CalendarPlus, ChartColumn, ClipboardList, FileClock, HeartPulse, Home, Hourglass, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Activity, CalendarClock, CalendarPlus, ChartColumn, ClipboardList, Ellipsis, FileClock, HeartPulse, Home, Hourglass, Lock, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { toggleSidebar } from "@/lib/theme";
 import { AssistantButton } from "./assistant/button";
+import { Sheet } from "./lazy-sheet";
 import { BellButton, NotificationPanel } from "./notifications";
 import { ThemeToggle } from "./theme-toggle";
 import { cx, Logo, LogoMark } from "./ui";
@@ -74,13 +75,25 @@ export async function logout() {
 
 const isActive = (path: string, href: string) => path === href || (href.split("/").length > 2 && path.startsWith(href));
 
-const SideNav = memo(function SideNav({ items, path }: { items: Item[]; path: string }) {
+const MOBILITY = "/app/mobilidade";
+const LOCK_LABEL = "Mobilidade (liberada após a confirmação do pagamento)";
+
+/** Cadeado sobre o ícone da Mobilidade enquanto o pagamento aguarda: o servidor também bloqueia a aba. */
+const LockDot = () => <Lock aria-hidden strokeWidth={2} className="absolute -top-1 -right-1.5 size-3.5 rounded-full bg-surface p-0.5 text-warn" />;
+
+/** Só lê o cache (enabled: false): quem busca /me/home são as telas e o pré-carregamento, sem disputar a hidratação. */
+function useMobilityLocked(role: string) {
+  const { data } = useQuery({ ...q.home, enabled: false, select: (d) => !!d.awaiting });
+  return role === "PACIENTE" && !!data;
+}
+
+const SideNav = memo(function SideNav({ items, path, locked }: { items: Item[]; path: string; locked: boolean }) {
   return (
     <nav aria-label="Principal" className="side-nav flex flex-1 flex-col gap-0.5 overflow-y-auto">
       {items.map((i) => (
-        <Link key={i.href} href={i.href} prefetch aria-label={i.label} aria-current={isActive(path, i.href) ? "page" : undefined}
+        <Link key={i.href} href={i.href} prefetch aria-label={locked && i.href === MOBILITY ? LOCK_LABEL : i.label} aria-current={isActive(path, i.href) ? "page" : undefined}
           className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] pl-[13px] text-[15px]", isActive(path, i.href) ? "border-accent bg-nav-active font-semibold text-nav-active-ink" : "row-hover border-transparent text-nav-ink")}>
-          <i.icon strokeWidth={1.5} className="size-5 shrink-0" />
+          <span className="relative shrink-0"><i.icon strokeWidth={1.5} className="size-5" />{locked && i.href === MOBILITY && <LockDot />}</span>
           <span className="nav-label truncate">{i.label}</span>
           <span aria-hidden className="nav-tip">{i.label}</span>
         </Link>
@@ -89,20 +102,51 @@ const SideNav = memo(function SideNav({ items, path }: { items: Item[]; path: st
   );
 });
 
-const Tabs = memo(function Tabs({ items, path }: { items: Item[]; path: string }) {
+// No máximo 5 itens no celular, sem rolagem lateral: o resto vai para "Mais"
+const MAX_TABS = 5;
+const tabClass = (on: boolean) => cx("mx-0.5 my-1 flex min-h-12 w-[calc(100%-4px)] flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] transition-transform active:scale-95", on ? "bg-tab-active font-semibold text-tab-active-ink" : "text-tab-ink");
+
+const Tabs = memo(function Tabs({ items, path, locked }: { items: Item[]; path: string; locked: boolean }) {
+  // Guardar a rota: navegar fecha a folha sozinho
+  const [moreAt, setMoreAt] = useState<string | null>(null);
+  const overflow = items.length > MAX_TABS;
+  const shown = overflow ? items.slice(0, MAX_TABS - 1) : items;
+  const rest = overflow ? items.slice(MAX_TABS - 1) : [];
+  const restActive = rest.some((i) => isActive(path, i.href));
   return (
     <nav aria-label="Abas" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <ul className="flex overflow-x-auto overscroll-contain">
-        {items.map((i) => (
-          <li key={i.href} className={cx("min-w-0 flex-1", items.length > 5 && "min-w-[72px] shrink-0")}>
-            <Link href={i.href} prefetch aria-current={isActive(path, i.href) ? "page" : undefined}
-              className={cx("mx-0.5 my-1 flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px]", isActive(path, i.href) ? "bg-tab-active font-semibold text-tab-active-ink" : "text-tab-ink")}>
-              <i.icon strokeWidth={1.5} className="size-[22px]" />
+      <ul className="flex">
+        {shown.map((i) => (
+          <li key={i.href} className="min-w-0 flex-1">
+            <Link href={i.href} prefetch aria-current={isActive(path, i.href) ? "page" : undefined} aria-label={locked && i.href === MOBILITY ? LOCK_LABEL : undefined} className={tabClass(isActive(path, i.href))}>
+              <span className="relative"><i.icon strokeWidth={1.5} className="size-[22px]" />{locked && i.href === MOBILITY && <LockDot />}</span>
               <span className="max-w-full truncate px-0.5">{i.label}</span>
             </Link>
           </li>
         ))}
+        {overflow && (
+          <li className="min-w-0 flex-1">
+            <button type="button" onClick={() => setMoreAt(path)} aria-haspopup="dialog" aria-expanded={moreAt === path} className={tabClass(restActive)}>
+              <Ellipsis strokeWidth={1.5} className="size-[22px]" />
+              <span className="max-w-full truncate px-0.5">Mais</span>
+            </button>
+          </li>
+        )}
       </ul>
+      {overflow && (
+        <Sheet open={moreAt === path} onClose={() => setMoreAt(null)} title="Mais">
+          <ul className="flex flex-col gap-1">
+            {[...rest, { href: "/", label: "Voltar à página inicial", icon: Home }].map((i) => (
+              <li key={i.href}>
+                <Link href={i.href} prefetch={i.href !== "/"} aria-current={isActive(path, i.href) ? "page" : undefined} onClick={() => setMoreAt(null)}
+                  className={cx("flex min-h-12 items-center gap-3 rounded-xl px-3 text-[15px]", isActive(path, i.href) ? "bg-nav-active font-semibold text-nav-active-ink" : "row-hover text-ink")}>
+                  <i.icon strokeWidth={1.5} className="size-5 shrink-0" />{i.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Sheet>
+      )}
     </nav>
   );
 });
@@ -110,7 +154,7 @@ const Tabs = memo(function Tabs({ items, path }: { items: Item[]; path: string }
 // [dados, rotas que já os buscam na própria tela]
 const DESK_DATA = [[q.deskPayments, ["/recepcao/pagamentos"]], [q.deskRequests, ["/recepcao/trocas"]], [q.deskRenewals, ["/recepcao/renovacoes"]], [q.deskWaitlist, ["/recepcao/espera"]], [q.units, ["/recepcao", "/admin", "/admin/usuarios"]]] as const;
 const PRELOAD: Record<string, readonly (readonly [object, readonly string[]])[]> = {
-  PACIENTE: [[q.home, ["/app", "/app/agendar", "/app/troca"]], [q.requests, ["/app/troca"]], [q.waitlist, ["/app/troca"]], [q.lateOffers, ["/app/troca"]], [q.bookingInfo, ["/app/agendar"]], [q.profile, ["/app/perfil"]], [q.unitsOverview, ["/app/unidades"]], [q.units, ["/app/agendar", "/app/perfil"]]],
+  PACIENTE: [[q.home, ["/app", "/app/mobilidade", "/app/agendar", "/app/troca"]], [q.requests, ["/app/troca"]], [q.waitlist, ["/app/troca"]], [q.lateOffers, ["/app/troca"]], [q.bookingInfo, ["/app/agendar"]], [q.profile, ["/app/perfil"]], [q.unitsOverview, ["/app/unidades"]], [q.units, ["/app/agendar", "/app/perfil"]]],
   RECEPCAO: DESK_DATA,
   ADMIN: [...DESK_DATA, [q.staff, ["/admin/usuarios"]], [q.adminUnits, ["/admin/unidades"]], [q.settings, ["/admin/parametros"]], [q.messages, ["/admin/textos"]]],
   FISIOTERAPEUTA: [[q.physioPatients(""), ["/fisio/pacientes"]]],
@@ -148,6 +192,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
   // Recolhida, o "M" expande; expandida, leva ao início
   const onLogo = () => (document.documentElement.dataset.sidebar === "collapsed" ? toggleSidebar() : router.push(items[0].href));
   usePreloadData(role, path);
+  const locked = useMobilityLocked(role);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -180,7 +225,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
           <button type="button" onClick={toggleSidebar} aria-label="Recolher ou expandir menu (atalho: [)" title="Recolher ou expandir menu ( [ )" className="side-toggle flex size-11 items-center justify-center rounded-full bg-accent-soft text-ink">
             <PanelLeftClose strokeWidth={1.5} className="collapse-icon size-5" />
           </button>
-          <SideNav items={items} path={path} />
+          <SideNav items={items} path={path} locked={locked} />
           <div className="pt-3">
             <div className="side-divider border-t border-line pb-2" />
             <HomeLink />
@@ -209,7 +254,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
         <main className={cx("mx-auto w-full max-w-[1760px] px-4 pt-6 sm:px-6 lg:px-8 lg:pt-8", analyst ? "pb-[calc(148px+env(safe-area-inset-bottom))] lg:pb-24" : "pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-10")}>{children}</main>
       </div>
 
-      <Tabs items={items} path={path} />
+      <Tabs items={items} path={path} locked={locked} />
       {analyst && <AssistantButton />}
       <NotificationPanel open={notesAt === path} anchor={anchor} onClose={() => setNotesAt(null)} />
     </div>
