@@ -8,7 +8,7 @@ import { cx, Logo } from "../ui";
 
 export const SECTIONS = [
   ["inicio", "Início"], ["clinica", "A clínica"], ["especialidades", "Especialidades"], ["espaco", "Nosso espaço"],
-  ["equipe", "Equipe"], ["unidades", "Unidades"], ["convenios", "Convênios"], ["contato", "Contato"],
+  ["sistema", "O sistema"], ["equipe", "Equipe"], ["unidades", "Unidades"], ["contato", "Contato"],
 ] as const;
 
 /** "Entrar" vira "Minha área" para quem já tem sessão. A página continua estática: a checagem é no navegador. */
@@ -70,7 +70,7 @@ export function SiteHeader() {
     <header className="site-header sticky top-0 z-40 border-b border-line bg-surface">
       <a href="#conteudo" className="sr-only rounded-lg bg-accent-fill px-4 py-2 text-on-accent focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50">Pular para o conteúdo</a>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <a href="#inicio" className="shrink-0"><Logo size={22} /></a>
+        <a href="#inicio" className="logo-shrink shrink-0"><Logo size={22} /></a>
         <nav aria-label="Seções da página" className="hidden flex-1 justify-center xl:flex">
           <ul className="flex gap-1">
             {SECTIONS.map(([id, label]) => (

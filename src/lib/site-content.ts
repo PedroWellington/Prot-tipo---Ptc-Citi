@@ -64,6 +64,21 @@ export const SITE_FIELDS: SiteField[] = [
     f("Perguntas frequentes", `faq.${i + 1}.a`, `Resposta ${i + 1}`, a, true),
   ]),
 
+  f("Faixa em movimento", "faixa.especialidades", "Especialidades e tratamentos (um por linha)", "Coluna e postura\nOmbros\nJoelhos e quadril\nReabilitação pós-operatória\nMobilidade\nPrevenção de dores recorrentes\nExercícios em casa\nAcompanhamento por sessão\nAlta combinada", true),
+
+  f("Sistema por dentro", "tour.titulo", "Título", "Veja o sistema por dentro"),
+  f("Sistema por dentro", "tour.sub", "Subtítulo", "O mesmo sistema conecta quem trata, quem organiza e quem se cuida.", true),
+  f("Sistema por dentro", "tour.paciente", "Paciente (um tópico por linha)", "Acompanha cada sessão e a fase do tratamento pelo celular.\nConfirma presença ou troca o horário com um toque.\nVê os exercícios para casa e marca o que já fez.", true),
+  f("Sistema por dentro", "tour.recepcao", "Recepção (um tópico por linha)", "Vê a agenda do dia, da semana e do mês por unidade.\nConfirma pagamentos e autoriza trocas de horário.\nAcompanha as renovações do convênio antes de vencerem.", true),
+  f("Sistema por dentro", "tour.fisio", "Fisioterapeuta (um tópico por linha)", "Abre a própria agenda e marca a sessão como realizada.\nRegistra a dor do paciente e a evolução por sessão.\nEnvia exercícios para casa com vídeo ou arquivo.", true),
+
+  f("Subtítulos das seções", "sub.especialidades", "Especialidades", "Planos para as dores mais comuns, com exercícios que você entende e repete em casa.", true),
+  f("Subtítulos das seções", "sub.como", "Como funciona", "Um caminho claro, com metas revistas a cada fase.", true),
+  f("Subtítulos das seções", "sub.equipe", "Equipe", "Fisioterapeutas que acompanham você do começo ao fim.", true),
+  f("Subtítulos das seções", "sub.unidades", "Unidades", "Duas unidades em Recife, perto de transporte público.", true),
+  f("Subtítulos das seções", "sub.convenios", "Convênios e pagamento", "Convênio ou particular, sem surpresa na hora de pagar.", true),
+  f("Subtítulos das seções", "sub.faq", "Perguntas frequentes", "O que costumam perguntar antes de começar.", true),
+
   f("Contato", "contato.titulo", "Título", "Pronto para começar?"),
   f("Contato", "contato.texto", "Texto", "Entre ou crie sua conta para escolher os horários. Prefere falar com alguém? Ligue para a unidade.", true),
   f("Contato", "contato.email.BV", "E-mail de Boa Viagem", "boaviagem@movimento.example"),

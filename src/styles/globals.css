@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "./site.css"; /* página pública: no mesmo arquivo para não somar um CSS que bloqueia a renderização */
 
 @theme inline {
   --color-bg: var(--bg);

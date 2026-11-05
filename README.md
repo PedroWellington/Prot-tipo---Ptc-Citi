@@ -158,9 +158,16 @@ Nenhuma imagem, texto ou logotipo foi copiado de outros sites. Nenhuma imagem fo
 |---|---|---|---|---|
 | `public/site/espaco-*.webp` | Nosso espaço | [Wikimedia Commons: LRMC Physical, Occupational Therapy Clinics… (10036396)](https://commons.wikimedia.org/wiki/File:LRMC_Physical,_Occupational_Therapy_Clinics_Help_Service_Members_Recover,_Return_to_Duty_(10036396).jpg) | Bernhard Lashleyleidner, Exército dos EUA (ID 261020-A-HN506-1013) | Domínio público (obra do governo dos EUA) |
 | `public/site/exercicios-*.webp` | A terapia ideal | [Wikimedia Commons: Exercise equipment (rubber ball, light-weight dumbbells, jump rope)](https://commons.wikimedia.org/wiki/File:Exercise_equipment_(rubber_ball,_light-weight_dumbbells,_jump_rope).jpg) | Debora Cartagena, CDC (PHIL #14407) | Domínio público (obra do governo dos EUA) |
-| Ilustrações do hero, "A clínica" e especialidades | `src/components/site/illustrations.tsx` | SVG original feito para este projeto | — | Parte do projeto |
+| `public/site/tela-*.webp` | Mockups do hero e de "Veja o sistema por dentro" | Capturas do próprio sistema em modo demonstração (dados fictícios, sem CPF, e-mail ou telefone), geradas com Playwright e convertidas por `node scripts/telas-site.mjs <pasta>` | Projeto | Parte do projeto |
+| Ilustração de "A clínica" e ícones das especialidades | `src/components/site/illustrations.tsx` | SVG de linha fina original (sem pessoas) e ícones Lucide (licença ISC) | — | Parte do projeto |
+
+Para "A clínica" foi avaliada a foto CC0 [Physical Therapy Teaching Lab at CU Anschutz (October 2025)](https://commons.wikimedia.org/wiki/File:Physical_Therapy_Teaching_Lab_at_CU_Anschutz_(October_2025).jpg) e descartada: mostra pessoas e o logotipo de uma universidade real. No lugar, ilustração de linha.
 
 As licenças foram conferidas foto a foto pela API do Wikimedia Commons (campo `LicenseShortName`). As fotos mostram ambiente e equipamentos, sem pessoas; o uso não indica endosso das instituições de origem. Conversão: `node scripts/imagens-site.mjs <pasta-dos-originais>` gera WebP em 640, 1024 e 1600 px, sem metadados, com dimensões fixas e placeholder desfocado em `src/lib/site-images.ts`.
+
+### Movimento na página pública
+
+Sem biblioteca de animação: CSS e um único `IntersectionObserver` ([src/components/site/motion.tsx](src/components/site/motion.tsx)). Um script inline liga `.motion-ok` antes da primeira pintura só quando há JavaScript e movimento permitido; sem ele (ou com `prefers-reduced-motion`) tudo aparece parado e visível. A faixa em movimento é CSS puro (conteúdo duplicado com `aria-hidden` na cópia), pausa sob o mouse e no foco e só roda visível. Hover (`.lift`) só em `(hover: hover) and (pointer: fine)`; no toque, `scale(0.98)` ao pressionar. Regras em [src/styles/site.css](src/styles/site.css).
 
 ## Análises: como calculamos as previsões
 
