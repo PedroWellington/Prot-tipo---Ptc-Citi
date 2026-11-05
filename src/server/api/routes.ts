@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
+import { YOUTUBE_URL } from "@/lib/exercicios";
 import { PASSWORD_MAX, PASSWORD_RULES } from "@/lib/password";
 import { BOOKING_SIZES } from "@/lib/schedule";
 import { DAY, startOfRecifeDay } from "@/lib/time";
@@ -20,6 +21,7 @@ import { resetDemoStep, RESET_STEPS } from "../services/demo";
 import * as late from "../services/late";
 import * as agenda from "../services/agenda";
 import * as analytics from "../services/analytics";
+import * as exercises from "../services/exercises";
 import { askAssistant, assistantStatus, defaultDeps } from "../assistant/engine";
 import { local } from "../services/assistente";
 import * as google from "../services/google";
@@ -157,8 +159,11 @@ route("GET", "/me/home", { roles: PATIENT, summary: "Dados da tela Meu tratament
 route("POST", "/me/sessions/:id/confirm", { roles: PATIENT, summary: "Confirma presença" }, (c) => sessions.confirmSession(c.params.id, patientOf(c)));
 route("POST", "/me/sessions/:id/pain", { roles: PATIENT, body: painBody, summary: "Registra a dor de hoje (0 a 10)" }, (c) => sessions.recordPain(c.params.id, c.body.score, { patientId: patientOf(c) }));
 route("POST", "/me/guidances/:id/done", { roles: PATIENT, body: z.object({ done: z.boolean() }), summary: "Marca exercício como feito" }, async (c) => {
+  await payments.assertTreatmentUnlocked(patientOf(c));
   if (!(await setGuidanceDone(c.params.id, patientOf(c), c.body.done)).count) throw notFound("Orientação");
 });
+route("POST", "/me/exercises/:id/done", { roles: PATIENT, body: z.object({ done: z.boolean() }), summary: "Marca exercício prévio (genérico) como feito" },
+  (c) => exercises.markGenericDone(patientOf(c), c.params.id, c.body.done));
 route("GET", "/me/units", { roles: PATIENT, summary: "Unidades com horários dos próximos 7 dias" }, () => schedule.unitsOverview());
 route("GET", "/slots", {
   roles: [...PATIENT, ...FRONT_DESK],
@@ -258,6 +263,8 @@ route("POST", "/desk/patients/:id/treatment", {
 }, ({ params, user, body }) => schedule.bookTreatment({ ...body, patientId: params.id }, user.id));
 route("GET", "/desk/payments", { roles: DESK_OR_PHYSIO, summary: "Pagamentos aguardando confirmação" }, ({ user }) => payments.pendingPayments(user));
 route("POST", "/desk/payments/:id/confirm", { roles: DESK_OR_PHYSIO, summary: "Confirma o PIX manualmente" }, ({ params, user }) => payments.confirmManually(params.id, user));
+route("POST", "/desk/payments/:id/reject", { roles: DESK_OR_PHYSIO, body: z.object({ reason: optText(300) }), summary: "Recusa o pagamento: libera os horários e avisa o paciente" },
+  ({ params, user, body }) => payments.rejectPayment(params.id, user, body.reason));
 route("POST", "/desk/payments/:id/reactivate", { roles: DESK_OR_PHYSIO, summary: "Reativa uma reserva de PIX vencida se os horários continuam livres" }, ({ params, user }) => schedule.reactivatePayment(params.id, user));
 route("POST", "/desk/sessions/:id/checkin", { roles: DESK_OR_PHYSIO, summary: "Check-in; cancela ofertas de vaga pendentes" }, ({ params, user }) => late.checkIn(params.id, user));
 route("POST", "/desk/sessions/:id/late", { roles: FRONT_DESK, summary: "Paciente atrasado: inicia o fluxo manualmente" }, ({ params, user }) => late.startLate(params.id, user.id));
@@ -461,6 +468,16 @@ route("PATCH", "/admin/settings", {
   await cfg.saveSettings(body);
   await cfg.audit(user.id, "PARAMETROS_ALTERADOS", "Setting", null, body);
 });
+route("GET", "/admin/exercises", { roles: ADMIN, summary: "Exercícios prévios (genéricos)" }, () => exercises.adminExercises());
+route("PATCH", "/admin/exercises/:id", {
+  roles: ADMIN,
+  body: z.object({
+    name: text(80), region: text(60), prescription: text(60), rest: text(40),
+    videoUrl: z.string().trim().max(200).refine((v) => !v || YOUTUBE_URL.test(v), "Use um link do YouTube (https://www.youtube.com/watch?v=...)").transform((v) => v || null),
+    videoChannel: z.string().trim().max(120).transform((v) => v || null),
+  }),
+  summary: "Edita um exercício prévio e o link do vídeo",
+}, ({ params, body, user }) => exercises.saveExercise(user, params.id, body));
 route("GET", "/admin/messages", { roles: ADMIN, summary: "Textos educativos" }, () => cfg.listProgressMessages());
 route("PATCH", "/admin/messages/:id", { roles: ADMIN, body: z.object({ text: text(800) }), summary: "Edita texto (incrementa a versão)" }, async ({ params, body, user }) => {
   await cfg.saveProgressMessage(params.id, body.text);

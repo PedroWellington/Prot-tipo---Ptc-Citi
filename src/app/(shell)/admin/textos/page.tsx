@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import type { adminSiteContent } from "@/server/services/site";
+import type { adminExercises } from "@/server/services/exercises";
 import { useAction } from "@/components/providers";
 import { Badge, Button, Card, ErrorState, Input, ListSkeleton, PageTitle, Textarea } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -18,6 +19,7 @@ export default function Page() {
     <>
       <PageTitle eyebrow="Administração" title="Textos" />
       <SiteTexts />
+      <ExerciseTexts />
       <h2 className="mt-10 mb-3 font-display text-3xl">Textos educativos</h2>
       {isLoading && <ListSkeleton />}
       {error && <ErrorState error={error} retry={refetch} />}
@@ -43,6 +45,46 @@ export default function Page() {
 }
 
 type SiteField = Awaited<ReturnType<typeof adminSiteContent>>[number];
+type ExerciseRow = Awaited<ReturnType<typeof adminExercises>>[number];
+
+/** Exercícios prévios que o paciente vê antes dos exercícios da fisioterapeuta. Link só do YouTube, validado no servidor. */
+function ExerciseTexts() {
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["admin-exercises"], queryFn: () => api<ExerciseRow[]>("/admin/exercises"), staleTime: 300_000 });
+  const save = useAction({
+    run: ({ id, body }: { id: string; body: Record<string, string> }) => api(`/admin/exercises/${id}`, { method: "PATCH", body }),
+    invalidate: [["admin-exercises"], ["home"]], success: "Exercício salvo",
+  });
+  return (
+    <section aria-labelledby="ex-t" className="mt-10">
+      <h2 id="ex-t" className="font-display text-3xl">Exercícios prévios</h2>
+      <p className="mb-3 text-sm text-ink-3">Aparecem para o paciente com pagamento autorizado enquanto a fisioterapeuta não passa exercícios. Deixe o link vazio para esconder o botão do vídeo.</p>
+      {isLoading && <ListSkeleton rows={2} />}
+      {error && <ErrorState error={error} retry={refetch} />}
+      <div className="flex flex-col gap-3">
+        {data?.map((x) => (
+          <details key={x.id} className="card group p-5 sm:p-6">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-semibold [&::-webkit-details-marker]:hidden">
+              {x.name}<Badge tone={x.category === "Mobilidade" ? "info" : "accent"}>{x.category}</Badge>
+            </summary>
+            <form key={String(x.updatedAt)} className="mt-3 grid gap-3 lg:grid-cols-2" onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              save.mutate({ id: x.id, body: Object.fromEntries(["name", "region", "prescription", "rest", "videoUrl", "videoChannel"].map((k) => [k, String(f.get(k) ?? "")])) });
+            }}>
+              <Input label="Nome" name="name" defaultValue={x.name} maxLength={80} required />
+              <Input label="Região do corpo" name="region" defaultValue={x.region} maxLength={60} required />
+              <Input label="Séries x repetições" name="prescription" defaultValue={x.prescription} maxLength={60} required />
+              <Input label="Descanso" name="rest" defaultValue={x.rest} maxLength={40} required />
+              <Input label="Link do vídeo no YouTube" name="videoUrl" type="url" defaultValue={x.videoUrl ?? ""} maxLength={200} placeholder="https://www.youtube.com/watch?v=..." />
+              <Input label="Canal do vídeo" name="videoChannel" defaultValue={x.videoChannel ?? ""} maxLength={120} />
+              <Button type="submit" variant="ghost" className="justify-self-end lg:col-span-2">Salvar</Button>
+            </form>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 /** Página inicial (pública): salvar publica na hora, sem esperar a revalidação. */
 function SiteTexts() {

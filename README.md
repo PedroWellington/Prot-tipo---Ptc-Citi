@@ -55,7 +55,7 @@ Os telefones do seed começam com `81 00000`: assinantes iniciados em 0 não exi
 | Perfil | Rotas |
 |---|---|
 | Público | `/login`, `/cadastro`, `/recuperar`, `/trocar-senha`, `/c/[token]`, `/offline` |
-| Paciente | `/app` (Meu tratamento), `/app/agendar`, `/app/pagamento/[id]`, `/app/troca`, `/app/unidades`, `/app/perfil` |
+| Paciente | `/app` (Meu tratamento), `/app/mobilidade`, `/app/agendar`, `/app/pagamento/[id]`, `/app/troca`, `/app/unidades`, `/app/perfil` |
 | Recepção | `/recepcao` (agenda: dia, semana e mês), `/recepcao/trocas`, `/recepcao/renovacoes`, `/recepcao/espera`, `/recepcao/pagamentos`, `/recepcao/whatsapp`, `/recepcao/pacientes` |
 | Fisioterapeuta | `/fisio`, `/fisio/pacientes`, `/fisio/pacientes/[id]` |
 | Admin | `/admin` (métricas), `/admin/usuarios`, `/admin/unidades`, `/admin/parametros`, `/admin/textos`, `/admin/auditoria`, e as telas da recepção |
@@ -94,6 +94,35 @@ Duas implementações de `PaymentProvider` em [src/server/payments/index.ts](src
 - `PspPixProvider`: adaptador desativado para provedores como Mercado Pago, Efí ou Asaas. Para ligar, use `PIX_PROVIDER=psp`, preencha `PSP_BASE_URL`, `PSP_TOKEN` e `PSP_WEBHOOK_SECRET`, adapte as duas chamadas ao contrato do provedor escolhido e aponte o webhook para `POST /api/webhooks/pix`, com a assinatura HMAC-SHA256 do corpo no cabeçalho `x-webhook-signature`. **Nunca foi testado contra um provedor real.**
 
 Nenhum dado sensível de pagamento é guardado: o código é recalculado a partir do `txid`.
+
+### Tratamento só depois do pagamento autorizado
+
+Enquanto a reserva do particular aguarda pagamento, `/me/home` (abas Tratamento e Mobilidade) devolve **só** o resumo da reserva e o PIX: nada de sessões, gráfico, conquistas ou exercícios, mesmo abrindo a URL ou chamando a API direto. Marcar exercício e registrar dor também respondem 403/409. A tela do paciente consulta a cada 5 s enquanto aguarda e muda sozinha quando a equipe confirma, com o aviso "Pagamento confirmado! Seu tratamento foi liberado". "Agendar mais sessões" num tratamento já pago não bloqueia de novo; convênio nunca bloqueia.
+
+Quem autoriza ou recusa em Pagamentos: o admin (todas as unidades), a recepção da própria unidade e, em unidade sem recepção, o fisioterapeuta responsável. "Recusar pagamento" aceita um motivo opcional, libera os horários na hora (a fila de espera recebe a vaga) e avisa o paciente. Confirmação (`PAGAMENTO_CONFIRMADO`) e recusa (`PAGAMENTO_RECUSADO`, com o motivo) ficam no log de auditoria com quem e quando. Reserva vencida volta o paciente ao início com o aviso de reserva expirada.
+
+## Exercícios prévios (aba Mobilidade)
+
+Paciente com pagamento autorizado (ou convênio) que ainda não recebeu exercícios da fisioterapeuta vê "Exercícios prévios: mobilidade e fortalecimento" no topo da aba Mobilidade e como cartão na aba Tratamento. Quando a fisioterapeuta envia exercícios, eles sobem e a seção desce recolhida. O admin edita nomes, séries, descanso e links em Admin > Textos > Exercícios prévios (só aceita link do YouTube).
+
+Os vídeos abrem no YouTube em nova aba (`rel="noopener noreferrer"`); nada é embutido, sem iframe nem miniatura. Tabelas `Exercise` e `ExerciseDone` (migration aditiva). Para inserir os 6 padrão sem tocar em mais nada:
+
+```
+npx tsx --env-file=.env.neon scripts/exercicios-previos.ts
+```
+
+Links verificados em 2026-11-05 (existência e canal pelo oEmbed do YouTube; conteúdo pelo título, descrição e capítulos do vídeo):
+
+| Exercício | Vídeo | Canal |
+|---|---|---|
+| Rotação suave de pescoço | https://www.youtube.com/watch?v=bolyL-Q6KPU | Dr. Robson Sitta (fisioterapeuta, Método Sitta): "mobilidade rotacional da coluna cervical" |
+| Círculos de ombro | sem vídeo | Não achei vídeo de profissional de saúde que mostre exatamente este movimento |
+| Gato-camelo | https://www.youtube.com/watch?v=IUYz5xHrQNo | Cristiane Lage (fisioterapeuta, BH): "Exercício do gato", flexão e extensão da coluna; orienta não fazer em crise aguda |
+| Ponte de glúteos | https://www.youtube.com/watch?v=-Nzmu7H881I | Márcio Brito fisio: passo a passo da ponte |
+| Agachamento na parede | https://www.youtube.com/watch?v=bPCnN6zHJEg&t=490s | Fisioterapia com Kelwin Juan: capítulo 08:10 "Agachamento estático na parede" |
+| Ativação do quadríceps com toalha | https://www.youtube.com/watch?v=bPCnN6zHJEg&t=165s | Fisioterapia com Kelwin Juan: capítulo 02:45 "Ativação do quadríceps com toalha" |
+
+Os vídeos não foram assistidos quadro a quadro: vale a fisioterapeuta da clínica revisar a execução antes de divulgar.
 
 ## WhatsApp e atraso
 

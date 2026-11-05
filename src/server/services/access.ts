@@ -6,6 +6,8 @@ export const unitIsDeskless = async (unitId: string | null) => !!unitId && !(awa
 
 /** Fisioterapeuta só age como recepção com o próprio paciente, e só enquanto a unidade não tiver recepção. */
 export async function assertDeskAccess(user: CurrentUser, unitId: string, physioId: string) {
+  // Recepção só age na própria unidade (sem unidade definida, atende todas)
+  if (user.role === "RECEPCAO" && user.unitId && user.unitId !== unitId) throw forbidden();
   if (user.role !== "FISIOTERAPEUTA") return;
   if (user.physio?.id !== physioId || !(await unitIsDeskless(unitId))) throw forbidden();
 }

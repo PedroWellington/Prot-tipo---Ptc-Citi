@@ -3,19 +3,21 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Award, CalendarCheck, CalendarClock, CalendarPlus, Check, CircleCheckBig, Clock, ExternalLink, FileText, Flag, Flame, Lock, MapPin,
-  Navigation, PlayCircle, Percent, Repeat, ShieldCheck, Sparkles, Star, Target, UserRound, X,
+  Hourglass, Navigation, PlayCircle, Percent, QrCode, Repeat, ShieldCheck, Sparkles, Star, Target, UserRound, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { NOTA_ENDERECO } from "@/lib/unidades";
 import { SESSION_STATUS, type Tone } from "@/lib/labels";
 import { attendance, STAGES, stageOf } from "@/lib/progress";
-import { countdown, fmtLong, fmtTime, fmtWeekShort } from "@/lib/time";
+import { countdown, fmtLong, fmtTime, fmtWeekShort, recifeParts, WEEKDAYS } from "@/lib/time";
 import type { patientHome } from "@/server/services/patients";
 import { AddToCalendar, MiniMonth } from "./patient-calendar";
-import { ExpiredNotice, PendingPaymentNotice } from "./payment-notices";
+import { GenericExercises } from "./generic-exercises";
+import { CopyCode, ExpiredNotice, PendingPaymentNotice } from "./payment-notices";
 import { ProgressRing } from "./progress-ring";
 import { useAction } from "./providers";
 import { Badge, Button, Card, cx, Empty, LinkButton, Skeleton, SuccessCheck, Tile } from "./ui";
@@ -23,6 +25,7 @@ import { Badge, Button, Card, cx, Empty, LinkButton, Skeleton, SuccessCheck, Til
 export type Home = Awaited<ReturnType<typeof patientHome>>;
 type Full = Extract<Home, { sessions: unknown }>;
 type SessionRow = Full["sessions"][number];
+type Awaiting = NonNullable<Home["awaiting"]>;
 
 const DAY_MS = 86_400_000;
 // Endereço público da unidade: é o que vai para o evento do calendário
@@ -251,7 +254,7 @@ function Phases({ done, total }: { done: number; total: number }) {
 }
 
 // ── 6. Exercícios ─────────────────────────────────────────────
-function Exercises({ items }: { items: Full["treatment"]["guidances"] }) {
+export function Exercises({ items }: { items: Full["treatment"]["guidances"] }) {
   const toggle = useAction({
     run: ({ id, done }: { id: string; done: boolean }) => api(`/me/guidances/${id}/done`, { body: { done } }),
     optimistic: {
@@ -437,15 +440,75 @@ function UnitCard({ unit }: { unit: Full["treatment"]["unit"] }) {
   );
 }
 
+// ── Aguardando o pagamento: só a reserva e o PIX, nada do tratamento ──
+const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** "Terça às 08:00 · Quinta às 08:00": o padrão semanal da reserva, sem repetir cada data. */
+function weeklyPattern(slots: (Date | string)[]) {
+  const seen = new Map<string, number>();
+  for (const d of slots) {
+    const w = recifeParts(new Date(d)).weekday;
+    seen.set(`${WEEKDAYS[w]} às ${fmtTime(d)}`, w);
+  }
+  return [...seen].sort((a, b) => a[1] - b[1]).map(([label]) => label).join(" · ");
+}
+
+function AwaitingView({ a, name, expiredPayment }: { a: Awaiting; name: string; expiredPayment: string | null }) {
+  // O servidor vence a reserva antes de responder: com prazo esgotado o PIX já vem nulo
+  const valid = !!a.pixCode;
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      {expiredPayment && <div className="lg:col-span-12"><ExpiredNotice id={expiredPayment} /></div>}
+      <Card className="hero flex flex-col items-start gap-2 lg:col-span-12">
+        <Badge tone="warn"><Hourglass className="size-3.5" />Reserva feita</Badge>
+        <h1 className="font-display text-[34px] leading-tight sm:text-[40px]">Olá, {name}</h1>
+        <p className="max-w-prose leading-relaxed text-ink-2">Que bom ter você na Clínica Movimento. Seus horários estão reservados.</p>
+      </Card>
+      <section aria-labelledby="aguardando-t" className="card flex flex-col gap-4 border-warn/50 p-5 sm:p-6 lg:col-span-7">
+        <h2 id="aguardando-t" className="flex items-center gap-3 font-semibold"><Tile tone="warn"><Clock /></Tile>Aguardando a confirmação do seu pagamento</h2>
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div className="rounded-xl bg-surface-2 p-3"><dt className="text-xs text-ink-3">Unidade</dt><dd className="font-semibold">{a.unit.name}</dd><dd className="text-xs text-ink-3">{a.unit.address}</dd></div>
+          <div className="rounded-xl bg-surface-2 p-3"><dt className="text-xs text-ink-3">Dias e horários</dt><dd className="font-semibold">{weeklyPattern(a.slots)}</dd>{!!a.slots.length && <dd className="text-xs text-ink-3 first-letter:uppercase">1ª sessão: {fmtLong(a.slots[0])}</dd>}</div>
+          <div className="rounded-xl bg-surface-2 p-3"><dt className="text-xs text-ink-3">Valor</dt><dd className="font-display text-2xl tabular-nums">{brl(a.amountCents)}</dd><dd className="text-xs text-ink-3">{a.sessionCount} {a.sessionCount === 1 ? "sessão" : "sessões"}</dd></div>
+          <div className="rounded-xl bg-surface-2 p-3"><dt className="text-xs text-ink-3">Reserva válida até</dt><dd className="font-semibold">{fmtTime(a.expiresAt)}</dd><dd className="text-xs text-ink-3">Depois disso, os horários são liberados.</dd></div>
+        </dl>
+        <p className="mt-auto rounded-2xl bg-accent-soft p-3 text-sm text-ink">Assim que a clínica confirmar o pagamento, seu tratamento será liberado aqui.</p>
+      </section>
+      <section aria-labelledby="pix-t" className="card flex flex-col gap-3 p-5 sm:p-6 lg:col-span-5">
+        <h2 id="pix-t" className="flex items-center gap-3 font-semibold"><Tile tone="accent"><QrCode /></Tile>Pague com PIX</h2>
+        {valid ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- QR gerado no servidor em data URI */}
+            <img src={a.qr!} alt="QR Code do PIX" width={220} height={220} className="self-center rounded-xl bg-white p-2" />
+            <CopyCode code={a.pixCode!} />
+          </>
+        ) : <p className="text-sm text-ink-2">O prazo da reserva acabou. Esta tela atualiza sozinha em instantes.</p>}
+      </section>
+    </div>
+  );
+}
+
+/** A mesma consulta nas duas abas: acelera enquanto aguarda o pagamento e avisa quando ele é confirmado. */
+function useHome(initial: Home, serverAt: number) {
+  const { data = initial } = useQuery({
+    ...q.home, initialData: initial, initialDataUpdatedAt: serverAt,
+    // Mudanças feitas pela fisioterapeuta ou recepção aparecem sem recarregar
+    refetchInterval: (query) => (query.state.data?.awaiting ? 5_000 : 30_000),
+  });
+  const wasAwaiting = useRef(!!initial.awaiting);
+  useEffect(() => {
+    if (wasAwaiting.current && data.treatment) toast.success("Pagamento confirmado! Seu tratamento foi liberado");
+    wasAwaiting.current = !!data.awaiting;
+  }, [data]);
+  return data;
+}
+
 /** Abaixo da dobra: o navegador só pinta quando chega perto da tela. */
 const below = "[content-visibility:auto] [contain-intrinsic-size:auto_480px]";
 
 export function HomeClient({ initial, name, serverAt }: { initial: Home; name: string; serverAt: number }) {
-  const { data = initial } = useQuery({
-    ...q.home, initialData: initial, initialDataUpdatedAt: serverAt,
-    // Mudanças feitas pela fisioterapeuta ou recepção aparecem sem recarregar
-    refetchInterval: 30_000,
-  });
+  const data = useHome(initial, serverAt);
+  if (data.awaiting) return <AwaitingView a={data.awaiting} name={name} expiredPayment={data.expiredPayment} />;
 
   // Sem pacote: o mesmo desenho do painel em andamento, com tudo zerado
   if (!data.treatment)
@@ -515,7 +578,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
       <Phases done={t.done} total={t.total} />
 
       <div className={cx("flex flex-col gap-4 lg:col-span-7", below)}>
-        <Exercises items={recent.length ? recent : t.guidances.slice(0, 3)} />
+        {t.guidances.length ? <Exercises items={recent.length ? recent : t.guidances.slice(0, 3)} /> : <GenericExercises items={data.generic} />}
         <Timeline sessions={sessions} nextId={data.nextSessionId} unit={t.unit} now={serverAt} />
       </div>
       <div className={cx("flex flex-col gap-4 lg:col-span-5", below)}>
@@ -525,6 +588,27 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
         <Achievements done={t.done} total={t.total} sessions={sessions} />
         <UnitCard unit={t.unit} />
       </div>
+      {!!t.guidances.length && <GenericExercises items={data.generic} collapsed className={cx("lg:col-span-12", below)} />}
+    </div>
+  );
+}
+
+/** Aba Mobilidade: com exercícios da fisioterapeuta eles vêm primeiro e os prévios descem recolhidos. */
+export function MobilityClient({ initial, serverAt }: { initial: Home; serverAt: number }) {
+  const data = useHome(initial, serverAt);
+  if (data.awaiting || !data.treatment)
+    return (
+      <Card>
+        <Empty art={<Lock strokeWidth={1.2} className="size-10 text-ink-3" />}
+          title={data.awaiting ? "Aguardando a confirmação do seu pagamento" : "Nenhum tratamento ainda"}
+          body={data.awaiting ? "Assim que a clínica confirmar o pagamento, seus exercícios serão liberados aqui." : "Agende seu tratamento para liberar os exercícios."}
+          action={<LinkButton variant="ghost" href={data.awaiting ? "/app" : "/app/agendar"}>{data.awaiting ? "Ver minha reserva" : "Agendar meu tratamento"}</LinkButton>} />
+      </Card>
+    );
+  const { treatment: t, generic } = data as Full;
+  return (
+    <div className="flex flex-col gap-4">
+      {t.guidances.length ? <><Exercises items={t.guidances} /><GenericExercises items={generic} collapsed /></> : <GenericExercises items={generic} />}
     </div>
   );
 }

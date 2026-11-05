@@ -6,13 +6,34 @@ export const createPayment = (data: Prisma.PaymentUncheckedCreateInput, db: Db =
 export const findPayment = (id: string) =>
   prisma.payment.findUnique({ where: { id }, include: { patient: { select: { userId: true } } } });
 
+export const paymentForRelease = (id: string) =>
+  prisma.payment.findUnique({ where: { id }, select: { id: true, status: true, treatmentId: true, sessionCount: true, amountCents: true, patient: { select: { userId: true } } } });
+
 export const findByTxid = (txid: string) => prisma.payment.findUnique({ where: { txid }, select: { id: true, status: true } });
 
 export const settlePayment = async (id: string, confirmedById: string | null) =>
   (await prisma.payment.updateMany({ where: { id, status: "AGUARDANDO" }, data: { status: "PAGO", paidAt: new Date(), confirmedById } })).count === 1;
 
-export const expirePayment = async (id: string, db: Db) =>
-  (await db.payment.updateMany({ where: { id, status: "AGUARDANDO" }, data: { status: "EXPIRADO", treatmentId: null } })).count === 1;
+/** Condicional: só fecha uma reserva ainda aguardando (expiração ou recusa, quem chegar primeiro). */
+export const expirePayment = async (id: string, db: Db, status: "EXPIRADO" | "RECUSADO" = "EXPIRADO") =>
+  (await db.payment.updateMany({ where: { id, status: "AGUARDANDO" }, data: { status, treatmentId: null } })).count === 1;
+
+/**
+ * Reserva que ainda não liberou o tratamento: nenhum pagamento confirmado e um aguardando.
+ * Convênio não tem pagamento, e "agendar mais sessões" num tratamento já pago não bloqueia de novo.
+ */
+export async function awaitingPaymentOf(treatmentId: string) {
+  const pays = await prisma.payment.findMany({
+    where: { treatmentId, status: { in: ["AGUARDANDO", "PAGO"] } }, orderBy: { createdAt: "asc" }, select: { id: true, status: true },
+  });
+  return pays.some((p) => p.status === "PAGO") ? null : (pays[0]?.id ?? null);
+}
+
+export const latestTreatmentId = async (patientId: string) =>
+  (await prisma.treatment.findFirst({ where: { patientId }, orderBy: { startedAt: "desc" }, select: { id: true } }))?.id ?? null;
+
+export const paymentSessions = (paymentId: string) =>
+  prisma.session.findMany({ where: { paymentId }, orderBy: { startsAt: "asc" }, select: { startsAt: true } });
 
 export const expiredPayments = (db: Db = prisma) =>
   db.payment.findMany({
@@ -59,5 +80,8 @@ export const firstSessionOf = (paymentId: string) =>
 export const pendingPayments = (scope: { unitId?: string; physioId?: string }) =>
   prisma.payment.findMany({
     where: { status: "AGUARDANDO", expiresAt: { gt: new Date() }, ...(scope.unitId || scope.physioId ? { sessions: { some: scope } } : {}) }, orderBy: { expiresAt: "asc" },
-    select: { id: true, amountCents: true, sessionCount: true, expiresAt: true, createdAt: true, patient: { select: { phone: true, user: { select: { name: true } } } } },
+    select: {
+      id: true, amountCents: true, sessionCount: true, expiresAt: true, createdAt: true, patient: { select: { phone: true, user: { select: { name: true } } } },
+      sessions: { take: 1, orderBy: { startsAt: "asc" }, select: { startsAt: true, unit: { select: { name: true } } } },
+    },
   });

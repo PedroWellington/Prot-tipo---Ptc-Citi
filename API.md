@@ -26,6 +26,7 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | POST | `/api/me/sessions/:id/confirm` | PACIENTE | Confirma presença |
 | POST | `/api/me/sessions/:id/pain` | PACIENTE | Registra a dor de hoje (0 a 10) |
 | POST | `/api/me/guidances/:id/done` | PACIENTE | Marca exercício como feito |
+| POST | `/api/me/exercises/:id/done` | PACIENTE | Marca exercício prévio (genérico) como feito |
 | GET | `/api/me/units` | PACIENTE | Unidades com horários dos próximos 7 dias |
 | GET | `/api/slots` | PACIENTE, ADMIN, RECEPCAO | Horários livres de uma unidade |
 | GET | `/api/week-grid` | PACIENTE, ADMIN, RECEPCAO | Grade semanal para o wizard de agendamento |
@@ -66,6 +67,7 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | POST | `/api/desk/patients/:id/treatment` | ADMIN, RECEPCAO | Agenda em nome do paciente |
 | GET | `/api/desk/payments` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Pagamentos aguardando confirmação |
 | POST | `/api/desk/payments/:id/confirm` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Confirma o PIX manualmente |
+| POST | `/api/desk/payments/:id/reject` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Recusa o pagamento: libera os horários e avisa o paciente |
 | POST | `/api/desk/payments/:id/reactivate` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Reativa uma reserva de PIX vencida se os horários continuam livres |
 | POST | `/api/desk/sessions/:id/checkin` | ADMIN, RECEPCAO, FISIOTERAPEUTA | Check-in; cancela ofertas de vaga pendentes |
 | POST | `/api/desk/sessions/:id/late` | ADMIN, RECEPCAO | Paciente atrasado: inicia o fluxo manualmente |
@@ -115,6 +117,8 @@ Gerado por `npm run docs:api` a partir de `src/server/api/routes.ts`, onde cada 
 | DELETE | `/api/admin/holidays/:id` | ADMIN | Remove feriado |
 | GET | `/api/admin/settings` | ADMIN | Parâmetros |
 | PATCH | `/api/admin/settings` | ADMIN | Atualiza parâmetros |
+| GET | `/api/admin/exercises` | ADMIN | Exercícios prévios (genéricos) |
+| PATCH | `/api/admin/exercises/:id` | ADMIN | Edita um exercício prévio e o link do vídeo |
 | GET | `/api/admin/messages` | ADMIN | Textos educativos |
 | PATCH | `/api/admin/messages/:id` | ADMIN | Edita texto (incrementa a versão) |
 | POST | `/api/admin/demo/reset` | ADMIN | Reseta os dados de demonstração, uma etapa por chamada |

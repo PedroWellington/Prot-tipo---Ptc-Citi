@@ -1,9 +1,10 @@
 "use client";
 
-import { CircleAlert, QrCode, X } from "lucide-react";
+import { Check, CircleAlert, Copy, QrCode, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LinkButton } from "./ui";
+import { haptic } from "./providers";
+import { Button, LinkButton } from "./ui";
 
 // Dispensa por pagamento, no próprio navegador: o aviso não volta ao trocar de aba nem ao recarregar
 const expiredKey = (id: string) => `mv-aviso-reserva:${id}`;
@@ -63,3 +64,34 @@ export function PendingPaymentNotice({ id }: { id: string }) {
 
 /** Abrir o pagamento traz o aviso de volta na tela inicial. */
 export const restorePendingNotice = (id: string) => write(pendingKey(id), false);
+
+function copyText(text: string) {
+  if (navigator.clipboard) return navigator.clipboard.writeText(text);
+  // Fora de https o navegador não oferece a Clipboard API
+  const area = document.createElement("textarea");
+  area.value = text;
+  document.body.append(area);
+  area.select();
+  document.execCommand("copy");
+  area.remove();
+  return Promise.resolve();
+}
+
+export function CopyCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="rounded-xl bg-surface-2 p-3 font-mono text-xs break-all text-ink-2">{code}</p>
+      <Button variant="brand" className="w-full" onClick={() => {
+        // Feedback antes da promessa: resposta instantânea ao toque
+        setCopied(true); haptic();
+        void copyText(code);
+        setTimeout(() => setCopied(false), 2000);
+      }}>
+        {copied ? <Check strokeWidth={1.5} className="size-4" /> : <Copy strokeWidth={1.5} className="size-4" />}
+        {copied ? "Copiado" : "Copiar código PIX"}
+      </Button>
+    </div>
+  );
+}
+

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CalendarPlus, ChartColumn, ClipboardList, FileClock, HeartPulse, Home, Hourglass, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
+import { Activity, CalendarClock, CalendarPlus, ChartColumn, ClipboardList, FileClock, HeartPulse, Home, Hourglass, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
@@ -31,6 +31,7 @@ const DESK_FOR_PHYSIO = DESK.filter((d) => ["/recepcao/trocas", "/recepcao/renov
 export const NAV: Record<string, Item[]> = {
   PACIENTE: [
     { href: "/app", label: "Tratamento", icon: HeartPulse },
+    { href: "/app/mobilidade", label: "Mobilidade", icon: Activity },
     { href: "/app/agendar", label: "Agendar", icon: CalendarPlus },
     { href: "/app/troca", label: "Troca", icon: Repeat },
     { href: "/app/unidades", label: "Unidades", icon: MapPin },

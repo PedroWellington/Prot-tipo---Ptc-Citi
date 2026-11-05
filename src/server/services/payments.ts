@@ -59,7 +59,7 @@ async function markPaid(id: string, actorId: string | null) {
     throw new AppError(409, "PAGAMENTO_EXPIRADO", `A reserva venceu às ${fmtTime(p.expiresAt)} e os horários foram liberados. Se ainda estiverem livres, você pode reativá-la.`);
   }
   const paidAt = new Date();
-  await audit(actorId, "PAGAMENTO_CONFIRMADO", "Payment", id, { modo: actorId ? "manual" : "automatico" });
+  await audit(actorId, "PAGAMENTO_CONFIRMADO", "Payment", id, { modo: actorId ? "manual" : "automatico", valor: p.amountCents, sessoes: p.sessionCount });
   await notify(p.patient.userId, {
     type: "PAGAMENTO", title: "Pagamento confirmado",
     body: `Comprovante ${receiptCode(p.txid)}\nValor: ${brl(p.amountCents)}\nSessões: ${p.sessionCount}\nData: ${fmtStamp(paidAt)}\nClínica Movimento. Suas sessões estão reservadas.`,
@@ -72,6 +72,38 @@ export async function confirmManually(id: string, user: CurrentUser) {
   const first = await repo.firstSessionOf(id);
   if (first) await assertDeskAccess(user, first.unitId, first.physioId);
   return markPaid(id, user.id);
+}
+
+/** Recusa pela equipe: solta os horários na hora (como a expiração) e avisa o paciente, com o motivo se houver. */
+export async function rejectPayment(id: string, user: CurrentUser, reason?: string) {
+  await expirePayments();
+  const first = await repo.firstSessionOf(id);
+  if (first) await assertDeskAccess(user, first.unitId, first.physioId);
+  const p = await repo.paymentForRelease(id);
+  if (!p) throw notFound("Pagamento");
+  const released = await prisma.$transaction(async (tx) => {
+    if (!(await repo.expirePayment(id, tx, "RECUSADO"))) return null;
+    const freed = await repo.deleteUnpaidSessions(id, tx);
+    if (p.treatmentId) await repo.releaseTreatment(p.treatmentId, p.sessionCount, tx);
+    await audit(user.id, "PAGAMENTO_RECUSADO", "Payment", id, { motivo: reason ?? null, valor: p.amountCents, sessoes: freed.map((s) => ({ ...s, startsAt: s.startsAt.toISOString() })) }, tx);
+    return freed;
+  });
+  if (!released) throw conflict(p.status === "PAGO" ? "Este pagamento já foi confirmado." : "Esta reserva não está mais aguardando pagamento.");
+  await notify(p.patient.userId, {
+    type: "PAGAMENTO", title: "Pagamento não confirmado",
+    body: `A clínica não confirmou o pagamento da sua reserva, e os horários foram liberados.${reason ? `
+Motivo: ${reason}` : ""}
+Você pode agendar de novo quando quiser.`,
+    href: "/app/agendar",
+  });
+  for (const s of released) await offerFreedSlot(s.unitId, s.startsAt, s.physioId);
+}
+
+/** Sem pagamento autorizado, nada do tratamento completo responde: vale para a tela e para quem chama a API direto. */
+export async function assertTreatmentUnlocked(patientId: string) {
+  const t = await repo.latestTreatmentId(patientId);
+  if (t && (await repo.awaitingPaymentOf(t)))
+    throw new AppError(403, "PAGAMENTO_PENDENTE", "Seu tratamento é liberado assim que a clínica confirmar o pagamento.");
 }
 
 /** Webhook do PSP: só um provedor automático devolve txid aqui. */

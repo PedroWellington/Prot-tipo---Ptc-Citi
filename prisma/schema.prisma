@@ -69,6 +69,7 @@ enum PaymentStatus {
   AGUARDANDO
   PAGO
   EXPIRADO
+  RECUSADO
 }
 
 enum LateStatus {
@@ -537,4 +538,33 @@ model GoogleEvent {
   updatedAt DateTime @updatedAt
 
   @@id([userId, sessionId])
+}
+
+/// Exercícios prévios genéricos (Mobilidade e Fortalecimento), editáveis em Admin > Textos. Ilustração pelo slug
+model Exercise {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  category     String
+  region       String
+  level        String   @default("Leve")
+  prescription String
+  rest         String
+  videoUrl     String?
+  videoChannel String?
+  generic      Boolean  @default(true)
+  position     Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  done ExerciseDone[]
+}
+
+/// "Marcar como feito" do paciente num exercício genérico
+model ExerciseDone {
+  patientId  String
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  doneAt     DateTime @default(now())
+
+  @@id([patientId, exerciseId])
 }

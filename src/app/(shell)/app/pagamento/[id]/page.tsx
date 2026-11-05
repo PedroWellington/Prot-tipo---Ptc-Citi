@@ -1,11 +1,10 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Info, Printer } from "lucide-react";
+import { Info, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
-import { restorePendingNotice } from "@/components/payment-notices";
-import { haptic } from "@/components/providers";
+import { use, useEffect } from "react";
+import { CopyCode, restorePendingNotice } from "@/components/payment-notices";
 import { Badge, Button, Card, ErrorState, LinkButton, ListSkeleton, PageTitle, SuccessCheck } from "@/components/ui";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
@@ -15,36 +14,6 @@ import type { paymentView } from "@/server/services/payments";
 type View = Awaited<ReturnType<typeof paymentView>>;
 
 const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-function copyText(text: string) {
-  if (navigator.clipboard) return navigator.clipboard.writeText(text);
-  // Fora de https o navegador não oferece a Clipboard API
-  const area = document.createElement("textarea");
-  area.value = text;
-  document.body.append(area);
-  area.select();
-  document.execCommand("copy");
-  area.remove();
-  return Promise.resolve();
-}
-
-function CopyCode({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="rounded-xl bg-surface-2 p-3 font-mono text-xs break-all text-ink-2">{code}</p>
-      <Button variant="brand" className="w-full" onClick={() => {
-        // Feedback antes da promessa: resposta instantânea ao toque
-        setCopied(true); haptic();
-        void copyText(code);
-        setTimeout(() => setCopied(false), 2000);
-      }}>
-        {copied ? <Check strokeWidth={1.5} className="size-4" /> : <Copy strokeWidth={1.5} className="size-4" />}
-        {copied ? "Copiado" : "Copiar código PIX"}
-      </Button>
-    </div>
-  );
-}
 
 function Summary({ p }: { p: View }) {
   return (

@@ -34,6 +34,7 @@ export async function recordPain(id: string, score: number, by: { patientId: str
   const s = await sessions.findSession(id);
   if (!s || ("patientId" in by && s.patientId !== by.patientId)) throw notFound("Sessão");
   if ("user" in by) assertCanHandle(by.user, s.physioId);
+  if (s.payment?.status === "AGUARDANDO") throw conflict("A sessão só é liberada depois do pagamento.");
   if (s.status === "FALTA" || s.status === "DESMARCADA" || s.status === "REAGENDADA") throw conflict("Esta sessão não aconteceu.");
   await sessions.updateSession(id, { painScore: score });
   return { painScore: score };

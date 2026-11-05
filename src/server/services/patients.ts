@@ -5,7 +5,8 @@ import { pickMessage, phaseLabel, progressOf } from "@/lib/progress";
 import { prisma } from "../db";
 import { AppError, conflict, forbidden, notFound } from "../errors";
 import { audit, getSettings, listProgressMessages } from "../repositories/config";
-import { recentExpiredPayment } from "../repositories/payments";
+import { genericExercises } from "../repositories/exercises";
+import { awaitingPaymentOf, paymentSessions, recentExpiredPayment } from "../repositories/payments";
 import { exportPatientData, findPatient, findPatientByUser, searchPatients, updatePatient } from "../repositories/patients";
 import { activeFutureSessions, cancelSessions, listTreatmentSessions } from "../repositories/sessions";
 import { findActiveTreatment, latestTreatment, treatmentDetail, updateTreatment } from "../repositories/treatments";
@@ -13,7 +14,7 @@ import * as users from "../repositories/users";
 import type { CurrentUser } from "../auth/session";
 import { hashPassword, sendInvite, type RegisterPayload } from "./auth";
 import { notify } from "./notifications";
-import { expirePayments } from "./payments";
+import { expirePayments, paymentView } from "./payments";
 import { patientLate } from "./late";
 import { offerFreedSlot } from "./waitlist";
 import { patientRequests } from "./reschedule";
@@ -25,11 +26,24 @@ export async function patientHome(patientId: string) {
   const t = await latestTreatment(patientId);
   const messages = await listProgressMessages();
   const expiredPayment = await recentExpiredPayment(patientId);
-  if (!t) return { treatment: null, message: pickMessage(messages, 0, 10), expiredPayment };
-  const [sessions, cfg, requests] = await Promise.all([
+  if (!t) return { treatment: null, awaiting: null, message: pickMessage(messages, 0, 10), expiredPayment };
+  // Particular com reserva ainda não paga: o servidor só entrega o resumo da reserva e o PIX, nunca o tratamento
+  const awaitingId = await awaitingPaymentOf(t.id);
+  if (awaitingId) {
+    const [pay, slots] = await Promise.all([paymentView(awaitingId, patientId), paymentSessions(awaitingId)]);
+    return {
+      treatment: null, message: pickMessage(messages, 0, 10), expiredPayment,
+      awaiting: {
+        id: pay.id, amountCents: pay.amountCents, sessionCount: pay.sessionCount, expiresAt: pay.expiresAt, pixCode: pay.pixCode, qr: pay.qr,
+        automatic: pay.automatic, unit: { name: t.unit.name, address: t.unit.address }, slots: slots.map((s) => s.startsAt),
+      },
+    };
+  }
+  const [sessions, cfg, requests, generic] = await Promise.all([
     listTreatmentSessions(t.id),
     getSettings(),
     patientRequests(patientId),
+    genericExercises(patientId),
   ]);
   const now = new Date();
   const next = sessions.find((s) => (s.status === "AGENDADA" || s.status === "CONFIRMADA") && s.startsAt > now);
@@ -42,6 +56,8 @@ export async function patientHome(patientId: string) {
       unit: t.unit, physio: t.physio?.user.name ?? null, guidances: t.guidances,
     },
     message: pickMessage(messages, done, total),
+    awaiting: null,
+    generic,
     sessions,
     nextSessionId: next?.id ?? null,
     pendingPayment: sessions.find((s) => s.payment?.status === "AGUARDANDO")?.payment?.id ?? null,
