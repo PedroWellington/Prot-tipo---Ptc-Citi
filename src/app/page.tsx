@@ -234,7 +234,7 @@ export default async function HomePage() {
         </Section>
 
         {/* 7. Veja o sistema por dentro (banda escura) */}
-        <section id="sistema" aria-labelledby="sistema-t" className="site-section site-dark">
+        <section id="sistema" aria-labelledby="sistema-t" className="site-section site-dark overflow-x-clip">
           <Edge fill="var(--alt-bg)" flip />
           <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
             <Heading id="sistema" eyebrow="O sistema" title={c["tour.titulo"]} sub={c["tour.sub"]} />

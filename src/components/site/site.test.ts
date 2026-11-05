@@ -121,3 +121,10 @@ describe("Conteúdo honesto e navegação", () => {
     expect(page).toContain("Clínica fictícia. Conteúdo ilustrativo de demonstração.");
   });
 });
+
+describe("Sem rolagem lateral no celular", () => {
+  it("as seções com mockup que saem da borda cortam o excesso", () => {
+    expect(page).toMatch(/id="inicio"[^>]*overflow-hidden/);
+    expect(page).toMatch(/id="sistema"[^>]*overflow-x-clip/);
+  });
+});
