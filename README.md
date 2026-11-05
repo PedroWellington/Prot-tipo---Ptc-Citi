@@ -169,6 +169,12 @@ As licenças foram conferidas foto a foto pela API do Wikimedia Commons (campo `
 
 Sem biblioteca de animação: CSS e um único `IntersectionObserver` ([src/components/site/motion.tsx](src/components/site/motion.tsx)). Um script inline liga `.motion-ok` antes da primeira pintura só quando há JavaScript e movimento permitido; sem ele (ou com `prefers-reduced-motion`) tudo aparece parado e visível. A faixa em movimento é CSS puro (conteúdo duplicado com `aria-hidden` na cópia), pausa sob o mouse e no foco e só roda visível. Hover (`.lift`) só em `(hover: hover) and (pointer: fine)`; no toque, `scale(0.98)` ao pressionar. Regras em [src/styles/site.css](src/styles/site.css).
 
+A abertura é uma cena rolada ([src/components/site/scene.tsx](src/components/site/scene.tsx)): um palco de ~420vh (340vh no celular) com um quadro `sticky`; a rolagem vira `--p` por `animation-timeline` (ou um único `requestAnimationFrame` passivo onde não há suporte) e move só a esfera (`transform`/`opacity`). As frases (Admin > Textos > Cena de abertura) trocam por quadro, escolhidas por um `IntersectionObserver`. Símbolo da esfera: `SCENE_SYMBOL` (`"m"` ou `"liso"`). Sem JS ou com menos movimento, a cena vira blocos normais com todo o texto.
+
+### Paleta única e fluidez no sistema
+
+Página pública e área logada usam os mesmos tokens ([src/styles/tokens.css](src/styles/tokens.css)): a banda escura do site é o cartão principal do app (`.hero, .site-dark`), a faixa dos números é a faixa de indicadores (`.band, .site-strong`) e a sidebar tem a cor do cabeçalho do site. `tokens.test.ts` confere contraste AA e que nenhum arquivo de estilo/componente alterado tem cor fixa. Dentro do app: troca de rota com `<ViewTransition>` do React (só o conteúdo anima), esqueletos `loading.tsx` no formato de cada tela, indicador deslizante na sidebar e na barra do celular, painéis que fecham com a mesma suavidade com que abrem e itens removidos que saem deslizando ([src/lib/motion.ts](src/lib/motion.ts)).
+
 ## Análises: como calculamos as previsões
 
 As contas rodam no servidor da clínica, sem API externa (o assistente com IA só lê os resultados). Funções puras em `src/lib/previsao.ts` (testadas em `previsao.test.ts`); os dados vêm de `src/server/services/analytics.ts`, com cache de 5 minutos.

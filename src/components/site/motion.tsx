@@ -5,8 +5,9 @@ import { useEffect } from "react";
 /**
  * Roda antes da primeira pintura (script inline no topo da página): só esconde o que vai entrar ao rolar
  * quando há JavaScript, IntersectionObserver e movimento permitido. Se o observer não subir em 4 s, mostra tudo.
+ * Na primeira visita da sessão liga a abertura da esfera (curta se a página demorou a chegar).
  */
-export const MOTION_SCRIPT = `(function(){var d=document.documentElement;if(!("IntersectionObserver"in window)||matchMedia("(prefers-reduced-motion: reduce)").matches)return;d.classList.add("motion-ok");setTimeout(function(){if(!window.__siteMotion)d.classList.remove("motion-ok")},4000)})()`;
+export const MOTION_SCRIPT = `(function(){var d=document.documentElement;if(!("IntersectionObserver"in window)||matchMedia("(prefers-reduced-motion: reduce)").matches)return;d.classList.add("motion-ok");try{if(!sessionStorage.getItem("mv-intro")){sessionStorage.setItem("mv-intro","1");d.classList.add(performance.now()>1200?"scene-intro-short":"scene-intro")}}catch(e){}setTimeout(function(){if(!window.__siteMotion)d.classList.remove("motion-ok")},4000)})()`;
 
 const COUNT_MS = 1000;
 
@@ -48,7 +49,9 @@ export function SiteMotion() {
     document.querySelectorAll("[data-reveal], .steps-line, .marquee, [data-top-sentinel], [data-count-group]").forEach((el) => io.observe(el));
     return () => {
       io.disconnect();
-      root.classList.remove("is-scrolled", "motion-ok");
+      // motion-ok fica: o script inline não roda de novo ao voltar para "/" pela navegação do cliente
+      // (e o Strict Mode do dev desmonta e remonta o efeito)
+      root.classList.remove("is-scrolled");
     };
   }, []);
   return null;

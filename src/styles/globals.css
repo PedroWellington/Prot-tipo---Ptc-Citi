@@ -34,6 +34,7 @@
   --color-tab-active-ink: var(--tab-active-ink);
   --color-teal: var(--teal);
   --color-teal-soft: var(--teal-soft);
+  --color-scrim: var(--scrim);
   --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
   --font-display: var(--font-instrument-serif), Georgia, serif;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -86,9 +87,11 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
   border-radius: 20px;
   box-shadow: var(--shadow);
 }
-/* Cartão principal: gradiente verde suave, texto em --ink (contraste forte nos dois temas) */
-.hero {
-  background: var(--hero); border-color: var(--hero-line);
+/* Cartão principal = banda escura da página pública (.site-dark): mesmos tokens, mesmo fundo */
+.hero { border-color: var(--hero-line); }
+.hero, .site-dark {
+  background: var(--hero);
+  --surface: var(--hero-surface); --surface-2: var(--hero-surface-2); --line-strong: var(--hero-line-strong);
   /* Dentro do cartão principal os tokens viram os do hero: texto, anel, selo e botão acompanham o gradiente */
   --ink: var(--hero-ink); --ink-2: var(--hero-ink-2); --ink-3: var(--hero-ink-3); --line: var(--hero-track);
   --ring-a: var(--hero-ring-a); --ring-b: var(--hero-ring-b); --ring-c: var(--hero-ring-c);
@@ -107,14 +110,14 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
 /* Cartão principal: cantos bem arredondados e a base em curva suave */
 .hero { border-radius: 32px 32px 50% 50% / 32px 32px 40px 40px; padding-bottom: 44px; }
 
-/* Faixa de indicadores grandes em azul-marinho: dentro dela os tokens viram os da faixa */
-.band {
+/* Faixa forte de indicadores (a mesma dos números da página pública): dentro dela os tokens viram os da faixa */
+.band, .site-strong {
   background: var(--band-bg); border-color: transparent; color: var(--band-ink);
   --ink: var(--band-ink); --ink-2: var(--band-ink-2); --ink-3: var(--band-ink-2); --line: var(--band-line);
-  --surface-2: rgb(255 255 255 / 0.1); --accent: var(--band-num);
-  --ok: var(--band-num); --ok-soft: rgb(255 255 255 / 0.12); --info: var(--band-num); --info-soft: rgb(255 255 255 / 0.12);
-  --warn: var(--band-num); --warn-soft: rgb(255 255 255 / 0.12); --danger: var(--band-num); --danger-soft: rgb(255 255 255 / 0.12);
-  --accent-soft: rgb(255 255 255 / 0.12);
+  --surface-2: var(--band-soft); --accent: var(--band-num);
+  --ok: var(--band-num); --ok-soft: var(--band-soft); --info: var(--band-num); --info-soft: var(--band-soft);
+  --warn: var(--band-num); --warn-soft: var(--band-soft); --danger: var(--band-num); --danger-soft: var(--band-soft);
+  --accent-soft: var(--band-soft);
 }
 .band .band-num { color: var(--band-num); }
 .stripe[data-tone="neutral"] { --stripe-tone: var(--line-strong); }
@@ -140,7 +143,7 @@ input, select, textarea { font-size: 16px; } /* abaixo disso o iOS dá zoom no f
   white-space: nowrap;
   transition: transform 150ms var(--ease-out-soft), opacity 150ms;
 }
-.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn::after {
   content: "";
@@ -367,3 +370,84 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 .site-section { scroll-margin-top: 80px; }
 @media (prefers-reduced-motion: no-preference) { html:has(.site) { scroll-behavior: smooth; } }
 .site .hero { border-radius: 36px 36px 50% 50% / 36px 36px 48px 48px; padding-bottom: 56px; }
+
+/* ══ Fluidez dentro do sistema ════════════════════════════════════════════════
+ * Rapidez e continuidade, nada cinematográfico. Só transform e opacity; fechar é mais rápido que abrir;
+ * will-change só enquanto anima; nada bloqueia clique (::view-transition deixa o toque passar). */
+:root {
+  --dur-in: 200ms; --dur-out: 120ms;           /* troca de tela */
+  --dur-panel-in: 250ms; --dur-panel-out: 150ms; /* painéis, menus, popover */
+  --dur-slide: 250ms;                           /* indicador das abas */
+  --step: 40ms;                                 /* escalonamento de listas */
+}
+
+/* Troca de rota (React <ViewTransition> em app-shell.tsx): só o conteúdo anima; sidebar e topo ficam vivos e parados */
+:root { view-transition-name: none; }
+::view-transition { pointer-events: none; }
+::view-transition-old(.page-out) { animation: vt-out var(--dur-out) var(--ease-out-soft) both; }
+::view-transition-new(.page-in) { animation: vt-in var(--dur-in) var(--ease-out-soft) both; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* Painéis (notificações, assistente): abrem com escala + fade, fecham mais rápido; fundo sólido */
+.panel-in { animation: panel-in var(--dur-panel-in) var(--ease-out-soft) both; }
+.panel-out { animation: panel-out var(--dur-panel-out) var(--ease-out-soft) both; pointer-events: none; }
+@keyframes panel-in { from { opacity: 0; scale: 0.97; } }
+@keyframes panel-out { to { opacity: 0; scale: 0.99; } }
+.fade-in { animation: fade var(--dur-panel-in) ease-out both; }
+.fade-out { animation: fade-away var(--dur-panel-out) ease-out both; pointer-events: none; }
+@keyframes fade-away { to { opacity: 0; } }
+
+/* Listas: os primeiros 6 itens entram escalonados (40 ms); o resto entra junto com o 6º */
+.stagger > * { animation: rise 260ms var(--ease-out-soft) both; animation-delay: calc(5 * var(--step)); }
+.stagger > :nth-child(1) { animation-delay: 0ms; }
+.stagger > :nth-child(2) { animation-delay: var(--step); }
+.stagger > :nth-child(3) { animation-delay: calc(2 * var(--step)); }
+.stagger > :nth-child(4) { animation-delay: calc(3 * var(--step)); }
+.stagger > :nth-child(5) { animation-delay: calc(4 * var(--step)); }
+/* Item removido sai deslizando (lib/motion.ts: leave) antes de a lista mudar */
+.is-leaving { animation: leave 180ms var(--ease-out-soft) forwards; pointer-events: none; }
+@keyframes leave { to { opacity: 0; transform: translateX(24px); } }
+
+/* Botão carregando: o rótulo invisível segura o tamanho; o indicador gira por cima */
+.btn-spinner {
+  position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent; animation: spin 700ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Indicador da aba ativa: um elemento só, que desliza com transform (sidebar na vertical, barra do celular na horizontal) */
+.nav-ind {
+  position: absolute; top: 0; left: 0; right: 0; height: 44px; border-radius: 12px; pointer-events: none;
+  background: var(--nav-active); border-left: 3px solid var(--accent);
+  transform: translateY(calc(var(--ind, 0) * 46px)); opacity: 0;
+  transition: transform var(--dur-slide) var(--ease-out-soft), opacity 150ms;
+}
+.nav-ind[data-on] { opacity: 1; }
+:root[data-sidebar="collapsed"]:not([data-side-anim]) .nav-ind { width: 52px; }
+.tab-ind {
+  position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none;
+  transform: translateX(calc(var(--ind, 0) * 100%)); opacity: 0;
+  transition: transform var(--dur-slide) var(--ease-out-soft), opacity 150ms;
+}
+.tab-ind::before { content: ""; position: absolute; inset: 4px 2px; border-radius: 12px; background: var(--tab-active-bg); }
+.tab-ind[data-on] { opacity: 1; }
+
+/* Hover com leve elevação só com mouse; no toque, só o retorno ao pressionar */
+a.card, button.card { transition: transform 200ms var(--ease-out-soft); }
+@media (hover: hover) and (pointer: fine) {
+  a.card:hover, button.card:hover { transform: translateY(-2px); }
+}
+a.card:active, button.card:active, .press:active { transform: scale(0.98); }
+
+/* Menos movimento: deslocamentos viram fade curto; nada desliza, nada gira sem parar */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-out) { animation: fade-away 120ms ease-out both; }
+  ::view-transition-new(.page-in) { animation: fade 120ms ease-out both; }
+  .panel-in, .fade-in { animation: fade 120ms ease-out both !important; }
+  .panel-out, .fade-out { animation: fade-away 120ms ease-out both !important; }
+  .stagger > * { animation: none !important; }
+  .nav-ind, .tab-ind { transition: opacity 120ms !important; }
+  .btn-spinner { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
+  a.card:hover, button.card:hover, a.card:active, button.card:active, .press:active { transform: none; }
+}

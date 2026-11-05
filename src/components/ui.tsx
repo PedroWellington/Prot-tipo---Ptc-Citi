@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState, type ComponentProps, type CSSProper
 import { AlertCircle, Info, Search, WifiOff, X } from "lucide-react";
 import type { Tone } from "@/lib/labels";
 import { ApiError } from "@/lib/api";
+import { useCountTo } from "@/lib/motion";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -12,8 +13,9 @@ type Variant = "primary" | "brand" | "ghost" | "line" | "danger";
 
 export function Button({ variant = "primary", className, loading, children, ...p }: ComponentProps<"button"> & { variant?: Variant; loading?: boolean }) {
   return (
-    <button type="button" {...p} disabled={p.disabled || loading} className={cx("btn", `btn-${variant}`, className)}>
-      {children}
+    <button type="button" {...p} disabled={p.disabled || loading} aria-busy={loading || undefined} className={cx("btn", `btn-${variant}`, className)}>
+      {/* Carregando: o rótulo fica (invisível) e segura a largura; o indicador entra por cima, sem mudar o tamanho */}
+      {loading ? <><span className="inline-flex items-center gap-2 opacity-0">{children}</span><span aria-hidden className="btn-spinner" /></> : children}
     </button>
   );
 }
@@ -233,8 +235,16 @@ export function Stat({ label, value, hint, icon, tone }: { label: string; value:
     <div data-tone={tone} className={cx("card p-4 sm:p-5", !!icon && "stripe")}>
       {icon && <Tile tone={tone} className="mb-3">{icon}</Tile>}
       <p className="text-sm text-ink-2">{label}</p>
-      <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{value}</p>
+      <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{typeof value === "number" ? <CountTo value={value} /> : value}</p>
       {hint && <p className="mt-2 text-sm text-ink-3">{hint}</p>}
     </div>
   );
+}
+
+/** Número que anima do valor anterior para o novo; no HTML do servidor já vem o valor final. */
+export function CountTo({ value }: { value: number }) {
+  const ref = useCountTo(value);
+  // O React só escreve o primeiro valor; daí em diante o texto é do hook (evita disputar o mesmo nó de texto)
+  const [first] = useState(value);
+  return <span ref={ref}>{first.toLocaleString("pt-BR")}</span>;
 }

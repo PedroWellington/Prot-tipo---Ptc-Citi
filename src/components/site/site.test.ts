@@ -8,11 +8,13 @@ import { SITE_FIELDS } from "@/lib/site-content";
 import { SECTIONS } from "./header";
 import { Marquee } from "./marquee";
 import { MOTION_SCRIPT } from "./motion";
+import { layoutWords, Scene, SceneOrb, SCENE_SYMBOL } from "./scene";
 
 const root = path.resolve(__dirname, "../../..");
 const read = (p: string) => readFileSync(path.join(root, p), "utf8");
 const css = read("src/styles/site.css");
 const page = read("src/app/page.tsx");
+const scene = read("src/components/site/scene.tsx");
 
 /** Regras do CSS com a pilha de @media em que estão. Basta para este arquivo (sem chaves em strings). */
 function rules(text: string) {
@@ -74,7 +76,7 @@ describe("Entrada ao rolar e hover", () => {
     expect(hiding.length).toBeGreaterThan(0);
     for (const r of hiding) for (const sel of r.selector.split(",")) expect(sel.trim().startsWith(".motion-ok")).toBe(true);
     // Keyframes de entrada também só rodam sob .motion-ok
-    for (const r of all.filter((x) => /animation:\s*(rise|bob|drift)/.test(x.body))) expect(r.selector).toMatch(/^\.motion-ok/);
+    for (const r of all.filter((x) => /animation:\s*(site-rise|bob|drift|orb-intro|mark-intro|scene-p)/.test(x.body))) expect(r.selector).toMatch(/^\.motion-ok/);
   });
 
   it("o hover só existe em dispositivos com mouse; no toque, só o retorno ao pressionar", () => {
@@ -109,7 +111,7 @@ describe("Conteúdo honesto e navegação", () => {
   });
 
   it("cada item do menu aponta para uma seção que existe; os links do rodapé também", () => {
-    const ids = new Set([...page.matchAll(/id="([a-z-]+)"/g)].map((m) => m[1]));
+    const ids = new Set([...(page + scene).matchAll(/id="([a-z-]+)"/g)].map((m) => m[1]));
     for (const [id] of SECTIONS) expect(ids.has(id)).toBe(true);
     for (const m of page.matchAll(/\["#([a-z-]+)",/g)) expect(ids.has(m[1])).toBe(true);
     expect(page).toContain('href="#inicio"');
@@ -124,7 +126,85 @@ describe("Conteúdo honesto e navegação", () => {
 
 describe("Sem rolagem lateral no celular", () => {
   it("as seções com mockup que saem da borda cortam o excesso", () => {
-    expect(page).toMatch(/id="inicio"[^>]*overflow-hidden/);
+    // A cena corta só na horizontal (overflow: hidden quebraria o sticky do palco)
+    expect(scene).toMatch(/id="inicio"[^>]*overflow-x-clip/);
+    expect(scene).not.toMatch(/id="inicio"[^>]*overflow-hidden/);
     expect(page).toMatch(/id="sistema"[^>]*overflow-x-clip/);
+  });
+});
+
+describe("Cena de abertura", () => {
+  const phrases = ["Menos faltas", "Mais sessões concluídas", "Tratamento até o fim", "Cuidado que acompanha você"];
+  const html = renderToStaticMarkup(createElement(Scene, {
+    hero: [{ node: createElement("h1", { id: "inicio-t" }, "Título da abertura"), lcp: true }, { node: createElement("p", null, "Frase da abertura"), lcp: true }],
+    phrases,
+  }));
+  const text = html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+
+  it("todo o texto da cena está no HTML, na ordem de leitura (leitor de tela e sem JavaScript)", () => {
+    for (const p of ["Título da abertura", "Frase da abertura", ...phrases]) expect(text).toContain(p);
+    let at = 0;
+    for (const p of phrases) { const i = text.indexOf(p, at); expect(i).toBeGreaterThanOrEqual(at); at = i; }
+    // O primeiro quadro (título = LCP) já vem ativo do servidor; nenhum texto depende de JS para existir
+    expect(html).toMatch(/class="scene-frame scene-hero hero-seq is-on"/);
+    expect(html).toMatch(/class="scene-item hero-lcp"/);
+  });
+
+  it("sem .motion-ok (sem JS ou com menos movimento) não há palco preso nem texto escondido", () => {
+    const hides = all.filter((r) => /position:\s*sticky|opacity:\s*0[;\s]|opacity:\s*0$|view-timeline|height:\s*var\(--scene-h\)/.test(r.body) && /scene|orb/.test(r.selector));
+    expect(hides.length).toBeGreaterThan(0);
+    // Vírgulas dentro de :is(...) não separam seletores
+    for (const r of hides) for (const sel of r.selector.split(/,(?![^(]*\))/)) expect(sel.trim()).toMatch(/^\.motion-ok/);
+    // E o script que liga .motion-ok não liga com prefers-reduced-motion
+    expect(MOTION_SCRIPT).toMatch(/prefers-reduced-motion: reduce\)"\)\.matches\)return/);
+  });
+
+  it("com prefers-reduced-motion: nada de sticky nem altura de palco, mesmo que .motion-ok exista", () => {
+    const reduced = all.filter((r) => r.media.some((m) => m.includes("prefers-reduced-motion: reduce")));
+    const body = (sel: string) => reduced.find((r) => r.selector.split(",").map((x) => x.trim()).includes(sel))?.body ?? "";
+    expect(body(".scene-sticky")).toContain("position: static !important");
+    expect(body(".scene")).toContain("height: auto !important");
+    expect(body(".orb-body")).toContain("animation: none");
+  });
+
+  it("só transform e opacity animam na cena; --p é a única variável que a rolagem escreve", () => {
+    const sceneRules = all.filter((r) => /scene|orb/.test(r.selector) && /transition|animation/.test(r.body));
+    for (const r of sceneRules) {
+      const t = /transition:([^;]*)/.exec(r.body)?.[1] ?? "";
+      for (const prop of t.split(",").map((x) => x.trim().split(" ")[0]).filter(Boolean)) expect(["transform", "opacity"]).toContain(prop);
+    }
+    expect(css).toMatch(/@property --p \{ syntax: "<number>"/);
+    expect(css).toMatch(/animation-timeline: --scene/);
+    expect(css).not.toMatch(/filter:\s*blur/);
+    const driver = read("src/components/site/scene-driver.tsx");
+    expect(driver).toContain('passive: true');
+    expect(driver.match(/style\.setProperty\(/g)).toHaveLength(1);
+    expect(driver).toContain('setProperty("--p"');
+  });
+
+  it("símbolo trocável: M por padrão, esfera lisa por variável", () => {
+    expect(SCENE_SYMBOL).toBe("m");
+    const m = renderToStaticMarkup(createElement(SceneOrb, {}));
+    const liso = renderToStaticMarkup(createElement(SceneOrb, { symbol: "liso" }));
+    expect(m).toContain('data-symbol="m"');
+    expect(m).toContain("M3 25V8l9 11 9-11v17");
+    expect(liso).toContain('data-symbol="liso"');
+    expect(liso).not.toContain("<svg");
+    expect(m).toContain('aria-hidden="true"');
+  });
+
+  it("palavras: lados alternados, entrada pelo lado onde param, metade acima e metade abaixo no celular", () => {
+    const w = layoutWords("Mais sessões concluídas");
+    expect(w.map((x) => x.word)).toEqual(["Mais", "sessões", "concluídas"]);
+    expect(w.map((x) => x.side)).toEqual([-1, 1, -1]);
+    expect(w.map((x) => x.x)).toEqual([-1, 1, -1]);
+    expect(w.map((x) => x.ms)).toEqual([-1, -1, 1]);
+    expect(layoutWords("  um  ")).toHaveLength(1);
+    expect(layoutWords("Cuidado que acompanha você").filter((x) => x.ms < 0)).toHaveLength(2);
+  });
+
+  it("as frases são editáveis em Admin > Textos", () => {
+    for (let i = 1; i <= 4; i++) expect(SITE_FIELDS.some((f) => f.key === `cena.${i}` && f.section === "Cena de abertura")).toBe(true);
+    expect(page).toContain('phrases={[1, 2, 3, 4].map((i) => c[`cena.${i}`])}');
   });
 });

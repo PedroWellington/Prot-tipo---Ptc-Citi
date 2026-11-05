@@ -26,7 +26,7 @@ export default function ProductTour({ tabs }: { tabs: TourTab[] }) {
           {tabs.map((x, i) => (
             <button key={x.id} ref={(el) => { buttons.current[i] = el; }} type="button" role="tab" id={`${base}-tab-${i}`} aria-selected={i === active}
               aria-controls={`${base}-panel`} tabIndex={i === active ? 0 : -1} onClick={() => setActive(i)}
-              className={`min-h-11 rounded-full px-5 text-sm font-semibold transition-colors ${i === active ? "bg-accent text-[#062033]" : "text-ink-2 hover:text-ink"}`}>
+              className={`min-h-11 rounded-full px-5 text-sm font-semibold transition-colors ${i === active ? "bg-accent text-[var(--band-ink)]" : "text-ink-2 hover:text-ink"}`}>
               {x.label}
             </button>
           ))}

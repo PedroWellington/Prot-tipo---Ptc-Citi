@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { Sheet } from "@/components/lazy-sheet";
 import { useAction } from "@/components/providers";
+import { leave } from "@/lib/motion";
 import { Badge, Button, Card, Empty, ErrorState, Input, ListSkeleton, PageTitle } from "@/components/ui";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
@@ -33,9 +34,9 @@ export default function Page() {
       {isLoading && <ListSkeleton />}
       {error && <ErrorState error={error} retry={refetch} />}
       {data && !data.length && <div className="card"><Empty title="Fila em dia" body="Nenhuma solicitação aguardando resposta." /></div>}
-      <div className="grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="stagger grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {data?.map((r) => (
-          <Card key={r.id}>
+          <Card key={r.id} data-leave>
             <div className="flex items-center justify-between gap-3">
               <h2 className="truncate font-semibold">{r.patient.user.name}</h2>
               {r.conflict ? <Badge tone="danger"><AlertTriangle className="size-3.5" />Conflito</Badge> : <Badge tone="ok">Horário livre</Badge>}
@@ -50,7 +51,7 @@ export default function Page() {
               <p className="mt-2 text-sm text-ink-2">Alternativas: {r.alternatives.map((a) => `${fmtWeekShort(a)} ${fmtTime(a)}`).join(" · ")}</p>
             )}
             <div className="mt-3 flex gap-2">
-              <Button className="flex-1" disabled={r.conflict} onClick={() => approve.mutate(r.id)}>Aprovar</Button>
+              <Button className="flex-1" disabled={r.conflict} onClick={(e) => leave(e.currentTarget, () => approve.mutate(r.id))}>Aprovar</Button>
               <Button variant="line" className="flex-1" onClick={() => setRejecting(r)}>Recusar</Button>
             </div>
           </Card>

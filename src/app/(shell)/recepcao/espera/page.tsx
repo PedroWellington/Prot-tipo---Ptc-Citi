@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAction } from "@/components/providers";
+import { leave } from "@/lib/motion";
 import { Badge, Button, Empty, ErrorState, ListSkeleton, PageTitle } from "@/components/ui";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
@@ -25,7 +26,7 @@ export default function Page() {
       {error && <ErrorState error={error} retry={refetch} />}
       {data && !data.length && <div className="card"><Empty title="Ninguém na fila" body="Quando um paciente entrar na lista, aparece aqui." /></div>}
       {!!data?.length && (
-        <ul className="card divide-y divide-line overflow-hidden">
+        <ul className="stagger card divide-y divide-line overflow-hidden">
           {data.map((w) => (
             <li key={w.id} className="flex flex-wrap items-center gap-3 p-4">
               <div className="min-w-0 flex-1 basis-48">
@@ -33,7 +34,7 @@ export default function Page() {
                 <p className="text-sm text-ink-3">{WEEKDAYS[w.weekday]}, {w.hour}h · {w.unit.name} · {formatPhone(w.patient.phone)}</p>
               </div>
               {w.status === "OFERTADA" ? <Badge tone="accent">Vaga ofertada até {fmtTime(w.holdUntil!)}</Badge> : <Badge>Aguardando</Badge>}
-              <Button variant="line" onClick={() => remove.mutate(w.id)}>Remover</Button>
+              <Button variant="line" onClick={(e) => leave(e.currentTarget, () => remove.mutate(w.id))}>Remover</Button>
             </li>
           ))}
         </ul>

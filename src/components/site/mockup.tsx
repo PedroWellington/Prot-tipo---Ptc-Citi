@@ -37,18 +37,18 @@ export function Phone({ name, alt, sizes, className }: { name: Screen; alt: stri
   return <div className={`device-phone ${className ?? "relative"}`}><Shot name={name} alt={alt} sizes={sizes} /></div>;
 }
 
-/** Abertura: agenda da recepção no notebook, painel do paciente no celular e três avisos do próprio sistema. */
+/** A clínica: agenda da recepção no notebook, painel do paciente no celular e três avisos do próprio sistema. */
 export function HeroMockup() {
   return (
-    <div className="parallax relative mx-auto w-full max-w-[620px] pb-6 sm:pb-10">
+    <div className="relative mx-auto w-full max-w-[620px] pb-6 sm:pb-10">
       <div className="pr-[16%]">
         <Laptop name="recepcao-desktop" alt="Agenda do dia da recepção no sistema Movimento, com sessões confirmadas e a confirmar" sizes="(min-width: 1024px) 520px, 84vw" />
       </div>
       <Phone name="paciente-celular" alt="Painel do paciente no celular: anel de progresso na sessão 7 de 10 e fase Consolidação" sizes="(min-width: 1024px) 190px, 34vw"
         className="absolute right-0 bottom-0 w-[31%]" />
-      <p aria-hidden className="float-card -top-3 left-[4%] sm:-top-5"><CircleCheckBig className="size-4 text-[#0a8f6a]" />Sessão 7 de 10</p>
-      <p aria-hidden className="float-card top-[46%] -left-2 sm:-left-6"><CalendarCheck className="size-4 text-[#1f7fe0]" />Horário confirmado</p>
-      <p aria-hidden className="float-card right-[20%] -bottom-3 hidden sm:flex"><ShieldCheck className="size-4 text-[#b7791f]" />Renovação do convênio solicitada</p>
+      <p aria-hidden className="float-card -top-3 left-[4%] sm:-top-5"><CircleCheckBig className="size-4 text-ok" />Sessão 7 de 10</p>
+      <p aria-hidden className="float-card top-[46%] -left-2 sm:-left-6"><CalendarCheck className="size-4 text-info" />Horário confirmado</p>
+      <p aria-hidden className="float-card right-[20%] -bottom-3 hidden sm:flex"><ShieldCheck className="size-4 text-warn" />Renovação do convênio solicitada</p>
     </div>
   );
 }

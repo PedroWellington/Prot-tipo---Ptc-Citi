@@ -1,9 +1,15 @@
 /* ÚNICO arquivo de cor. Paleta "clínica turquesa": turquesa vivo, azul-marinho, branco limpo e verde-limão só em detalhes.
    Contraste (WCAG AA) conferido em src/styles/tokens.test.ts, que lê este arquivo: todo par de texto ≥ 4.5:1.
-   Regra prática: turquesa vivo (--brand) é preenchimento, nunca fundo de texto branco; sobre ele, texto azul-marinho. */
+   Regra prática: turquesa vivo (--brand) é preenchimento, nunca fundo de texto branco; sobre ele, texto azul-marinho.
+   Página pública e sistema logado usam OS MESMOS tokens: a banda escura do site é o --hero do app,
+   a faixa forte dos números é o --band-bg, e o cabeçalho do site tem a mesma cor da sidebar (--chrome/--sidebar). */
 :root {
   --navy: #123a6b;
   --turquoise: #19d3c5;
+  /* Fundo escurecido atrás de folhas e painéis (a opacidade vem na classe: bg-scrim/40) */
+  --scrim: #04101e;
+  /* QR Code do PIX: fundo sempre branco nos dois temas, senão a câmera do banco não lê */
+  --qr-bg: #ffffff;
 }
 
 /* Escuro: azul-petróleo profundo, sem preto puro e sem néon; turquesa só em ações e estados ativos */
@@ -11,8 +17,8 @@
   --bg: #071f26;
   --surface: #103a45;
   --surface-2: #17495a;
-  --sidebar: #0a2830;
-  --chrome: #0b2c35;
+  --sidebar: #103a45;
+  --chrome: #103a45;
   --line: rgb(255 255 255 / 0.09);
   --line-strong: rgb(255 255 255 / 0.18);
   --ink: #e8f6f7;
@@ -20,7 +26,7 @@
   --ink-3: #94bcc2;
   --brand: #2fe0d0;
   --accent: #2fe0d0;
-  --accent-soft: rgb(47 224 208 / 0.14);
+  --accent-soft: rgb(47 224 208 / 0.11);
   --accent-fill: #2fe0d0;
   --on-accent: #052a30;
   --nav-active: rgb(47 224 208 / 0.16);
@@ -41,26 +47,30 @@
   --teal-soft: rgb(47 224 208 / 0.14);
   --mesh-a: rgb(47 224 208 / 0.08);
   --shadow: 0 1px 2px rgb(2 12 16 / 0.35), 0 10px 28px -14px rgb(2 12 16 / 0.6);
-  /* Mais claro por dentro: petróleo → turquesa profundo */
-  --hero: radial-gradient(120% 110% at 22% 18%, #1f6d74 0%, #155462 45%, #0e3b47 100%);
+  /* Banda escura do site = cartão principal do app: petróleo profundo */
+  --hero: radial-gradient(120% 90% at 85% 0%, #0e4553 0%, #0a3540 60%);
   --hero-line: rgb(47 224 208 / 0.22);
-  --hero-ink: #e8f6f7;
-  --hero-ink-2: #cfe9ec;
-  --hero-ink-3: #cfe9ec;
+  --hero-ink: #ecf8f9;
+  --hero-ink-2: #c3e3e7;
+  --hero-ink-3: #c3e3e7;
   --hero-track: rgb(255 255 255 / 0.14);
+  --hero-surface: rgb(255 255 255 / 0.06);
+  --hero-surface-2: rgb(255 255 255 / 0.1);
+  --hero-line-strong: rgb(255 255 255 / 0.24);
   --hero-ring-a: #2fe0d0;
   --hero-ring-b: #4aa8ff;
-  --hero-ring-c: #7ae582;
-  --hero-badge-bg: rgb(4 20 26 / 0.5);
-  --hero-badge-ink: #8ff3ea;
+  --hero-ring-c: #ecf8f9;
+  --hero-badge-bg: rgb(95 233 220 / 0.14);
+  --hero-badge-ink: #5fe9dc;
   --hero-cta: #2fe0d0;
   --hero-on-cta: #052a30;
-  /* Faixa de indicadores grandes */
-  --band-bg: #0d3352;
-  --band-ink: #e8f6f7;
-  --band-ink-2: #b7d3e6;
-  --band-num: #2fe0d0;
-  --band-line: rgb(255 255 255 / 0.12);
+  /* Faixa forte (números do site e do app): turquesa → azul, texto azul-marinho, igual nos dois temas */
+  --band-bg: linear-gradient(100deg, #19d3c5 0%, #4aa8ff 100%);
+  --band-ink: #071d33;
+  --band-ink-2: #071d33;
+  --band-num: #071d33;
+  --band-line: rgb(7 29 51 / 0.16);
+  --band-soft: rgb(255 255 255 / 0.3);
   --chart-1: #2fe0d0;
   --chart-2: #4aa8ff;
   --chart-3: #f2a516;
@@ -78,23 +88,40 @@
   --on-cta: #052a30;
   --cta-shadow: none;
   --map-filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7);
+  /* Página pública: sombras, aparelhos do mockup e cartões flutuantes */
+  --lift-shadow: 0 2px 6px rgb(0 0 0 / 0.3), 0 22px 40px -18px rgb(0 0 0 / 0.75);
+  --header-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.7);
+  --device-frame: #0b1726;
+  --device-base: linear-gradient(#5a6878, #3c4856);
+  --device-notch: #2b3542;
+  --device-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
+  --float-bg: #103a45;
+  --float-ink: #ecf8f9;
+  --float-shadow: 0 16px 36px -16px rgb(0 0 0 / 0.55);
+  /* Esfera da cena de abertura: turquesa → azul → petróleo, só tons da paleta, terminando no fundo da página */
+  --orb-1a: #2fe0d0; --orb-1b: #0e8f88;
+  --orb-2a: #4aa8ff; --orb-2b: #1d5fa3;
+  --orb-3a: #17495a; --orb-3b: #071f26;
+  --orb-mark: #052a30;
+  --orb-glow: rgb(47 224 208 / 0.28);
   color-scheme: dark;
 }
 
-/* Claro: o padrão. Fundo água, cartões brancos, turquesa nos destaques e azul-marinho nos títulos e números */
+/* Claro: o padrão. Fundo água, cartões e cabeçalho brancos, banda azul-marinho, turquesa nos destaques */
 :root, [data-theme="light"] {
   --bg: #eaf7f8;
   --surface: #ffffff;
   --surface-2: #eef9fa;
-  --sidebar: #d6f2f0;
-  --chrome: #d6f2f0;
+  --sidebar: #ffffff;
+  --chrome: #ffffff;
   --line: #d3ebed;
   --line-strong: #a9d8dc;
   --ink: #0c2a4d;
   --ink-2: #3b5873;
   --ink-3: #4a6680;
   --brand: #19d3c5;
-  --accent: #08797b;
+  /* Texto de destaque um tom mais escuro que o preenchimento: AA também no selo pequeno sobre --accent-soft */
+  --accent: #077073;
   --accent-soft: rgb(25 211 197 / 0.16);
   --accent-fill: #08797b;
   --on-accent: #ffffff;
@@ -116,30 +143,37 @@
   --teal-soft: #d4f6f2;
   --mesh-a: rgb(25 211 197 / 0.16);
   --shadow: 0 1px 2px rgb(18 58 107 / 0.06), 0 10px 26px -12px rgb(25 160 170 / 0.32);
-  --hero: linear-gradient(125deg, #3fdccd 0%, #6fd0f0 55%, #8ec9ff 100%);
+  /* Banda escura do site = cartão principal do app: azul-marinho */
+  --hero: radial-gradient(120% 90% at 85% 0%, #143c6c 0%, #0f2f57 60%);
   --hero-line: transparent;
-  --hero-ink: #123a6b;
-  --hero-ink-2: #123a6b;
-  --hero-ink-3: #123a6b;
-  --hero-track: rgb(18 58 107 / 0.16);
-  --hero-ring-a: #123a6b;
-  --hero-ring-b: #1f7fe0;
+  --hero-ink: #f2f8fb;
+  --hero-ink-2: #c9dceb;
+  --hero-ink-3: #c9dceb;
+  --hero-track: rgb(255 255 255 / 0.14);
+  --hero-surface: rgb(255 255 255 / 0.06);
+  --hero-surface-2: rgb(255 255 255 / 0.1);
+  --hero-line-strong: rgb(255 255 255 / 0.24);
+  --hero-ring-a: #5fe9dc;
+  --hero-ring-b: #4aa8ff;
   --hero-ring-c: #ffffff;
-  --hero-badge-bg: rgb(255 255 255 / 0.6);
-  --hero-badge-ink: #123a6b;
-  --hero-cta: #123a6b;
+  --hero-badge-bg: rgb(95 233 220 / 0.14);
+  --hero-badge-ink: #5fe9dc;
+  /* Botão principal dentro da banda: o mesmo degradê do site */
+  --hero-cta: linear-gradient(100deg, #08797b 0%, #1661bd 100%);
   --hero-on-cta: #ffffff;
-  --band-bg: #123a6b;
-  --band-ink: #ffffff;
-  --band-ink-2: #c4dcf0;
-  --band-num: #5fe9dc;
-  --band-line: rgb(255 255 255 / 0.14);
+  /* Faixa forte (números do site e do app): turquesa → azul, texto azul-marinho */
+  --band-bg: linear-gradient(100deg, #19d3c5 0%, #4aa8ff 100%);
+  --band-ink: #071d33;
+  --band-ink-2: #071d33;
+  --band-num: #071d33;
+  --band-line: rgb(7 29 51 / 0.16);
+  --band-soft: rgb(255 255 255 / 0.3);
   /* Preenchimentos: turquesa, azul, âmbar, coral e marinho bem separados; o valor sempre vem escrito ao lado */
   --chart-1: #14c4b6;
   --chart-2: #1f7fe0;
   --chart-3: #f2a516;
   --chart-4: #ef6a5b;
-  --chart-5: #123a6b;
+  --chart-5: #0f2f57;
   --bar-1: var(--chart-1); --bar-2: var(--chart-2); --bar-3: var(--chart-3); --bar-4: var(--chart-4); --bar-5: var(--chart-5);
   --stripe-mix: 100%;
   --btn-line-border: #08797b;
@@ -151,6 +185,20 @@
   --cta: var(--brand-gradient);
   --on-cta: #ffffff;
   --cta-shadow: 0 1px 1px rgb(0 0 0 / 0.18);
+  --lift-shadow: 0 2px 6px rgb(18 58 107 / 0.08), 0 22px 40px -18px rgb(18 58 107 / 0.45);
+  --header-shadow: 0 10px 30px -18px rgb(7 29 51 / 0.55);
+  --device-frame: #0b1726;
+  --device-base: linear-gradient(#cfd8e3, #9aa8b8);
+  --device-notch: #8593a4;
+  --device-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
+  --float-bg: #ffffff;
+  --float-ink: #0b2440;
+  --float-shadow: 0 16px 36px -16px rgb(0 0 0 / 0.55);
+  --orb-1a: #5fe9dc; --orb-1b: #19d3c5;
+  --orb-2a: #8ec9ff; --orb-2b: #1f7fe0;
+  --orb-3a: #f4fcfd; --orb-3b: #eaf7f8;
+  --orb-mark: #0f2f57;
+  --orb-glow: rgb(95 233 220 / 0.3);
   /* "only": sem isso, o escuro automático do Chrome/Android escurece o tema claro */
   color-scheme: only light;
 }

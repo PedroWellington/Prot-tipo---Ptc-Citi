@@ -9,11 +9,13 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { Faq } from "@/components/site/faq";
 import { SiteHeader } from "@/components/site/header";
-import { ClinicLine, SPECIALTY_ICON } from "@/components/site/illustrations";
+import { SPECIALTY_ICON } from "@/components/site/illustrations";
 import { LazyMap } from "@/components/site/lazy-map";
 import { Marquee, type MarqueeItem } from "@/components/site/marquee";
 import { HeroMockup } from "@/components/site/mockup";
 import { MOTION_SCRIPT, SiteMotion } from "@/components/site/motion";
+import { Scene } from "@/components/site/scene";
+import { SceneDriver } from "@/components/site/scene-driver";
 import { lines, mergeContent } from "@/lib/site-content";
 import { SITE_IMAGES } from "@/lib/site-images";
 import { NOTA_ENDERECO } from "@/lib/unidades";
@@ -85,8 +87,8 @@ function Photo({ name, alt, sizes }: { name: keyof typeof SITE_IMAGES; alt: stri
 function Feature({ media, icon, title, text, more, reverse }: { media: ReactNode; icon: ReactNode; title: string; text: string; more: string; reverse?: boolean }) {
   return (
     <div className="grid items-center gap-8 md:grid-cols-12 md:gap-12">
-      <div data-reveal className={`aspect-[4/3] overflow-hidden rounded-[28px] shadow-[var(--shadow)] md:col-span-6 ${reverse ? "md:order-2" : ""}`}>{media}</div>
-      <div data-reveal className="md:col-span-6">
+      <div data-reveal data-side={reverse ? "r" : undefined} className={`aspect-[4/3] overflow-hidden rounded-[28px] shadow-[var(--shadow)] md:col-span-6 ${reverse ? "md:order-2" : ""}`}>{media}</div>
+      <div data-reveal data-side={reverse ? undefined : "r"} className="md:col-span-6">
         <span aria-hidden className="tile mb-4 bg-accent-soft text-accent">{icon}</span>
         <h3 className="font-display text-[30px] leading-tight sm:text-[38px]">{title}</h3>
         <p className="mt-3 text-lg leading-relaxed text-ink-2">{text}</p>
@@ -127,41 +129,38 @@ export default async function HomePage() {
       <span data-top-sentinel aria-hidden className="absolute top-0 left-0 h-px w-px" />
       <SiteHeader />
       <SiteMotion />
+      <SceneDriver />
       <main id="conteudo" tabIndex={-1} className="outline-none">
-        {/* 1. Abertura: banda escura com o mockup do próprio sistema */}
-        <section id="inicio" aria-labelledby="inicio-t" className="site-section site-dark overflow-hidden">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pt-12 pb-10 sm:px-6 sm:pt-20 lg:grid-cols-12">
-            <div className="hero-seq lg:col-span-6">
-              <span style={stagger(0)} className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent"><Sparkles className="size-4" />Fisioterapia em Recife</span>
-              <h1 id="inicio-t" style={stagger(1)} className="hero-lcp mt-5 font-display text-[44px] leading-[1.02] sm:text-[60px]">{c["hero.titulo"]}</h1>
-              <p style={stagger(2)} className="hero-lcp mt-5 max-w-xl text-lg leading-relaxed text-ink-2">{c["hero.texto"]}</p>
-              <div style={stagger(3)} className="mt-8 flex flex-wrap gap-3">
+        {/* 1. Abertura: cena rolada com a esfera da marca (sem JS ou com menos movimento, blocos em sequência) */}
+        <Scene
+          hero={[
+            { node: <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent"><Sparkles className="size-4" />Fisioterapia em Recife</span> },
+            { lcp: true, node: <h1 id="inicio-t" className="mt-5 font-display text-[44px] leading-[1.02] sm:text-[60px]">{c["hero.titulo"]}</h1> },
+            { lcp: true, node: <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-2">{c["hero.texto"]}</p> },
+            { node: (
+              <div className="mt-8 flex flex-wrap gap-3">
                 <Link href={AGENDAR} prefetch={false} className="btn btn-brand min-h-12 px-6 text-base">Agendar tratamento<ArrowRight strokeWidth={2} className="btn-arrow size-4" /></Link>
                 <a href="#sistema" className="btn btn-line min-h-12 px-6 text-base">Ver o sistema</a>
               </div>
-            </div>
-            <div className="hero-seq lg:col-span-6">
-              <div style={stagger(4)}><HeroMockup /></div>
-            </div>
-          </div>
-          {/* Faixa 1: equipe */}
-          <div className="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
-            <Marquee items={teamStrip} label="Equipe de fisioterapeutas" seconds={48} />
-          </div>
-          <Edge fill="var(--page-bg)" />
-        </section>
+            ) },
+          ]}
+          phrases={[1, 2, 3, 4].map((i) => c[`cena.${i}`])}
+          edge={<Edge fill="var(--page-bg)" />}
+        />
 
-        {/* 2. A clínica */}
+        {/* 2. A clínica, com o próprio sistema no notebook e no celular */}
         <Section id="clinica">
           <div className="grid items-center gap-10 md:grid-cols-12 md:gap-14">
-            <div data-reveal className="md:col-span-6"><ClinicLine className="w-full" /></div>
-            <div data-reveal className="md:col-span-6">
+            <div data-reveal className="md:col-span-6"><HeroMockup /></div>
+            <div data-reveal data-side="r" className="md:col-span-6">
               <p className="eyebrow">A clínica</p>
               <h2 id="clinica-t" className="mt-2 font-display text-[36px] leading-[1.05] sm:text-[48px]">{c["clinica.titulo"]}</h2>
               <p className="mt-4 text-lg leading-relaxed text-ink-2">{c["clinica.p1"]}</p>
               <p className="mt-3 text-lg leading-relaxed text-ink-2">{c["clinica.p2"]}</p>
             </div>
           </div>
+          {/* Faixa 1: equipe */}
+          <div data-reveal className="mt-14"><Marquee items={teamStrip} label="Equipe de fisioterapeutas" seconds={48} /></div>
         </Section>
 
         {/* 3. Indicadores, em cor forte (do cadastro; nada inventado) */}

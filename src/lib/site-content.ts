@@ -11,6 +11,9 @@ export const SITE_FIELDS: SiteField[] = [
   f("Abertura", "hero.titulo", "Título", "Cuidado em fisioterapia, do primeiro dia à alta"),
   f("Abertura", "hero.texto", "Frase", "Avaliação sem pressa, sessões no seu ritmo e acompanhamento até a alta combinada, em Boa Viagem e Casa Forte.", true),
 
+  ...["Menos faltas", "Mais sessões concluídas", "Tratamento até o fim", "Cuidado que acompanha você"].map((v, i) =>
+    f("Cena de abertura", `cena.${i + 1}`, `Frase ${i + 1} (curta, de 2 a 4 palavras)`, v)),
+
   f("A clínica", "clinica.titulo", "Título", "Uma clínica feita para você chegar até o fim"),
   f("A clínica", "clinica.p1", "Parágrafo 1", "A Movimento nasceu de uma ideia simples: a fisioterapia funciona melhor quando você entende o próprio tratamento. Cada plano começa com uma avaliação cuidadosa e segue com metas claras, revistas a cada fase.", true),
   f("A clínica", "clinica.p2", "Parágrafo 2", "Você acompanha as sessões pelo celular, confirma presença com um toque e troca de horário sem fila no telefone. A equipe cuida da parte burocrática, como o convênio, para você cuidar da recuperação.", true),

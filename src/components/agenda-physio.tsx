@@ -71,7 +71,7 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless, googl
         {error && <ErrorState error={error} retry={refetch} />}
         {rows && !rows.length && <div className="card"><Empty title="Dia livre" body="Nenhuma sessão nesta data." /></div>}
         {!!rows?.length && (
-          <ul className={`card divide-y divide-line overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}>
+          <ul className={`stagger card divide-y divide-line overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}>
             {rows.map((s) => {
               const n = s.treatment.completedSessions;
               const script = isOpen(s) && n >= 2 && n <= 4 && !s.treatment.scriptDoneAt;
