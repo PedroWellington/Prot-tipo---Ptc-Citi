@@ -112,7 +112,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .hint-arrow { animation: hint-pulse 1.6s ease-in-out infinite; }
 
 /* O palco começa atrás do cabeçalho (64 px): durante a cena o cabeçalho é transparente e a tela tem uma cor só */
-.scene-live .scene { --scene-h: 620vh; height: var(--scene-h); margin-top: calc(var(--header-h) * -1); }
+.scene-live .scene { --scene-h: 588vh; height: var(--scene-h); margin-top: calc(var(--header-h) * -1); }
 .scene-live .scene-sticky {
   position: sticky; top: 0; display: block; height: 100svh; max-width: none; margin: 0; padding: 0; overflow: hidden;
 }
@@ -193,7 +193,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .scene-live .scene-frame:focus-within .scene-item { opacity: 1; transform: none; }
 
 @media (max-width: 767px), (orientation: portrait) {
-  .scene-live .scene { --scene-h: 520vh; }
+  .scene-live .scene { --scene-h: 494vh; }
   .scene-live .scene-glow { left: 50%; top: 24%; width: min(56vw, 28vh); }
   /* Celular: deslocamento lateral curto (sem atravessar a tela) */
   .scene-live .scene-frame { --slide: 32px; }
@@ -265,9 +265,11 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .marquee-track { display: flex; width: max-content; animation: marquee var(--marquee-dur, 50s) linear infinite; }
 .marquee[data-reverse] .marquee-track { animation-direction: reverse; }
 /* Fora da tela não roda (o observer marca .is-running); sob o mouse ou com foco de teclado, pausa */
+/* Pausa só sob o mouse e no foco de teclado (:focus-visible: o clique de mouse não conta). Toque não pausa */
 .motion-ok .marquee:not(.is-running) .marquee-track,
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track { animation-play-state: paused; }
+.marquee:focus-visible .marquee-track,
+.marquee:has(:focus-visible) .marquee-track { animation-play-state: paused; }
+@media (hover: hover) and (pointer: fine) { .marquee:hover .marquee-track { animation-play-state: paused; } }
 .marquee-list { display: flex; gap: 12px; padding-right: 12px; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 .marquee:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 12px; }

@@ -438,6 +438,93 @@ try {
     }
   }
 
+  // 7. Página pública: faixas em movimento (pausa só com o mouse em cima) e fim da cena mais curto
+  if (!ONLY_MEASURE) {
+    /** A faixa está andando? Compara o deslocamento da trilha em 250 ms. */
+    const anda = (page, i) => page.evaluate(async (i) => {
+      const t = document.querySelectorAll(".marquee-track")[i];
+      const x = () => new DOMMatrix(getComputedStyle(t).transform).m41;
+      const a = x(); await new Promise((r) => setTimeout(r, 250)); return Math.abs(x() - a) > 0.5;
+    }, i);
+
+    await caso("faixas: pausam só com o mouse em cima; clique, Tab e toque não as congelam", async () => {
+      const ctx = await contexto(browser, DESKTOP, "light");
+      const page = await ctx.newPage();
+      await page.goto(`${BASE}/#clinica`);
+      await page.waitForTimeout(1500);
+      const n = await page.locator(".marquee").count();
+      assert.ok(n >= 2, `faixas na página: ${n}`);
+      for (let i = 0; i < n; i++) {
+        const faixa = page.locator(".marquee").nth(i);
+        await faixa.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(400);
+        assert.ok(await anda(page, i), `faixa ${i}: parada antes de tudo`);
+        await faixa.hover();
+        assert.equal(await anda(page, i), false, `faixa ${i}: não pausou com o mouse em cima`);
+        await page.mouse.move(5, 5);
+        assert.ok(await anda(page, i), `faixa ${i}: não voltou ao tirar o mouse`);
+        // Clique num chip e tira o mouse: continua andando (o clique não conta como foco visível)
+        const caixa = await faixa.boundingBox();
+        await page.mouse.click(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2); // no chip que estiver no meio
+        await page.mouse.move(5, 5);
+        assert.ok(await anda(page, i), `faixa ${i}: parou depois do clique`);
+        // Teclado: Tab até a faixa pausa; Tab para fora volta a andar
+        await faixa.focus();
+        await page.keyboard.press("Shift+Tab");
+        await page.keyboard.press("Tab");
+        const focada = await page.evaluate((i) => document.activeElement === document.querySelectorAll(".marquee")[i], i);
+        if (focada) assert.equal(await anda(page, i), false, `faixa ${i}: não pausou no foco de teclado`);
+        await page.keyboard.press("Tab");
+        assert.ok(await anda(page, i), `faixa ${i}: ficou parada depois de sair com Tab`);
+      }
+      await ctx.close();
+      // Celular: tocar na faixa não a congela
+      const cel = await contexto(browser, CELULAR, "dark");
+      const p2 = await cel.newPage();
+      await p2.goto(`${BASE}/#clinica`);
+      await p2.waitForTimeout(1500);
+      const f = p2.locator(".marquee").first();
+      await f.scrollIntoViewIfNeeded();
+      const cx = await f.boundingBox();
+      await p2.touchscreen.tap(cx.x + cx.width / 2, cx.y + cx.height / 2);
+      await p2.waitForTimeout(300);
+      assert.ok(await anda(p2, 0), "celular: a faixa congelou depois do toque");
+      await cel.close();
+    });
+
+    for (const [nome, dev] of [["desktop", DESKTOP], ["Pixel 7", devices["Pixel 7"]], ["iPhone 14", devices["iPhone 14"]], ["360px", { viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }], ["430px", { viewport: { width: 430, height: 932 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }]]) {
+      await caso(`fim da cena (${nome}): esfera final formada antes do fim, pouca rolagem e o menu completo aparece`, async () => {
+        const ctx = await contexto(browser, dev, "dark");
+        const page = await ctx.newPage();
+        await page.goto(`${BASE}/`);
+        await page.waitForFunction(() => document.querySelector("[data-scene]")?.classList.contains("is-ready"), null, { timeout: 20000 });
+        const g = await page.evaluate(() => {
+          const s = document.querySelector("[data-scene]");
+          const range = s.offsetHeight - innerHeight;
+          return { top: s.offsetTop, range, vh: innerHeight, palco: s.offsetHeight };
+        });
+        // A esfera final fica montada em ~78% do último segmento: (4 + 0,78) / 5 × 0,98 do progresso
+        const formada = (4.78 / 5) * 0.98;
+        const final = Math.round((1 - formada) * g.range);
+        medidas.push({ caso: `fim da cena ${nome}`, "palco (vh)": Math.round((g.palco / g.vh) * 100), "esfera formada → fim (px)": final, "esfera formada → fim (vh)": Math.round((final / g.vh) * 100) });
+        assert.ok(final / g.vh <= 0.35, `trecho final longo: ${final}px`);
+        // Rola até a esfera formada: nenhum quadro de texto aberto e o cabeçalho ainda minimalista
+        await page.evaluate((y) => scrollTo(0, y), g.top + formada * g.range + 2);
+        await page.waitForTimeout(900);
+        const meio = await page.evaluate(() => ({ quadros: document.querySelectorAll(".scene-frame.is-on").length, cabecalho: document.querySelector(".site-header").dataset.mode }));
+        assert.deepEqual(meio, { quadros: 0, cabecalho: "cena" });
+        await page.screenshot({ path: `${OUT}/cena-esfera-final-${nome.replace(/\s/g, "")}.png` });
+        // Mais um pouco: a cena libera, o menu completo desce e a seção seguinte entra, sem salto nem tela vazia
+        await page.evaluate((y) => scrollTo(0, y), g.top + g.range + 4);
+        await page.waitForTimeout(700);
+        const fim = await page.evaluate(() => ({ cabecalho: document.querySelector(".site-header").dataset.mode, secao: (() => { const r = document.querySelector("#clinica").getBoundingClientRect(); return r.top < innerHeight; })() }));
+        assert.deepEqual(fim, { cabecalho: "completo", secao: true });
+        await page.screenshot({ path: `${OUT}/cena-saida-${nome.replace(/\s/g, "")}.png` });
+        await ctx.close();
+      });
+    }
+  }
+
   // 8. Medições comparáveis com a main (as mesmas interações, sem a entrada)
   for (const [aparelho, dev] of [["desktop", DESKTOP], ["celular", CELULAR]]) {
     await caso(`medição ${aparelho}`, async () => {

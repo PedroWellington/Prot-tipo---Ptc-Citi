@@ -2,10 +2,10 @@
  * Linha do tempo da abertura, comum ao palco (partículas) e ao texto (scene-driver).
  * Seis estados: 0 esfera com o "M", 1 coluna, 2 figura, 3 joelho, 4 anel, 5 a esfera de volta.
  * Entre dois estados (um "segmento") a forma se desfaz em nuvem no meio (t ≈ 0,5) e se refaz no fim.
- * Os últimos 8% da rolagem seguram a esfera final antes de a página continuar.
+ * Os últimos 2% da rolagem seguram a esfera final antes de a página continuar (pouca rolagem depois dela).
  */
 export const SEGMENTS = 5;
-const END = 0.92;
+const END = 0.98;
 /** Progresso em que a primeira forma (coluna) está montada, com a frase 1 na tela. */
 export const FIRST_SHAPE = END / SEGMENTS;
 

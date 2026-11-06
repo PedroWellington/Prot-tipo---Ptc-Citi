@@ -56,11 +56,13 @@ describe("Faixa em movimento", () => {
     expect(html).toContain('tabindex="0"');
   });
 
-  it("anima só com translateX e pausa sob o mouse e no foco de teclado", () => {
+  it("anima só com translateX e pausa só sob o mouse e no foco de teclado (clique e toque não param a faixa)", () => {
     expect(css).toMatch(/@keyframes marquee \{ to \{ transform: translateX\(-50%\); \} \}/);
-    const pause = all.find((r) => r.body.includes("animation-play-state: paused"))!;
-    expect(pause.selector).toContain(".marquee:hover .marquee-track");
-    expect(pause.selector).toContain(".marquee:focus-within .marquee-track");
+    const pauses = all.filter((r) => r.body.includes("animation-play-state: paused")).map((r) => r.selector).join(" ");
+    expect(pauses).toContain(".marquee:focus-visible .marquee-track");
+    expect(pauses).not.toContain("focus-within");
+    expect(css).toMatch(/@media \(hover: hover\) and \(pointer: fine\) \{ \.marquee:hover \.marquee-track \{ animation-play-state: paused; \} \}/);
+    expect(css).not.toMatch(/(^|[,}\s])\.marquee:hover \.marquee-track,/);
   });
 
   it("com menos movimento não há animação contínua e a faixa vira linha rolável", () => {
@@ -212,12 +214,12 @@ describe("Abertura com partículas", () => {
 
   it("linha do tempo: abertura, nuvem entre as formas e cada frase com a forma montada, alternando de lado", () => {
     expect(frameAt(0)).toBe(0);
-    expect(timeline(0.92)).toEqual({ seg: 4, t: 1 });
+    expect(timeline(0.98)).toEqual({ seg: 4, t: 1 });
     const seen = new Set<number>();
     for (let p = 0; p <= 1; p += 0.002) seen.add(frameAt(p));
     expect([...seen].sort()).toEqual([-1, 0, 1, 2, 3, 4]);
     // No meio de cada segmento é só nuvem, sem texto
-    for (let s = 0; s < 5; s++) expect(frameAt(((s + 0.5) / 5) * 0.92)).toBe(-1);
+    for (let s = 0; s < 5; s++) expect(frameAt(((s + 0.5) / 5) * 0.98)).toBe(-1);
     const d = placements(1366, 860, false);
     expect(d[0][0]).toBeGreaterThan(683);
     expect([d[1][0] < 683, d[2][0] > 683, d[3][0] < 683, d[4][0] > 683]).toEqual([true, true, true, true]);
