@@ -79,12 +79,17 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .scene-copy { text-align: center; }
 .scene-text { margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; }
 /* Texto curto embaixo da frase grande: corpo menor, cor secundária (AA sobre a banda), até ~46 caracteres por linha */
-.scene-sub { max-width: 46ch; margin: 16px auto 0; font-size: clamp(16px, 1.25vw, 18px); line-height: 1.55; color: var(--ink-2); }
+.scene-sub { max-width: 52ch; margin: 16px auto 0; font-size: clamp(17px, 1.35vw, 20px); line-height: 1.5; color: var(--ink-2); }
+/* Rótulo em caixa-alta acima da frase e tópicos curtos com marcador embaixo do texto */
+.scene-label { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.scene-points { display: flex; flex-wrap: wrap; gap: 8px 20px; max-width: 52ch; margin: 20px auto 0; padding: 0; list-style: none; font-size: 15px; line-height: 1.4; color: var(--ink); }
+.scene-points li { display: flex; align-items: center; gap: 8px; }
+.scene-points li::before { content: ""; flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 @media (min-width: 768px) {
   .scene-hero { grid-template-columns: 1fr 1fr; }
   .scene-phrase { grid-template-columns: 1fr 1fr; }
   .scene-phrase .scene-copy { text-align: left; }
-  .scene-phrase .scene-sub { margin-inline: 0; }
+  .scene-phrase .scene-sub, .scene-phrase .scene-points { margin-inline: 0; }
   .scene-phrase[data-side="l"] .scene-shape { order: 2; }
 }
 
@@ -107,7 +112,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .hint-arrow { animation: hint-pulse 1.6s ease-in-out infinite; }
 
 /* O palco começa atrás do cabeçalho (64 px): durante a cena o cabeçalho é transparente e a tela tem uma cor só */
-.scene-live .scene { --scene-h: 620vh; height: var(--scene-h); margin-top: calc(var(--header-h) * -1); }
+.scene-live .scene { --scene-h: 588vh; height: var(--scene-h); margin-top: calc(var(--header-h) * -1); }
 .scene-live .scene-sticky {
   position: sticky; top: 0; display: block; height: 100svh; max-width: none; margin: 0; padding: 0; overflow: hidden;
 }
@@ -140,6 +145,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
   font-size: clamp(36px, min(5.6vw, 9vh), 88px); overflow-wrap: anywhere;
 }
 .scene-live .scene-sub { margin: 20px 0 0; }
+.scene-live .scene-points { margin: 22px 0 0; flex-direction: column; flex-wrap: nowrap; }
 /* A frase fica do lado oposto à forma: forma à esquerda (r) → texto à direita */
 .scene-live .scene-phrase[data-side="r"] { --side: 1; }
 .scene-live .scene-phrase[data-side="l"] { --side: -1; }
@@ -160,19 +166,26 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
   transition: transform 700ms var(--ease-out), opacity 420ms var(--ease-out);
   transition-delay: calc(var(--enter) + var(--i, 0) * 60ms);
 }
+/* Quadros de frase: rótulo primeiro, depois as palavras da frase, o texto e os tópicos (100 ms entre os blocos) */
+.scene-live .scene-phrase .scene-word { transition-delay: calc(var(--enter) + 100ms + var(--i, 0) * 60ms); }
+.scene-live .scene-label, .scene-live .scene-points li { transition: transform 600ms var(--ease-out), opacity 420ms var(--ease-out); }
+.scene-live .scene-label { transition-delay: var(--enter); }
+.scene-live .scene-points li { transition-delay: calc(var(--enter) + var(--n, 1) * 60ms + 300ms + var(--j, 0) * 90ms); }
 /* Saída: some em 200 ms e sem atraso, antes de o quadro seguinte começar a aparecer (sem sobreposição) */
-.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word, .scene-sub) {
+.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word, .scene-sub, .scene-label, .scene-points li) {
   transition-duration: 200ms, 200ms; transition-delay: 0ms;
 }
+.scene-live .scene-frame:not(.is-on) :is(.scene-label, .scene-points li) { opacity: 0; transform: translateY(12px); }
+.scene-live .scene-frame.is-past :is(.scene-label, .scene-points li) { transform: translateY(-8px); }
 .scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word) { opacity: 0; }
 .scene-live .scene-frame:not(.is-on, .is-past) :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * var(--slide))); }
 .scene-live .scene-frame.is-past :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * var(--slide) * -1)); }
 /* Quadro ativo: tudo no lugar, sem resto de deslocamento (o hero volta exatamente como no primeiro carregamento) */
-.scene-live .scene-frame.is-on :is(.scene-item, .scene-word, .scene-sub) { transform: none; opacity: 1; }
+.scene-live .scene-frame.is-on :is(.scene-item, .scene-word, .scene-sub, .scene-label, .scene-points li) { transform: none; opacity: 1; }
 /* O texto embaixo entra ~100 ms depois da última palavra, com fade e deslocamento curto; sai junto com o quadro */
 .scene-live .scene-sub {
   transition: transform 600ms var(--ease-out), opacity 420ms var(--ease-out);
-  transition-delay: calc(var(--enter) + var(--n, 1) * 60ms + 100ms);
+  transition-delay: calc(var(--enter) + var(--n, 1) * 60ms + 200ms);
 }
 .scene-live .scene-frame:not(.is-on) .scene-sub { opacity: 0; transform: translateY(12px); }
 .scene-live .scene-frame.is-past .scene-sub { transform: translateY(-8px); }
@@ -180,7 +193,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .scene-live .scene-frame:focus-within .scene-item { opacity: 1; transform: none; }
 
 @media (max-width: 767px), (orientation: portrait) {
-  .scene-live .scene { --scene-h: 520vh; }
+  .scene-live .scene { --scene-h: 494vh; }
   .scene-live .scene-glow { left: 50%; top: 24%; width: min(56vw, 28vh); }
   /* Celular: deslocamento lateral curto (sem atravessar a tela) */
   .scene-live .scene-frame { --slide: 32px; }
@@ -197,6 +210,9 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
   .scene-live .scene-phrase .scene-text { font-size: clamp(32px, 9.5vw, 50px); }
   /* Texto inteiro, sem reticências: os padrões são curtos o bastante para 3 a 4 linhas */
   .scene-live .scene-sub { margin: 12px auto 0; font-size: 15.5px; line-height: 1.5; }
+  /* Celular: versão enxuta (rótulo, frase e texto); os tópicos ficam no computador, para não cobrir a forma */
+  .scene-live .scene-label { margin-bottom: 8px; font-size: 12px; }
+  .scene-live .scene-points { display: none; }
 }
 /* Celular baixo (barra do navegador aberta, telas pequenas): abertura mais compacta, sobra espaço para a esfera */
 @media ((max-width: 767px) or (orientation: portrait)) and (max-height: 700px) {
@@ -249,9 +265,11 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .marquee-track { display: flex; width: max-content; animation: marquee var(--marquee-dur, 50s) linear infinite; }
 .marquee[data-reverse] .marquee-track { animation-direction: reverse; }
 /* Fora da tela não roda (o observer marca .is-running); sob o mouse ou com foco de teclado, pausa */
+/* Pausa só sob o mouse e no foco de teclado (:focus-visible: o clique de mouse não conta). Toque não pausa */
 .motion-ok .marquee:not(.is-running) .marquee-track,
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track { animation-play-state: paused; }
+.marquee:focus-visible .marquee-track,
+.marquee:has(:focus-visible) .marquee-track { animation-play-state: paused; }
+@media (hover: hover) and (pointer: fine) { .marquee:hover .marquee-track { animation-play-state: paused; } }
 .marquee-list { display: flex; gap: 12px; padding-right: 12px; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 .marquee:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 12px; }

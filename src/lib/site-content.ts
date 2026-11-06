@@ -14,15 +14,21 @@ export const SITE_FIELDS: SiteField[] = [
   // Aviso na base da primeira tela, para quem não percebe que a página rola
   f("Cena de abertura", "cena.dica", "Aviso para rolar (computador)", "Role para ver"),
   f("Cena de abertura", "cena.dica.celular", "Aviso para rolar (celular)", "Deslize para ver"),
-  // Cada frase aparece ao lado de uma forma feita de partículas, nesta ordem, com um texto curto embaixo
+  // Cada frase aparece ao lado de uma forma feita de partículas, nesta ordem: rótulo, frase, texto e tópicos
   ...([
-    ["Menos faltas.", "coluna vertebral", "Um lembrete chega antes de cada sessão e você confirma com um toque. Se o horário apertar, troca pelo celular."],
-    ["Mais sessões concluídas!", "figura em movimento", "Cada sessão feita aparece no seu painel, com a fase do tratamento. Você vê o que já fez e o que falta."],
-    ["Cuidado que acompanha você.", "articulação do joelho", "Os exercícios para casa ficam no seu painel, com vídeo ou explicação. A fisioterapeuta acompanha e ajusta o plano."],
-    ["Tratamento até o fim.", "anel de progresso", "A dor costuma passar antes de a recuperação terminar. Ir até a alta combinada ajuda a evitar que ela volte."],
-  ] as const).flatMap(([v, forma, sub], i) => [
+    ["Presença", "Menos faltas.", "coluna vertebral", "Um lembrete chega antes de cada sessão e você confirma com um toque. Se o horário apertar, troca pelo celular.",
+      "Lembrete antes de cada sessão\nConfirmação com um toque\nTroca de horário pelo celular"],
+    ["Acompanhamento", "Mais sessões concluídas!", "figura em movimento", "Cada sessão feita aparece no seu painel, com a fase do tratamento. Você vê o que já fez e o que falta.",
+      "Sessões feitas e as que faltam\nFase do tratamento sempre à vista\nComo está a dor, sessão a sessão"],
+    ["Exercícios em casa", "Cuidado que acompanha você.", "articulação do joelho", "Os exercícios para casa ficam no seu painel, com vídeo ou explicação. A fisioterapeuta acompanha e ajusta o plano.",
+      "Vídeo ou explicação de cada exercício\nVocê marca o que já fez\nA fisioterapeuta ajusta o plano"],
+    ["Alta combinada", "Tratamento até o fim.", "anel de progresso", "A dor costuma passar antes de a recuperação terminar. Ir até a alta combinada ajuda a evitar que ela volte.",
+      "Metas revistas a cada fase\nAlta combinada com a fisioterapeuta\nPlano de manutenção para depois"],
+  ] as const).flatMap(([rotulo, v, forma, sub, topicos], i) => [
+    f("Cena de abertura", `cena.${i + 1}.rotulo`, `Frase ${i + 1}: rótulo pequeno em caixa-alta, acima da frase (1 a 3 palavras)`, rotulo),
     f("Cena de abertura", `cena.${i + 1}`, `Frase ${i + 1}, ao lado da ${forma} (curta, de 2 a 5 palavras)`, v),
-    f("Cena de abertura", `cena.${i + 1}.sub`, `Frase ${i + 1}: texto embaixo (2 frases curtas; no celular cabe em 3 a 4 linhas)`, sub, true),
+    f("Cena de abertura", `cena.${i + 1}.sub`, `Frase ${i + 1}: texto embaixo (2 a 3 frases curtas; no celular cabe em 3 a 4 linhas)`, sub, true),
+    f("Cena de abertura", `cena.${i + 1}.topicos`, `Frase ${i + 1}: tópicos curtos, um por linha (2 ou 3; aparecem só no computador)`, topicos, true),
   ]),
 
   f("A clínica", "clinica.titulo", "Título", "Uma clínica feita para você chegar até o fim"),
@@ -90,6 +96,16 @@ export const SITE_FIELDS: SiteField[] = [
   f("Subtítulos das seções", "sub.unidades", "Unidades", "Duas unidades em Recife, perto de transporte público.", true),
   f("Subtítulos das seções", "sub.convenios", "Convênios e pagamento", "Convênio ou particular, sem surpresa na hora de pagar.", true),
   f("Subtítulos das seções", "sub.faq", "Perguntas frequentes", "O que costumam perguntar antes de começar.", true),
+
+  // Área logada: saudação no início de cada perfil. {campos} vêm dos dados que a tela já carrega; nada inventado
+  f("Saudação no sistema (área logada)", "saudacao.manha", "Saudação de manhã (5h às 12h)", "Bom dia"),
+  f("Saudação no sistema (área logada)", "saudacao.tarde", "Saudação de tarde (12h às 18h)", "Boa tarde"),
+  f("Saudação no sistema (área logada)", "saudacao.noite", "Saudação de noite", "Boa noite"),
+  f("Saudação no sistema (área logada)", "saudacao.paciente", "Paciente com sessão marcada ({proxima} = dia e hora)", "Sua próxima sessão é {proxima}."),
+  f("Saudação no sistema (área logada)", "saudacao.paciente.sem", "Paciente sem sessão marcada", "Escolha seus horários e o plano fica pronto aqui."),
+  f("Saudação no sistema (área logada)", "saudacao.recepcao", "Recepção ({sessoes} = sessões do dia, {confirmar} = a confirmar)", "Hoje: {sessoes} na agenda, {confirmar} a confirmar."),
+  f("Saudação no sistema (área logada)", "saudacao.fisio", "Fisioterapeuta ({sessoes} = sessões do dia, {atender} = a atender)", "Hoje: {sessoes} na sua agenda, {atender} a atender."),
+  f("Saudação no sistema (área logada)", "saudacao.admin", "Administração ({periodo} = período escolhido)", "Indicadores da clínica nos últimos {periodo}."),
 
   f("Contato", "contato.titulo", "Título", "Pronto para começar?"),
   f("Contato", "contato.texto", "Texto", "Entre ou crie sua conta para escolher os horários. Prefere falar com alguém? Ligue para a unidade.", true),

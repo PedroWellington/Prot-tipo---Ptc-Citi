@@ -50,7 +50,7 @@ export default function Page() {
   return (
     <>
       <PageTitle eyebrow="Administração" title="Parâmetros" />
-      <form className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3" onSubmit={(e) => {
+      <form className="stagger grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3" onSubmit={(e) => {
         e.preventDefault();
         const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
         const { reminder_hours, ...nums } = f;

@@ -145,7 +145,7 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
     <>
       <div aria-hidden className={cx("fixed inset-0 z-40 bg-scrim/45 transition-opacity duration-150", open ? "opacity-100" : "pointer-events-none opacity-0", !wide && "sm:hidden")} />
       <div ref={panel} role="dialog" aria-modal={wide} aria-label="Assistente de análises" hidden={!present} data-size={size}
-        className={cx("assistant-panel fixed", closing ? "panel-out" : "panel-in", " z-50 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-2xl")}>
+        className={cx("assistant-panel fixed origin-bottom-right data-[size=ampliado]:origin-center", closing ? "panel-out" : "panel-in", " z-50 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-2xl")}>
         <header className="flex items-center gap-2 border-b border-line px-4 py-3">
           <span aria-hidden className="tile bg-accent-soft text-accent"><Sparkles /></span>
           <div className="min-w-0 flex-1">

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bell, CreditCard, Download, Home, IdCard, KeyRound, LogOut, MapPin, MessageCircle, Moon, ShieldCheck, Trash2, UsersRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { logout } from "@/components/app-shell";
-import { toggleTheme } from "@/lib/theme";
+import { centerOf, trocarTema } from "@/lib/theme";
 import { Sheet } from "@/components/lazy-sheet";
 import { useUnits } from "@/components/patient-form";
 import { BairroInput } from "@/components/bairro-input";
@@ -63,7 +63,7 @@ export default function Page() {
           </li>
         ))}
       </ul>
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="stagger grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 flex items-center gap-3 font-semibold"><Tile tone="accent"><IdCard /></Tile>Dados pessoais</h2>
           <form key={p.user.name} onSubmit={submit((b) => form.mutate({ ...b, preferredUnitId: b.preferredUnitId || null, bairro: b.bairro || null }))} className="flex flex-col gap-3">
@@ -105,7 +105,7 @@ export default function Page() {
           <Card className="flex flex-col gap-2">
             <h2 className="mb-1 flex items-center gap-3 font-semibold"><Tile tone="danger"><ShieldCheck /></Tile>Conta e privacidade</h2>
             <Button variant="ghost" className="justify-start" onClick={() => setSheet("senha")}><KeyRound strokeWidth={1.5} className="size-4" />Trocar senha</Button>
-            <Button variant="ghost" className="justify-start" onClick={toggleTheme}><Moon strokeWidth={1.5} className="size-4" />Alternar tema</Button>
+            <Button variant="ghost" className="justify-start" onClick={(e) => { const c = centerOf(e.currentTarget); trocarTema(c.x, c.y); }}><Moon strokeWidth={1.5} className="size-4" />Alternar tema</Button>
             <Button variant="ghost" className="justify-start" onClick={() => window.location.assign("/api/me/export")}><Download strokeWidth={1.5} className="size-4" />Baixar meus dados</Button>
             <Button variant="ghost" className="justify-start" onClick={logout}><LogOut strokeWidth={1.5} className="size-4" />Sair</Button>
             <Button variant="danger" className="justify-start" onClick={() => setSheet("excluir")}><Trash2 strokeWidth={1.5} className="size-4" />Excluir conta</Button>

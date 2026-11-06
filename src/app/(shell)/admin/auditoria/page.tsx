@@ -13,7 +13,7 @@ export default function Page() {
       <PageTitle eyebrow="LGPD" title="Auditoria" />
       {isLoading && <ListSkeleton />}
       {error && <ErrorState error={error} retry={refetch} />}
-      <ul className="card divide-y divide-line overflow-hidden">
+      <ul className="stagger card divide-y divide-line overflow-hidden">
         {data?.pages.flat().map((a) => (
           <li key={a.id} className="p-4">
             <p className="font-medium">{a.action.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())}</p>

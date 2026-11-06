@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Award, CalendarCheck, CalendarClock, CalendarPlus, Check, CircleCheckBig, Clock, ExternalLink, FileText, Flag, Flame, Lock, MapPin,
-  Hourglass, Navigation, PlayCircle, Percent, QrCode, Repeat, ShieldCheck, Sparkles, Star, Target, UserRound, X,
+  Hourglass, Navigation, PlayCircle, Percent, QrCode, Repeat, ShieldCheck, Sparkles, Star, Target, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -15,9 +15,10 @@ import { SESSION_STATUS, type Tone } from "@/lib/labels";
 import { attendance, STAGES, stageOf } from "@/lib/progress";
 import { countdown, fmtLong, fmtTime, fmtWeekShort, recifeParts, WEEKDAYS } from "@/lib/time";
 import type { patientHome } from "@/server/services/patients";
-import { AddToCalendar, MiniMonth } from "./patient-calendar";
+import { AddToCalendar } from "./patient-calendar";
 import { GenericExercises } from "./generic-exercises";
 import { CopyCode, ExpiredNotice, PendingPaymentNotice } from "./payment-notices";
+import { Greeting } from "./motion";
 import { ProgressRing } from "./progress-ring";
 import { useAction } from "./providers";
 import { Badge, Button, Card, cx, Empty, LinkButton, Skeleton, SuccessCheck, Tile } from "./ui";
@@ -27,7 +28,6 @@ type Full = Extract<Home, { sessions: unknown }>;
 type SessionRow = Full["sessions"][number];
 type Awaiting = NonNullable<Home["awaiting"]>;
 
-const DAY_MS = 86_400_000;
 // Endereço público da unidade: é o que vai para o evento do calendário
 const placeOf = (u: { name: string; address: string }) => `Clínica Movimento - ${u.name}, ${u.address}`;
 const initials = (name: string) => name.split(" ").filter((w) => !w.endsWith(".")).slice(0, 2).map((w) => w[0]).join("");
@@ -39,7 +39,8 @@ export function HomeSkeleton() {
       <div className="grid grid-cols-2 gap-3 lg:col-span-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-30 rounded-[20px]" />)}</div>
       <Skeleton className="h-64 rounded-[20px] lg:col-span-5" />
       <Skeleton className="h-64 rounded-[20px] lg:col-span-7" />
-      <Skeleton className="h-36 rounded-[20px] lg:col-span-12" />
+      <Skeleton className="h-48 rounded-[20px] lg:col-span-7" />
+      <Skeleton className="h-48 rounded-[20px] lg:col-span-5" />
     </div>
   );
 }
@@ -54,7 +55,7 @@ function SectionTitle({ icon, tone, children, aside }: { icon: ReactNode; tone?:
 }
 
 // ── 1. Hero ───────────────────────────────────────────────────
-function Hero({ name, done, total, message, finished, children }: { name: string; done: number; total: number; message: string; finished?: boolean; children: ReactNode }) {
+function Hero({ name, done, total, message, finished, next, children }: { name: string; done: number; total: number; message: string; finished?: boolean; next?: SessionRow; children: ReactNode }) {
   const stage = STAGES[stageOf(done, total)];
   return (
     <Card className="hero grid items-center gap-6 sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)] lg:col-span-8">
@@ -64,7 +65,7 @@ function Hero({ name, done, total, message, finished, children }: { name: string
       </div>
       <div className="flex flex-col items-start gap-3">
         <Badge tone="accent"><Sparkles className="size-3.5" />Fase: {stage.name}</Badge>
-        <h1 className="font-display text-[34px] leading-tight sm:text-[40px]">Olá, {name}</h1>
+        <Greeting as="h1" name={name} context={next ? "saudacao.paciente" : "saudacao.paciente.sem"} vars={next ? { proxima: fmtLong(next.startsAt) } : undefined} />
         <p key={done} className="page-enter max-w-prose leading-relaxed text-ink-2">{message || stage.hint}</p>
         <div className="mt-1 flex w-full flex-wrap gap-2 sm:w-auto">{children}</div>
       </div>
@@ -390,25 +391,6 @@ function Timeline({ sessions, nextId, unit, now }: { sessions: SessionRow[]; nex
 }
 
 // ── 10. Atalhos ───────────────────────────────────────────────
-const SHORTCUTS = [
-  { href: "/app/agendar", label: "Agendar", icon: <CalendarPlus />, tone: "accent" },
-  { href: "/app/troca", label: "Trocar", icon: <Repeat />, tone: "info" },
-  { href: "/app/unidades", label: "Unidades", icon: <MapPin />, tone: "warn" },
-  { href: "/app/perfil", label: "Perfil", icon: <UserRound />, tone: "danger" },
-] as const;
-
-function Shortcuts() {
-  return (
-    <nav aria-label="Atalhos" className="grid grid-cols-4 gap-2">
-      {SHORTCUTS.map((s) => (
-        <Link key={s.href} href={s.href} data-tone={s.tone} className="card stripe row-hover flex flex-col items-center gap-2 p-3 text-center text-sm font-medium transition-transform active:scale-[.97]">
-          <Tile tone={s.tone}>{s.icon}</Tile>{s.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
 function LateCard({ late }: { late: NonNullable<Full["late"]> }) {
   const reply = useAction({
     run: (button: string) => api(`/me/late/${late.id}/reply`, { body: { button } }),
@@ -457,11 +439,11 @@ function AwaitingView({ a, name, expiredPayment }: { a: Awaiting; name: string; 
   // O servidor vence a reserva antes de responder: com prazo esgotado o PIX já vem nulo
   const valid = !!a.pixCode;
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-12">
       {expiredPayment && <div className="lg:col-span-12"><ExpiredNotice id={expiredPayment} /></div>}
       <Card className="hero flex flex-col items-start gap-2 lg:col-span-12">
         <Badge tone="warn"><Hourglass className="size-3.5" />Reserva feita</Badge>
-        <h1 className="font-display text-[34px] leading-tight sm:text-[40px]">Olá, {name}</h1>
+        <Greeting as="h1" name={name} />
         <p className="max-w-prose leading-relaxed text-ink-2">Que bom ter você na Clínica Movimento. Seus horários estão reservados.</p>
       </Card>
       <section aria-labelledby="aguardando-t" className="card flex flex-col gap-4 border-warn/50 p-5 sm:p-6 lg:col-span-7">
@@ -513,7 +495,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
   // Sem pacote: o mesmo desenho do painel em andamento, com tudo zerado
   if (!data.treatment)
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-12">
         {data.expiredPayment && <div className="lg:col-span-12"><ExpiredNotice id={data.expiredPayment} /></div>}
         <Hero name={name} done={0} total={10} message={data.message}>
           <LinkButton variant="brand" href="/app/agendar" className="flex-1 sm:flex-none"><CalendarPlus strokeWidth={1.5} className="size-4" />Agendar meu tratamento</LinkButton>
@@ -525,24 +507,17 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
             action={<LinkButton variant="ghost" href="/app/agendar">Ver horários livres</LinkButton>} />
         </Card>
         <PainChart sessions={[]} className="lg:col-span-7" />
+        <div className={cx("lg:col-span-12", below)}><Achievements done={0} total={10} sessions={[]} /></div>
         <Phases done={0} total={10} />
-        <div className={cx("flex flex-col gap-4 lg:col-span-7", below)}>
-          <Exercises items={[]} />
-        </div>
-        <div className={cx("flex flex-col gap-4 lg:col-span-5", below)}>
-          <Shortcuts />
-          <Achievements done={0} total={10} sessions={[]} />
-        </div>
       </div>
     );
 
   const { treatment: t, sessions, renewal, pendingRequest, pendingPayment, late } = data as Full;
   const next = sessions.find((s) => s.id === data.nextSessionId);
   const ended = t.status !== "ATIVO";
-  const recent = t.guidances.filter((g) => serverAt - new Date(g.createdAt).getTime() < 7 * DAY_MS);
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-12">
       {(pendingRequest || data.expiredPayment || pendingPayment || late) && (
         <div className="flex flex-col gap-3 lg:col-span-12">
           {pendingRequest && (
@@ -557,7 +532,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
         </div>
       )}
 
-      <Hero name={name} done={t.done} total={t.total} message={data.message} finished={t.finished}>
+      <Hero name={name} done={t.done} total={t.total} message={data.message} finished={t.finished} next={ended ? undefined : next}>
         <LinkButton variant="brand" href="/app/agendar" className="flex-1 sm:flex-none">
           <CalendarPlus strokeWidth={1.5} className="size-4" />{ended ? "Agendar novo tratamento" : "Agendar mais sessões"}
         </LinkButton>
@@ -575,20 +550,15 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
       )}
       <PainChart sessions={sessions} className="lg:col-span-7" />
 
+      <div className={cx("lg:col-span-7 lg:*:h-full", below)}><Achievements done={t.done} total={t.total} sessions={sessions} /></div>
+      <div className={cx("lg:col-span-5 lg:*:h-full", below)}><UnitCard unit={t.unit} /></div>
+
       <Phases done={t.done} total={t.total} />
 
-      <div className={cx("flex flex-col gap-4 lg:col-span-7", below)}>
-        {t.guidances.length ? <Exercises items={recent.length ? recent : t.guidances.slice(0, 3)} /> : <GenericExercises items={data.generic} />}
+      <div className={cx(renewal && !ended ? "lg:col-span-7" : "lg:col-span-12", "lg:*:h-full", below)}>
         <Timeline sessions={sessions} nextId={data.nextSessionId} unit={t.unit} now={serverAt} />
       </div>
-      <div className={cx("flex flex-col gap-4 lg:col-span-5", below)}>
-        <Shortcuts />
-        <MiniMonth sessions={sessions.filter((s) => s.status !== "REAGENDADA")} now={serverAt} />
-        {renewal && !ended && <RenewalCard r={renewal} />}
-        <Achievements done={t.done} total={t.total} sessions={sessions} />
-        <UnitCard unit={t.unit} />
-      </div>
-      {!!t.guidances.length && <GenericExercises items={data.generic} collapsed className={cx("lg:col-span-12", below)} />}
+      {renewal && !ended && <div className={cx("lg:col-span-5 lg:*:h-full", below)}><RenewalCard r={renewal} /></div>}
     </div>
   );
 }
@@ -607,7 +577,7 @@ export function MobilityClient({ initial, serverAt }: { initial: Home; serverAt:
     );
   const { treatment: t, generic } = data as Full;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="stagger flex flex-col gap-4">
       {t.guidances.length ? <><Exercises items={t.guidances} /><GenericExercises items={generic} collapsed /></> : <GenericExercises items={generic} />}
     </div>
   );

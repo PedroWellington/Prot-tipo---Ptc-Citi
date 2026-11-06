@@ -111,7 +111,7 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
 
       <div key={step} className="page-enter">
         {step === 0 && (
-          <div className="flex flex-col gap-3">
+          <div className="stagger flex flex-col gap-3">
             <h2 className="font-display text-2xl">O que você quer agendar?</h2>
             {([[BOOKING_SIZES.pacote, "Pacote de 10 sessões", "2 vezes por semana, nos mesmos horários"], [BOOKING_SIZES.avulsa, "Uma sessão avulsa", "Uma consulta a mais, quando precisar"]] as const).map(([size, title, body]) => (
               <button key={size} type="button" onClick={() => { setCount(size); setPicks([]); setStep(unitId ? 2 : 1); }} className="card row-hover flex items-center gap-4 p-5 text-left">
@@ -124,7 +124,7 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
         )}
 
         {step === 1 && (
-          <div className="flex flex-col gap-3">
+          <div className="stagger flex flex-col gap-3">
             <h2 className="font-display text-2xl">Onde você prefere ser atendido?</h2>
             {!units && <Skeleton className="h-24 w-full" />}
             {units?.map((u) => (
@@ -138,7 +138,7 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
         )}
 
         {step === 2 && (
-          <div className="flex flex-col gap-3">
+          <div className="stagger flex flex-col gap-3">
             <h2 className="font-display text-2xl">Tem preferência de profissional?</h2>
             <button type="button" onClick={() => { setPhysioId(""); setStep(3); }} className="card row-hover p-4 text-left">
               <span className="block font-semibold">Sem preferência</span>
@@ -151,7 +151,7 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
         )}
 
         {step === 3 && (
-          <div className="flex flex-col gap-3">
+          <div className="stagger flex flex-col gap-3">
             <div>
               <h2 className="font-display text-2xl">{single ? "Escolha o dia e a hora" : "Escolha 2 horários na semana"}</h2>
               <p className="text-sm text-ink-2">{single ? "Reservamos a próxima data livre nesse horário." : "Serão os mesmos até o fim do plano: 10 sessões, 2 por semana."}</p>
@@ -227,7 +227,7 @@ export function BookingWizard({ patientId, initialUnit, onBooked }: { patientId?
     {!patientId && (
       <aside aria-label="Resumo do agendamento" className={cx("card flex flex-col gap-3 p-5 lg:sticky lg:top-6", step === 4 && "max-lg:hidden")}>
         <h2 className="font-semibold">Resumo</h2>
-        <ul className="flex flex-col gap-3">
+        <ul className="stagger flex flex-col gap-3">
           {summary.map((r) => (
             <li key={r.label} className="flex items-center gap-3">
               <Tile tone={r.tone}>{r.icon}</Tile>

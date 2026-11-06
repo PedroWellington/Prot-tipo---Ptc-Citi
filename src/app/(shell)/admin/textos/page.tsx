@@ -23,7 +23,7 @@ export default function Page() {
       <h2 className="mt-10 mb-3 font-display text-3xl">Textos educativos</h2>
       {isLoading && <ListSkeleton />}
       {error && <ErrorState error={error} retry={refetch} />}
-      <div className="grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="stagger grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {data?.map((m) => (
           <Card key={m.id}>
             <form key={m.version} className="flex flex-col gap-3" onSubmit={(e) => {

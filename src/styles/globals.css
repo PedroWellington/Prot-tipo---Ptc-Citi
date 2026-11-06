@@ -204,22 +204,27 @@ textarea.field { padding-block: 12px; }
 @keyframes shimmer { to { transform: translateX(100%); } }
 
 .page-enter { animation: fade 150ms ease-out both; }
-.pop-in { animation: pop 150ms var(--ease-out-soft) both; }
+.pop-in { animation: pop var(--dur-spring) var(--spring) both; }
+/* Interruptor: a bolinha corre com mola */
+.toggle-knob { transition: translate var(--dur-spring) var(--spring), background-color 150ms; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: scale(0.96); } }
 
 /* Linha do gráfico: desenha uma vez ao montar (stroke-dashoffset é só pintura, sem layout) */
-.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 500ms var(--ease-out-soft) 100ms forwards; }
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw var(--dur-count) var(--ease-expo) var(--d, 0ms) forwards; }
+.fade-late { animation: fade 400ms ease-out calc(var(--d, 0ms) + 500ms) backwards; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 .rise { animation: rise 260ms var(--ease-out-soft) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
-.bar { transform-origin: bottom; animation: bar 200ms var(--ease-out-soft) both; }
-.bar-h { transform-origin: left; animation: bar-h 200ms var(--ease-out-soft) both; }
+/* Crescem da linha de base em sequência (--i); a troca de filtro anima do valor anterior (motion.tsx: useGrowFrom) */
+.bar { transform-origin: bottom; animation: bar var(--dur-count) var(--ease-expo) calc(var(--d, 0ms) + min(var(--i, 0), 12) * 35ms) backwards; }
+.bar-h { transform-origin: left; animation: bar-h var(--dur-count) var(--ease-expo) calc(var(--d, 0ms) + min(var(--i, 0), 8) * 50ms) backwards; }
 @keyframes bar { from { transform: scaleY(0); } }
 @keyframes bar-h { from { transform: scaleX(0); } }
 
-.ring-arc { transition: stroke-dashoffset 200ms var(--ease-out-soft); }
+.ring-arc { transition: stroke-dashoffset var(--dur-count) var(--ease-expo); animation: ring-in var(--dur-count) var(--ease-expo) var(--d, 0ms) backwards; }
+@keyframes ring-in { from { stroke-dashoffset: var(--ring-c); } }
 
 /* Leaflet no tema */
 .leaflet-container { background: var(--surface-2); font-family: inherit; border-radius: 16px; z-index: 0; }
@@ -385,36 +390,94 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
  * Rapidez e continuidade, nada cinematográfico. Só transform e opacity; fechar é mais rápido que abrir;
  * will-change só enquanto anima; nada bloqueia clique (::view-transition deixa o toque passar). */
 :root {
-  --dur-in: 200ms; --dur-out: 120ms;           /* troca de tela */
+  --dur-in: 240ms; --dur-out: 120ms;           /* troca de tela */
   --dur-panel-in: 250ms; --dur-panel-out: 150ms; /* painéis, menus, popover */
   --dur-slide: 250ms;                           /* indicador das abas */
-  --step: 40ms;                                 /* escalonamento de listas */
+  --step: 70ms;                                 /* cascata de blocos e cartões */
+  --rise: 14px;                                 /* subida curta da entrada de conteúdo */
+  --blur-in: 10px;                              /* desfoque inicial da entrada "borrado → nítido" */
+  --dur-enter: 600ms;                           /* entrada de conteúdo */
+  --dur-count: 1300ms;                          /* números, barras, anéis e linhas */
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);   /* desaceleração forte no fim (contagens e gráficos) */
+  /* Mola amortecida (ζ 0,72): pico de 3,8% e assenta em 600 ms. Para o que desliza ou abre: indicadores, painéis, interruptores */
+  --spring: linear(0, 0.0516, 0.1731, 0.3253, 0.4815, 0.6252, 0.7478, 0.8458, 0.9197, 0.972, 1.0063, 1.0264, 1.036, 1.0384, 1.0362, 1.0314, 1.0255, 1.0195, 1.0141, 1.0094, 1.0057, 1.0029, 1.001, 0.9997, 1);
+  --dur-spring: 600ms;
 }
 
 /* Troca de rota (React <ViewTransition> em app-shell.tsx): só o conteúdo anima; sidebar e topo ficam vivos e parados */
 :root { view-transition-name: none; }
 ::view-transition { pointer-events: none; }
 ::view-transition-old(.page-out) { animation: vt-out var(--dur-out) var(--ease-out-soft) both; }
-::view-transition-new(.page-in) { animation: vt-in var(--dur-in) var(--ease-out-soft) both; }
+/* O quadro novo só aparece (fade curto): quem faz o "borrado → nítido" são os blocos da tela, logo abaixo */
+::view-transition-new(.page-in) { animation: fade 150ms ease-out both; }
 @keyframes vt-out { to { opacity: 0; transform: translateY(-4px); } }
-@keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(var(--rise)); } }
+/* Abas de conteúdo (Análises): o antigo sai rápido com leve desfoque; o novo entra borrado → nítido (só CSS) */
+.tab-out { animation: tab-out 180ms ease-in forwards; pointer-events: none; }
+@keyframes tab-out { to { opacity: 0; filter: blur(4px); } }
+.tab-in { --d: 0ms; animation: enter-blur 560ms var(--ease-out-soft) backwards; }
+
+/* Tema: só durante a troca a página inteira vira um quadro; o novo se abre num círculo (lib/theme.ts) */
+:root[data-vt^="theme"] { view-transition-name: root; }
+:root[data-vt="theme"]::view-transition-old(root), :root[data-vt="theme"]::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+:root[data-vt="theme"]::view-transition-new(root) { z-index: 1; }
 
 /* Painéis (notificações, assistente): abrem com escala + fade, fecham mais rápido; fundo sólido */
-.panel-in { animation: panel-in var(--dur-panel-in) var(--ease-out-soft) both; }
+/* Abrem com mola a partir do botão de origem (transform-origin de cada painel); fecham rápido, sem mola */
+.panel-in { animation: panel-in var(--dur-spring) var(--spring) both; }
 .panel-out { animation: panel-out var(--dur-panel-out) var(--ease-out-soft) both; pointer-events: none; }
-@keyframes panel-in { from { opacity: 0; scale: 0.97; } }
+@keyframes panel-in { from { opacity: 0; scale: 0.96; } }
 @keyframes panel-out { to { opacity: 0; scale: 0.99; } }
 .fade-in { animation: fade var(--dur-panel-in) ease-out both; }
 .fade-out { animation: fade-away var(--dur-panel-out) ease-out both; pointer-events: none; }
 @keyframes fade-away { to { opacity: 0; } }
 
-/* Listas: os primeiros 6 itens entram escalonados (40 ms); o resto entra junto com o 6º */
-.stagger > * { animation: rise 260ms var(--ease-out-soft) both; animation-delay: calc(5 * var(--step)); }
-.stagger > :nth-child(1) { animation-delay: 0ms; }
-.stagger > :nth-child(2) { animation-delay: var(--step); }
-.stagger > :nth-child(3) { animation-delay: calc(2 * var(--step)); }
-.stagger > :nth-child(4) { animation-delay: calc(3 * var(--step)); }
-.stagger > :nth-child(5) { animation-delay: calc(4 * var(--step)); }
+/* ── Entrada "borrado → nítido" (assinatura da área logada) ─────────────────────
+ * Opacidade, subida de 14 px e desfoque de 10 px → 0 em 600 ms, em cascata de 70 ms (até 8 por grupo).
+ * O desfoque só em poucos contêineres grandes: os blocos da tela (filhos diretos de <main>) e os 8 primeiros cartões
+ * de cada grade (.stagger). Linhas de lista entram sem desfoque. "backwards": no fim, filter volta a none e o
+ * transform volta a ser do elemento (hover/:active). Sem JS a animação CSS roda igual e termina visível.
+ * --d: o atraso do bloco. Herdado: barras, anéis, linhas e números lá dentro começam junto com o bloco.
+ * 0,01 e não 0: visualmente igual, mas o navegador já conta o elemento como pintado (o LCP não espera o fade). */
+/* Registradas: o valor calculado vira um tempo de verdade, que a contagem dos números lê (motion.tsx: CountUp) */
+@property --d { syntax: "<time>"; inherits: true; initial-value: 0ms; }
+@property --d0 { syntax: "<time>"; inherits: true; initial-value: 0ms; }
+@keyframes enter { from { opacity: 0.01; transform: translateY(var(--rise)); } }
+@keyframes enter-blur { from { opacity: 0.01; transform: translateY(var(--rise)); filter: blur(var(--blur-in)); } }
+main > * { --d: calc(7 * var(--step)); }
+main > :nth-child(1) { --d: 0ms; }
+main > :nth-child(2) { --d: var(--step); }
+main > :nth-child(3) { --d: calc(2 * var(--step)); }
+main > :nth-child(4) { --d: calc(3 * var(--step)); }
+main > :nth-child(5) { --d: calc(4 * var(--step)); }
+main > :nth-child(6) { --d: calc(5 * var(--step)); }
+main > :nth-child(7) { --d: calc(6 * var(--step)); }
+/* Uma grade que é bloco da tela não se desfoca inteira: os cartões dela é que entram */
+main > :not(.stagger), .reveal { animation: enter-blur var(--dur-enter) var(--ease-out-soft) var(--d, 0ms) backwards; }
+.stagger { --d0: var(--d, 0ms); }
+.stagger > * { --d: calc(var(--d0) + 7 * var(--step)); animation: enter-blur var(--dur-enter) var(--ease-out-soft) var(--d) backwards; }
+.stagger > :nth-child(1) { --d: var(--d0); }
+.stagger > :nth-child(2) { --d: calc(var(--d0) + var(--step)); }
+.stagger > :nth-child(3) { --d: calc(var(--d0) + 2 * var(--step)); }
+.stagger > :nth-child(4) { --d: calc(var(--d0) + 3 * var(--step)); }
+.stagger > :nth-child(5) { --d: calc(var(--d0) + 4 * var(--step)); }
+.stagger > :nth-child(6) { --d: calc(var(--d0) + 5 * var(--step)); }
+.stagger > :nth-child(7) { --d: calc(var(--d0) + 6 * var(--step)); }
+/* Do 9º em diante e linhas de lista: sem desfoque (nunca dezenas de elementos desfocados) */
+.stagger > :nth-child(n + 9), ul.stagger > *, ol.stagger > * { animation-name: enter; }
+/* Formulários: campos em cascata curta, sem desfoque */
+main form > * { animation: enter 400ms var(--ease-out-soft) calc(var(--d, 0ms) + 60ms) backwards; }
+main form > :nth-child(2) { animation-delay: calc(var(--d, 0ms) + 100ms); }
+main form > :nth-child(3) { animation-delay: calc(var(--d, 0ms) + 140ms); }
+main form > :nth-child(4) { animation-delay: calc(var(--d, 0ms) + 180ms); }
+main form > :nth-child(n + 5) { animation-delay: calc(var(--d, 0ms) + 220ms); }
+/* Mensagens de sucesso e erro entram suaves */
+main [role="alert"], main .notice { animation: enter 320ms var(--ease-out-soft) backwards; }
+/* Aparelho que não aguentou (FPS medido abaixo de 50, components/motion.tsx): mesma entrada, sem desfoque */
+:root[data-motion="lite"] :is(main > *, .reveal, .stagger > *, .tab-in) { animation-name: enter; }
+/* Saudação: entra com o bloco; a frase de contexto logo depois */
+.greet-in { animation: enter var(--dur-enter) var(--ease-out-soft) var(--d, 0ms) backwards; }
+.greet-in-2 { animation-delay: calc(var(--d, 0ms) + 90ms); }
 /* Item removido sai deslizando (lib/motion.ts: leave) antes de a lista mudar */
 .is-leaving { animation: leave 180ms var(--ease-out-soft) forwards; pointer-events: none; }
 @keyframes leave { to { opacity: 0; transform: translateX(24px); } }
@@ -431,33 +494,50 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
   position: absolute; top: 0; left: 0; right: 0; height: 44px; border-radius: 12px; pointer-events: none;
   background: var(--nav-active); border-left: 3px solid var(--accent);
   transform: translateY(calc(var(--ind, 0) * 46px)); opacity: 0;
-  transition: transform var(--dur-slide) var(--ease-out-soft), opacity 150ms;
+  transition: transform var(--dur-spring) var(--spring), opacity 150ms;
 }
 .nav-ind[data-on] { opacity: 1; }
 :root[data-sidebar="collapsed"]:not([data-side-anim]) .nav-ind { width: 52px; }
 .tab-ind {
   position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none;
   transform: translateX(calc(var(--ind, 0) * 100%)); opacity: 0;
-  transition: transform var(--dur-slide) var(--ease-out-soft), opacity 150ms;
+  transition: transform var(--dur-spring) var(--spring), opacity 150ms;
 }
 .tab-ind::before { content: ""; position: absolute; inset: 4px 2px; border-radius: 12px; background: var(--tab-active-bg); }
 .tab-ind[data-on] { opacity: 1; }
 
-/* Hover com leve elevação só com mouse; no toque, só o retorno ao pressionar */
-a.card, button.card { transition: transform 200ms var(--ease-out-soft); }
+/* Hover com leve elevação só com mouse (cartões clicáveis e indicadores): sobe 3 px e uma sombra mais funda
+   aparece por um pseudo-elemento com opacidade (box-shadow não é animado). No toque, só o retorno ao pressionar */
+a.card, button.card, .lift, .card.kpi { position: relative; transition: transform 220ms var(--ease-out-soft); }
 @media (hover: hover) and (pointer: fine) {
-  a.card:hover, button.card:hover { transform: translateY(-2px); }
+  a.card::after, button.card::after, .lift::after, .card.kpi::after {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+    border: 1px solid var(--line-strong); box-shadow: var(--lift-shadow); opacity: 0; transition: opacity 220ms ease-out;
+  }
+  a.card:hover, button.card:hover, .lift:hover, .card.kpi:hover { transform: translateY(-3px); }
+  a.card:hover::after, button.card:hover::after, .lift:hover::after, .card.kpi:hover::after { opacity: 1; }
+  main tbody tr { transition: background-color 150ms ease-out; }
+  main tbody tr:hover { background: var(--accent-soft); }
 }
 a.card:active, button.card:active, .press:active { transform: scale(0.98); }
 
+/* Abas e filtros em pílula: um destaque só (motion.tsx: PillIndicator) desliza por transform entre as opções.
+   Até ele ser medido (sem JS), a opção ativa pinta o próprio fundo */
+.pills { position: relative; isolation: isolate; }
+.pills > [role] { position: relative; z-index: 1; transition: color 200ms ease-out; }
+.pills:not([data-pill-ready]) > [aria-checked="true"], .pills:not([data-pill-ready]) > [aria-selected="true"] { background: var(--accent-fill); }
+.pill-ind { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 999px; background: var(--accent-fill); pointer-events: none; transform-origin: 0 0; opacity: 0; }
 /* Menos movimento: deslocamentos viram fade curto; nada desliza, nada gira sem parar */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(.page-out) { animation: fade-away 120ms ease-out both; }
   ::view-transition-new(.page-in) { animation: fade 120ms ease-out both; }
   .panel-in, .fade-in { animation: fade 120ms ease-out both !important; }
   .panel-out, .fade-out { animation: fade-away 120ms ease-out both !important; }
-  .stagger > * { animation: none !important; }
+  /* Sem desfoque, deslocamento nem contagem: fade curto (vence a regra global de 1 ms) */
+  main > *, .stagger > *, .reveal, .greet-in, .tab-in, main form > *, main [role="alert"] { animation: fade 150ms ease-out backwards !important; }
+  .tab-out { animation: fade-away 100ms ease-out forwards !important; }
   .nav-ind, .tab-ind { transition: opacity 120ms !important; }
   .btn-spinner { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
-  a.card:hover, button.card:hover, a.card:active, button.card:active, .press:active { transform: none; }
+  a.card:hover, button.card:hover, .lift:hover, .card.kpi:hover, a.card:active, button.card:active, .press:active { transform: none; }
+  .bar, .bar-h, .ring-arc { animation: none !important; }
 }

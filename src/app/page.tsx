@@ -130,7 +130,7 @@ export default async function HomePage() {
             // Um botão só: o secundário levava direto à seção do sistema e pulava a animação inteira
             { node: <Link href={AGENDAR} prefetch={false} className="btn btn-brand mt-8 min-h-12 px-6 text-base">Agendar tratamento<ArrowRight strokeWidth={2} className="btn-arrow size-4" /></Link> },
           ]}
-          phrases={[1, 2, 3, 4].map((i) => ({ title: c[`cena.${i}`], sub: c[`cena.${i}.sub`] }))}
+          phrases={[1, 2, 3, 4].map((i) => ({ label: c[`cena.${i}.rotulo`], title: c[`cena.${i}`], sub: c[`cena.${i}.sub`], points: lines(c[`cena.${i}.topicos`]).slice(0, 3) }))}
           hint={{ desktop: c["cena.dica"], mobile: c["cena.dica.celular"] }}
           edge={<Edge fill="var(--page-bg)" />}
         />

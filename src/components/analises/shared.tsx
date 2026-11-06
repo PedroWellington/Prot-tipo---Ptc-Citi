@@ -1,8 +1,9 @@
 "use client";
 
 import { BadgeCheck, Info } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { ExportBody } from "@/lib/exportar";
+import { CountUp, useGrowFrom } from "../motion";
 import { Tile, cx } from "../ui";
 import type { Tone } from "@/lib/labels";
 
@@ -28,7 +29,7 @@ export function Figure({ label, value, hint, tone = "accent", icon }: { label: s
     <>
       <Tile tone={tone} className="mb-3">{icon}</Tile>
       <p className="pr-10 text-sm text-ink-2">{label}</p>
-      <p className="kpi-num mt-1 font-display text-[32px] leading-none tabular-nums">{value}</p>
+      <p className="kpi-num mt-1 font-display text-[32px] leading-none tabular-nums"><CountUp value={value} /></p>
       {hint && <p className="mt-2 text-sm text-ink-3">{hint}</p>}
     </>
   );
@@ -37,13 +38,14 @@ export function Figure({ label, value, hint, tone = "accent", icon }: { label: s
 /** Barras horizontais com rótulo e valor escrito: a cor só separa, o número é sempre legível. */
 export function HBars({ rows, label }: { rows: { label: string; value: number; display: string }[]; label: string }) {
   const max = Math.max(1e-9, ...rows.map((r) => r.value));
+  const grow = useGrowFrom<HTMLUListElement>();
   return (
-    <ul aria-label={label} className="flex flex-col gap-3">
+    <ul ref={grow} aria-label={label} className="flex flex-col gap-3">
       {rows.map((r, i) => (
         <li key={r.label}>
           <div className="mb-1 flex justify-between gap-3 text-sm"><span className="truncate text-ink-2">{r.label}</span><span className="font-semibold tabular-nums">{r.display}</span></div>
           <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
-            <div className="bar-h h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: SERIES[i % SERIES.length] }} />
+            <div data-bar="x" className="bar-h h-full rounded-full" style={{ "--i": i, width: `${(r.value / max) * 100}%`, background: SERIES[i % SERIES.length] } as CSSProperties} />
           </div>
         </li>
       ))}
@@ -77,9 +79,10 @@ export function RevenueChart({ points }: { points: { day: number; realized: numb
             <text x={P.l - 6} y={y(max * g) + 4} textAnchor="end" fontSize="11" fill="var(--ink-3)">{max * g >= 1000 ? `${Math.round((max * g) / 1000)} mil` : Math.round(max * g)}</text>
           </g>
         ))}
-        {area && <path d={area} fill="var(--accent-soft)" />}
-        <path d={line("realized")} fill="none" stroke="var(--chart-1)" strokeWidth="2.5" strokeLinejoin="round" />
-        <path d={line("expected")} fill="none" stroke="var(--chart-2)" strokeWidth="2.5" strokeDasharray="6 5" strokeLinejoin="round" />
+        {/* A realizada se desenha da esquerda para a direita; a faixa e a prevista (tracejada) entram em fade depois */}
+        {area && <path d={area} fill="var(--accent-soft)" className="fade-late" />}
+        <path d={line("realized")} pathLength={1} className="draw" fill="none" stroke="var(--chart-1)" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d={line("expected")} className="fade-late" fill="none" stroke="var(--chart-2)" strokeWidth="2.5" strokeDasharray="6 5" strokeLinejoin="round" />
         {points.filter((p) => p.day === 1 || p.day % 5 === 0).map((p) => <text key={p.day} x={x(p.day)} y={H - 6} textAnchor="middle" fontSize="11" fill="var(--ink-3)">{p.day}</text>)}
       </svg>
     </figure>

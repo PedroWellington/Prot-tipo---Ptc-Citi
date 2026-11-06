@@ -45,7 +45,7 @@ export default function Page() {
       {isLoading && <ListSkeleton />}
       {error && <ErrorState error={error} retry={refetch} />}
       {data && !data.length && <div className="card"><Empty title="Nenhuma renovação pendente" /></div>}
-      <div className="grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="stagger grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {data?.map((r) => {
           const done = r.treatment.completedSessions;
           const urgent = done >= 3 && done <= 5;

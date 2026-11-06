@@ -119,7 +119,7 @@ export function PrevisoesTab({ f }: { f: Filters }) {
       {error && <ErrorState error={error} retry={refetch} />}
       {d && (
         <div className={`flex flex-col gap-4 transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-3">
             <ExportCard className="kpi" spec={stat("faltas-previstas-semana", "Faltas previstas na semana", "Esperadas", num(d.week.expected), `80%: ${num(d.week.p80[0])} a ${num(d.week.p80[1])} · ${d.week.sessions} sessões`)}>
               <Figure icon={<CalendarDays />} tone="danger" label={semana === "proxima" ? "Faltas previstas na próxima semana" : "Faltas previstas até domingo"} value={num(d.week.expected)} hint={`80%: ${num(d.week.p80[0])} a ${num(d.week.p80[1])} · ${d.week.sessions} sessões`} />
             </ExportCard>

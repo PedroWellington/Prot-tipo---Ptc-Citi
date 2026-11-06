@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { toggleSidebar } from "@/lib/theme";
 import { AssistantButton } from "./assistant/button";
+import { GreetContext, useMotionBudget, type GreetTexts } from "./motion";
 import { Sheet } from "./lazy-sheet";
 import { BellButton, NotificationPanel } from "./notifications";
 import { ThemeToggle } from "./theme-toggle";
@@ -191,7 +192,7 @@ function usePreloadData(role: string, path: string) {
   }, [qc, role]);
 }
 
-export function AppShell({ role, name, deskless, children }: { role: string; name: string; deskless?: boolean; children: ReactNode }) {
+export function AppShell({ role, name, deskless, greet = {}, children }: { role: string; name: string; deskless?: boolean; greet?: GreetTexts; children: ReactNode }) {
   const path = usePathname();
   // Unidade sem recepção: a fisioterapeuta assume as filas dos próprios pacientes
   const items = deskless ? [...NAV.FISIOTERAPEUTA, ...DESK_FOR_PHYSIO] : NAV[role];
@@ -205,6 +206,8 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
   // Recolhida, o "M" expande; expandida, leva ao início
   const onLogo = () => (document.documentElement.dataset.sidebar === "collapsed" ? toggleSidebar() : router.push(items[0].href));
   usePreloadData(role, path);
+  useMotionBudget(path);
+  const [greetValue] = useState(() => ({ name, texts: greet }));
   const locked = useMobilityLocked(role);
 
   useEffect(() => {
@@ -226,6 +229,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
   };
 
   return (
+    <GreetContext value={greetValue}>
     <div className="min-h-dvh">
       <aside className="side-panel border-r border-line-strong bg-sidebar">
         <div className="side-inner">
@@ -274,5 +278,6 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
       {analyst && <AssistantButton />}
       <NotificationPanel open={notesAt === path} anchor={anchor} onClose={() => setNotesAt(null)} />
     </div>
+    </GreetContext>
   );
 }
