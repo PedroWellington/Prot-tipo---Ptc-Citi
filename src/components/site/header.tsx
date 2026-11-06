@@ -3,8 +3,6 @@
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { enterPortal, preloadPortal } from "../portal";
-import { centerOf } from "@/lib/theme";
 import { ThemeToggle } from "../theme-toggle";
 import { cx, Logo } from "../ui";
 
@@ -27,17 +25,10 @@ function useHome() {
   return home;
 }
 
-/** Hover, foco ou toque em "Minha área": o portal fica pronto antes do clique. */
-const warm = () => void preloadPortal();
-
 /** Botão de acesso principal (o único que fica visível durante a cena). */
 function EnterButton({ home, onNavigate, className }: { home: string | null; onNavigate?: () => void; className?: string }) {
   return home
-    ? <Link href={home} prefetch={false} onPointerEnter={warm} onFocus={warm} onTouchStart={warm} onClick={(e) => {
-        onNavigate?.();
-        // Clique comum (sem abrir em nova aba): o portal começa já, junto com a navegação do cliente
-        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) enterPortal(centerOf(e.currentTarget));
-      }} className={cx("btn btn-primary min-w-28", className)}>Minha área</Link>
+    ? <Link href={home} prefetch={false} onClick={onNavigate} className={cx("btn btn-primary min-w-28", className)}>Minha área</Link>
     : <Link href="/login" prefetch={false} onClick={onNavigate} className={cx("btn btn-primary min-w-28", className)}>Entrar</Link>;
 }
 

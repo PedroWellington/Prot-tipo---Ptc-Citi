@@ -110,16 +110,20 @@ describe("Nada fica invisível sem JavaScript ou com menos movimento", () => {
     expect(css).not.toMatch(/^\s*(main|\.stagger|\.reveal)[^{]*\{[^}]*\bfilter:/m);
   });
 
-  it("menos movimento troca desfoque, deslocamento e contagem por fade curto, e some com o véu", () => {
+  it("menos movimento troca desfoque, deslocamento e contagem por fade curto", () => {
     const rm = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
     expect(rm).toContain('main > *, .stagger > *, .reveal, .greet-in, .tab-in, main form > *, main [role="alert"] { animation: fade 150ms ease-out backwards !important; }');
-    expect(rm).toContain(".entry-veil { display: none !important; }");
     expect(rm).toContain(".bar, .bar-h, .ring-arc { animation: none !important; }");
   });
 
-  it("sem JavaScript o véu do portal nunca aparece (só o JS liga html[data-portal])", () => {
-    expect(css).toMatch(/\.entry-veil \{ display: none;/);
-    expect(css).not.toMatch(/data-entrada/);
+  it("login e logout sem portal de partículas: nenhum véu nem canvas de entrada/saída; a cena da página inicial fica", () => {
+    const layout = readFileSync(path.resolve(__dirname, "../app/layout.tsx"), "utf8");
+    expect(css).not.toMatch(/entry-veil|entry-bg|entry-mark|data-portal|data-entrada|portal-saida/);
+    expect(layout).not.toMatch(/entry-veil|portal|MarcaMovimento/);
+    for (const f of ["../app/login/page.tsx", "../app/cadastro/page.tsx", "./app-shell.tsx", "./site/header.tsx"])
+      expect(readFileSync(path.resolve(__dirname, f), "utf8"), f).not.toMatch(/portal|particle-stage|entry-transition/i);
+    // A cena continua com o motor de partículas
+    expect(readFileSync(path.resolve(__dirname, "./site/scene-driver.tsx"), "utf8")).toContain('import("./particle-stage")');
   });
 
   it("pílula sem JS: a opção ativa pinta o próprio fundo", () => {

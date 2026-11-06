@@ -10,7 +10,6 @@
  */
 import { createContext, use, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { COUNT_MS, countText, easeOutExpo, reducedMotion, toMs } from "@/lib/motion";
-import { portalActive, whenRevealed } from "./portal";
 
 const noop = () => () => {};
 /** false enquanto o React hidrata o HTML do servidor; true quando o componente nasce no navegador. */
@@ -19,39 +18,36 @@ const useBornOnClient = () => useSyncExternalStore(noop, () => true, () => false
 /**
  * Número de indicador que conta até o valor (string já formatada em pt-BR ou número).
  * O HTML do servidor e o texto para leitores de tela trazem sempre o valor final; os passos são só visuais.
- * Nasceu na hidratação (o valor já estava pintado): não volta a 0, a não ser que o véu da entrada esteja cobrindo.
+ * Nasceu na hidratação (o valor já estava pintado): não volta a 0.
  */
 export function CountUp({ value, className }: { value: string | number; className?: string }) {
   const text = typeof value === "number" ? value.toLocaleString("pt-BR") : value;
   const ref = useRef<HTMLSpanElement>(null);
   const shown = useRef<string | null>(null);
   const born = useBornOnClient();
-  const fromZero = useRef(born || portalActive());
+  const fromZero = born;
   // O React escreve só o primeiro valor; depois o texto é do efeito (não disputam o mesmo nó)
   const [first] = useState(text);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const from = shown.current ?? (fromZero.current ? "" : text);
+    const from = shown.current ?? (fromZero ? "" : text);
     shown.current = text;
     if (from === text || reducedMotion()) { el.textContent = text; return; }
     el.textContent = countText(from, text, 0);
     // Ao abrir a tela, começa junto com o bloco que fica nítido (--d, o atraso da cascata); num filtro, na hora
     const delay = from === "" ? toMs(getComputedStyle(el).getPropertyValue("--d")) : 0;
-    let id = 0, alive = true;
-    void whenRevealed().then(() => {
-      if (!alive) return;
-      const start = performance.now() + delay;
-      const step = (now: number) => {
-        const p = Math.max(0, Math.min(1, (now - start) / COUNT_MS));
-        el.textContent = countText(from, text, easeOutExpo(p));
-        if (p < 1) id = requestAnimationFrame(step);
-      };
-      id = requestAnimationFrame(step);
-    });
+    const start = performance.now() + delay;
+    let id = 0;
+    const step = (now: number) => {
+      const p = Math.max(0, Math.min(1, (now - start) / COUNT_MS));
+      el.textContent = countText(from, text, easeOutExpo(p));
+      if (p < 1) id = requestAnimationFrame(step);
+    };
+    id = requestAnimationFrame(step);
     // Interrompida por um valor novo: a próxima contagem parte do que está na tela
-    return () => { alive = false; cancelAnimationFrame(id); shown.current = el.textContent ?? text; };
-  }, [text]);
+    return () => { cancelAnimationFrame(id); shown.current = el.textContent ?? text; };
+  }, [text, fromZero]);
   return (
     <span className={className}>
       <span ref={ref} aria-hidden className="tabular-nums">{first}</span>

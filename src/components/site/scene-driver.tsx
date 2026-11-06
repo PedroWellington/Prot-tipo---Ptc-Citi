@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect } from "react";
-import { EXIT_KEY, portalOwns, setSceneStage } from "../portal";
 import { applyMotionClasses } from "./motion";
 import { FIRST_SHAPE, frameAt, timeline } from "./scene-timeline";
 import type { Stage, StageOptions } from "./particle-stage";
@@ -116,13 +115,7 @@ export function SceneDriver() {
     const themeObs = new MutationObserver(() => stage?.setPalette(palette()));
     themeObs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 
-    // Chegou da saída do app (portal): a cena começa da nuvem e se junta na esfera, sem o brilho de espera
-    let fromExit = false;
-    try { const t = Number(sessionStorage.getItem(EXIT_KEY)); fromExit = Date.now() - t < 8000; sessionStorage.removeItem(EXIT_KEY); } catch { /* bloqueado */ }
-    if (fromExit) root.classList.add("scene-intro");
-
-    // Depois da primeira pintura e com o navegador ocioso: baixa o motor e os pontos.
-    // O palco é também o do portal de entrada ("Minha área" com a cena à vista): mesmo canvas, mesmo renderizador
+    // Depois da primeira pintura e com o navegador ocioso: baixa o motor e os pontos
     const boot = async () => {
       try {
         const { startParticleStage } = await import("./particle-stage");
@@ -137,19 +130,14 @@ export function SceneDriver() {
         if (!s) throw new Error("sem canvas");
         stage = s;
         stage.setProgress(target);
-        setSceneStage(s, canvas);
         scene.classList.add("is-ready");
         scene.dataset.stage = s.kind;
       } catch {
         if (alive) root.classList.remove("scene-live");
       }
     };
-    // Contexto WebGL perdido (GPU reiniciada, aba esquecida no celular): recria o palco no mesmo canvas, sem piscar
-    // o modo estático (a última imagem fica até o novo desenhar)
-    const onRestored = () => { if (!alive || portalOwns(stage)) return; stage?.destroy(); stage = null; setSceneStage(null, null); void boot(); };
-    canvas.addEventListener("webglcontextrestored", onRestored);
     const idle = globalThis.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 200));
-    const idleId = fromExit ? (void boot(), 0) : idle(() => void boot(), { timeout: 1500 } as IdleRequestOptions);
+    const idleId = idle(() => void boot(), { timeout: 1500 } as IdleRequestOptions);
 
     return () => {
       alive = false;
@@ -161,10 +149,7 @@ export function SceneDriver() {
       ro.disconnect();
       textRo.disconnect();
       themeObs.disconnect();
-      canvas.removeEventListener("webglcontextrestored", onRestored);
-      setSceneStage(null, null);
-      // O portal levou o palco (entrando na conta): ele destrói no fim da explosão
-      if (!portalOwns(stage)) stage?.destroy();
+      stage?.destroy();
       stage = null;
       scene.classList.remove("is-ready");
     };

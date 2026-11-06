@@ -12,7 +12,7 @@ const BASE = process.env.BASE ?? "http://localhost:3000";
 const OUT = process.env.OUT ?? ".playwright-mcp/acabamento";
 const ONLY_MEASURE = process.env.SO === "medir";
 const ONLY_R2 = process.env.SO === "rodada2";
-const ONLY_R3 = process.env.SO === "rodada3";
+const ONLY_R4 = process.env.SO === "rodada4";
 const DEMO = process.env.DEMO_PASSWORD;
 // Admin: E2E_ADMIN_* (.env.local) quando entram neste servidor; no banco local, o admin de demonstração do .env.
 // Credenciais só em memória: nunca impressas, nem em capturas.
@@ -57,8 +57,6 @@ function perfInit() {
   } catch {}
 }
 const perf = (page) => page.evaluate(() => { const p = window.__perf; window.__perf = { events: [], long: [] }; return p; });
-/** Quadros por segundo de requestAnimationFrame durante `ms`. */
-const fps = (page, ms) => page.evaluate((ms) => new Promise((r) => { let n = 0; const t0 = performance.now(); const f = (t) => { n++; if (t - t0 < ms) requestAnimationFrame(f); else r(Math.round((n * 1000) / (t - t0))); }; requestAnimationFrame(f); }), ms);
 
 async function quadros(page, nome, tempos) {
   const t0 = Date.now();
@@ -74,45 +72,53 @@ async function contexto(browser, aparelho, tema, { reduce = false, video = false
   // Só na primeira carga: recarregar precisa manter o tema que a pessoa escolheu
   await ctx.addInitScript((t) => { try { if (!localStorage.getItem("mv-tema")) localStorage.setItem("mv-tema", t); sessionStorage.setItem("mv-intro", "1"); } catch {} }, tema);
   await ctx.addInitScript(perfInit);
+  await ctx.addInitScript(vigiaInit);
   return ctx;
 }
 
-async function entrar(page, perfil, { frames, fpsOut } = {}) {
+/**
+ * Login pelo formulário. Mede: do clique até a página de destino (autenticação + carregamento, tempo real) e, depois
+ * dela, quanto a transição leve leva para assentar (a entrada em cascata dos blocos da tela, a mesma da tela de login).
+ */
+async function entrar(page, perfil, { frames } = {}) {
   await pace();
   await page.goto(`${BASE}/login`);
-  await page.waitForTimeout(1200); // o portal aquece no ocioso depois da primeira pintura
-  await vigiaVeu(page);
   await page.getByLabel("E-mail").fill(perfil.email);
   await page.getByLabel("Senha", { exact: true }).fill(perfil.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
   const t0 = Date.now();
-  // FPS do portal: o mesmo documento do clique ao fim (navegação do cliente)
-  if (fpsOut) fps(page, 1100).then((v) => { fpsOut.v = v; }, () => {});
-  // Quadros desde o clique: dissolver, juntar, (respirar), explodir
-  if (frames) await quadros(page, frames, [0, 120, 260, 420, 600, 800, 1000, 1250]);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  if (frames) await quadros(page, frames, [0, 150, 350, 550, 800, 1100, 1500]);
   await page.waitForURL((u) => u.pathname.startsWith(perfil.home), { timeout: 20000 });
-  // A entrada termina sozinha (sem espera artificial): o véu some e o atributo sai
-  await page.waitForFunction(() => !document.documentElement.dataset.portal, null, { timeout: 15000 });
-  return Date.now() - t0;
+  await page.locator("main > *").first().waitFor();
+  const destino = Date.now() - t0;
+  const transicao = await assentou(page);
+  await semPortal(page, `login ${perfil.home}`);
+  return { "clique → destino (ms)": destino, "transição (ms)": transicao };
 }
 
-/** Tempos das fases da última execução do portal (ms desde o clique, relógio da página). */
-const fases = (page) => page.evaluate(() => globalThis.__portal ?? null);
-/** Enquanto o portal está ligado, o véu só tem o fundo e o canvas de partículas (nunca "M" solto nem disco liso). */
-async function vigiaVeu(page) {
-  await page.evaluate(() => {
-    window.__veu = { marcador: false, canvas: false, ligado: false };
-    const id = setInterval(() => {
-      const d = document.documentElement;
-      if (d.dataset.portal !== "on" && d.dataset.portal !== "burst") return;
-      const v = document.querySelector("[data-entry-veil]");
-      window.__veu.ligado = true;
-      if (v.querySelector("svg, img, .entry-mark")) window.__veu.marcador = true;
-      if (v.querySelector("canvas")) window.__veu.canvas = true;
-    }, 16);
-    setTimeout(() => clearInterval(id), 20000);
-  });
+/** Tempo até nenhum bloco direto de <main> ter animação de entrada rodando (a transição terminou). */
+const assentou = (page) => page.evaluate(() => new Promise((r) => {
+  const t0 = performance.now();
+  const f = () => {
+    const rodando = [...document.querySelectorAll("main > *")].some((el) => el.getAnimations().some((a) => a.playState === "running" || a.playState === "pending"));
+    if (!rodando || performance.now() - t0 > 5000) r(Math.round(performance.now() - t0));
+    else requestAnimationFrame(f);
+  };
+  requestAnimationFrame(f);
+}));
+
+/** Em todo documento: registra se aparece véu, canvas fora da cena da página inicial ou marcador (círculo liso, "M" solto). */
+function vigiaInit() {
+  window.__sujo = [];
+  const id = setInterval(() => {
+    if (!document.documentElement) return;
+    const achou = [...document.querySelectorAll("canvas:not([data-scene-canvas]), .entry-veil, .entry-mark, [data-entry-veil]")].map((el) => el.className || el.tagName);
+    if (document.documentElement.dataset.portal) achou.push("data-portal");
+    for (const a of achou) if (!window.__sujo.includes(a)) window.__sujo.push(a);
+  }, 16);
+  setTimeout(() => clearInterval(id), 30000);
 }
+const semPortal = async (page, onde) => assert.deepEqual(await page.evaluate(() => window.__sujo ?? []), [], `${onde}: apareceu portal/véu/canvas extra`);
 
 /** Os números terminam no valor exato: o texto visível é igual ao dos leitores de tela. */
 const numerosExatos = (page) => page.evaluate(() => [...document.querySelectorAll("span > span[aria-hidden].tabular-nums + .sr-only")]
@@ -126,36 +132,31 @@ const invisiveis = (page) => page.evaluate(() => [...document.querySelectorAll("
 
 const browser = await chromium.launch({ channel: "chrome", args: ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] });
 let falhas = 0;
-const caso = async (nome, fn) => { try { await fn(); ok(nome); } catch (e) { falhas++; console.error(`✗ ${nome}\n  ${e.message.split("\n").slice(0, 3).join("\n  ")}`); } };
+// CASO=trecho: roda só os casos cujo nome contém o trecho
+const caso = async (nome, fn) => { if (process.env.CASO && !nome.includes(process.env.CASO)) return; try { await fn(); ok(nome); } catch (e) { falhas++; console.error(`✗ ${nome}\n  ${e.message.split("\n").slice(0, 14).join("\n  ")}`); } };
 
 try {
-  if (!ONLY_MEASURE && !ONLY_R2 && !ONLY_R3) {
+  if (!ONLY_MEASURE && !ONLY_R2 && !ONLY_R4) {
     // 1. Entrada nos 4 perfis: desktop claro e celular escuro (com vídeo), e o contrário para os prints
     for (const [nome, perfil] of Object.entries(PERFIS)) {
       for (const [aparelho, dev, tema] of [["desktop", DESKTOP, "light"], ["celular", CELULAR, "dark"]]) {
-        await caso(`${nome} ${aparelho} ${tema}: entrada com explosão, sem conteúdo invisível`, async () => {
+        await caso(`${nome} ${aparelho} ${tema}: login com a transição leve, sem partículas nem conteúdo invisível`, async () => {
           const ctx = await contexto(browser, dev, tema, { video: true });
           const page = await ctx.newPage();
-          const fpsOut = {};
-          await entrar(page, perfil, { frames: `entrada-${nome}-${aparelho}-${tema}`, fpsOut });
-          const quadrosSeg = fpsOut.v;
-          const f = await fases(page);
-          const veu = await page.evaluate(() => window.__veu);
-          assert.ok(veu.ligado && veu.canvas && !veu.marcador, `véu sem partículas ou com marcador: ${JSON.stringify(veu)}`);
-          assert.ok(f?.juntou && f?.explosao && f?.fim, `fases incompletas ${JSON.stringify(f)}`);
-          medidas.push({ caso: `portal ${nome} ${aparelho}`, ...f, "FPS (rAF)": quadrosSeg });
+          const t = await entrar(page, perfil, { frames: `login-${nome}-${aparelho}-${tema}` });
+          medidas.push({ caso: `login ${nome} ${aparelho}`, ...t });
           await page.waitForTimeout(2200);
           assert.deepEqual(await numerosExatos(page), []);
           assert.deepEqual(await invisiveis(page), []);
           await page.screenshot({ path: `${OUT}/tela-${nome}-${aparelho}-${tema}.png` });
           // Recarregar já logado: sem véu
           await page.reload();
-          assert.equal(await page.evaluate(() => document.documentElement.dataset.portal ?? null), null, "portal ao recarregar");
+          await semPortal(page, "recarregar");
           // Trocar de aba pelo menu: sem véu
           const link = page.locator(aparelho === "desktop" ? 'nav[aria-label="Principal"] a' : 'nav[aria-label="Abas"] a').nth(1);
           await link.click();
           await page.waitForTimeout(150);
-          assert.equal(await page.evaluate(() => document.documentElement.dataset.portal ?? null), null, "portal ao trocar de aba");
+          await semPortal(page, "trocar de aba");
           await ctx.close();
         });
       }
@@ -164,10 +165,8 @@ try {
         await caso(`${nome} ${aparelho} ${tema}: print`, async () => {
           const ctx = await contexto(browser, dev, tema);
           const page = await ctx.newPage();
-          // Sem capturas no meio (elas atrasam a animação): esta é a duração real
-          // Sem capturas no meio (elas atrasam a animação): estes são os tempos reais das fases
-          await entrar(page, perfil);
-          medidas.push({ caso: `portal ${nome} ${aparelho} (sem capturas)`, ...(await fases(page)) });
+          // Sem capturas no meio (elas atrasam a animação): estes são os tempos reais
+          medidas.push({ caso: `login ${nome} ${aparelho} (sem capturas)`, ...(await entrar(page, perfil)) });
           await page.waitForTimeout(2200);
           assert.deepEqual(await invisiveis(page), []);
           await page.screenshot({ path: `${OUT}/tela-${nome}-${aparelho}-${tema}.png` });
@@ -177,25 +176,7 @@ try {
     }
 
     // 2. Pular a entrada com um clique; e menos movimento (sem véu, sem partículas)
-    await caso("clique pula a entrada", async () => {
-      const ctx = await contexto(browser, DESKTOP, "dark");
-      const page = await ctx.newPage();
-      await pace();
-      await page.goto(`${BASE}/login`);
-      await page.getByLabel("E-mail").fill(PERFIS.paciente.email);
-      await page.getByLabel("Senha", { exact: true }).fill(DEMO);
-      await page.waitForTimeout(1200);
-      await page.getByRole("button", { name: "Entrar" }).click();
-      await page.waitForFunction(() => document.documentElement.dataset.portal === "on", null, { timeout: 5000 });
-      await page.mouse.click(700, 450);
-      await page.waitForURL((u) => u.pathname.startsWith("/app"));
-      await page.waitForFunction(() => !document.documentElement.dataset.portal, null, { timeout: 15000 });
-      // Pulou: a explosão sai assim que o painel está pronto (sem esperar a esfera terminar de se juntar)
-      const f = await fases(page);
-      assert.ok(f.pulo !== undefined && f.explosao - Math.max(f.pronto ?? 0, f.pulo) <= 150, `não pulou: ${JSON.stringify(f)}`);
-      await ctx.close();
-    });
-    await caso("menos movimento: sem véu nem partículas, conteúdo visível", async () => {
+    await caso("menos movimento: só fade, conteúdo visível", async () => {
       const ctx = await contexto(browser, CELULAR, "light", { reduce: true });
       const page = await ctx.newPage();
       await pace();
@@ -204,46 +185,118 @@ try {
       await page.getByLabel("Senha", { exact: true }).fill(DEMO);
       await page.getByRole("button", { name: "Entrar" }).click();
       await page.waitForURL((u) => u.pathname.startsWith("/recepcao"));
-      const estado = await page.evaluate(() => ({ e: document.documentElement.dataset.portal ?? null, canvas: !!document.querySelector(".entry-canvas"), veu: getComputedStyle(document.querySelector("[data-entry-veil]")).display }));
-      assert.notEqual(estado.e, "on");
-      assert.equal(estado.canvas, false);
-      assert.equal(estado.veu, "none");
+      await semPortal(page, "menos movimento");
       await page.waitForTimeout(500);
       assert.deepEqual(await numerosExatos(page), []);
       assert.deepEqual(await invisiveis(page), []);
       await ctx.close();
     });
 
-    // 3. Saída em partículas e "Minha área" (já logado) vindo da página pública: roda a mesma sequência, sem novo login
-    await caso("Sair → partículas se juntam e explodem, a página inicial abre íntegra; Minha área roda o portal", async () => {
-      const ctx = await contexto(browser, DESKTOP, "dark", { video: true });
-      const page = await ctx.newPage();
-      await page.goto(`${BASE}/login`);
-      await page.waitForTimeout(1200);
-      await entrar(page, PERFIS.fisio);
-      await page.waitForTimeout(1500); // o portal de saída aquece no ocioso
-      await page.getByRole("button", { name: "Sair" }).first().click();
-      await quadros(page, "saida-fisio-desktop-escuro", [0, 150, 300, 450, 650, 800]);
+    // 3. Logout, "Minha área" já logado, login com falha e 20 ciclos login/logout: só a transição leve, nunca partículas
+    /** A página inicial íntegra: hero, cabeçalho, botões e a esfera de triângulos da cena (canvas WebGL pronto). */
+    const inicioIntegro = async (page, onde) => {
       await page.waitForURL(`${BASE}/`);
       await page.waitForFunction(() => document.querySelector("[data-scene]")?.classList.contains("is-ready"), null, { timeout: 20000 });
-      await page.screenshot({ path: `${OUT}/saida-chegada-desktop-escuro.png` });
-      const inicio = await page.evaluate(() => ({ portal: document.documentElement.dataset.portal ?? null, hero: !!document.querySelector(".scene-hero h1")?.getBoundingClientRect().height, cabecalho: !!document.querySelector(".site-header"), botao: !!document.querySelector(".scene-hero .btn-brand") }));
-      assert.deepEqual(inicio, { portal: null, hero: true, cabecalho: true, botao: true });
-      // Logado de novo: "Minha área" no topo da página inicial (esfera visível) roda o portal até a agenda
-      await page.goto(`${BASE}/login`);
-      await page.waitForTimeout(1000);
+      const r = await page.evaluate(() => ({
+        hero: (document.querySelector(".scene-hero h1")?.getBoundingClientRect().height ?? 0) > 0,
+        cabecalho: !!document.querySelector(".site-header"),
+        botao: !!document.querySelector(".scene-hero .btn-brand"),
+        esfera: document.querySelector("[data-scene]").dataset.stage === "webgl",
+      }));
+      assert.deepEqual(r, { hero: true, cabecalho: true, botao: true, esfera: true }, `${onde}: página inicial quebrada`);
+      await semPortal(page, onde);
+    };
+
+    await caso("logout: a página inicial abre íntegra com a transição leve; Minha área já logado vai direto ao painel", async () => {
+      const ctx = await contexto(browser, DESKTOP, "dark", { video: true });
+      const page = await ctx.newPage();
+      await entrar(page, PERFIS.fisio);
+      await page.waitForTimeout(800);
+      await page.getByRole("button", { name: "Sair" }).first().click();
+      await quadros(page, "logout-fisio-desktop-escuro", [0, 150, 350, 600, 900, 1300]);
+      await inicioIntegro(page, "logout");
+      medidas.push({ caso: "logout → página inicial", "transição (ms)": await assentou(page) });
+      await page.screenshot({ path: `${OUT}/logout-chegada-desktop-escuro.png` });
+      // Logado de novo: "Minha área" no topo da página inicial vai direto ao painel, com a mesma transição
       await entrar(page, PERFIS.fisio);
       await page.goto(`${BASE}/`);
-      await page.waitForFunction(() => document.querySelector("[data-scene]")?.classList.contains("is-ready"), null, { timeout: 20000 });
-      await page.waitForTimeout(800);
-      await vigiaVeu(page);
-      await page.getByRole("link", { name: "Minha área" }).first().click();
-      await quadros(page, "minha-area-topo-desktop-escuro", [0, 120, 260, 420, 600, 800, 1000]);
+      await page.waitForTimeout(1500);
+      await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().click();
+      await quadros(page, "minha-area-logado-desktop-escuro", [0, 150, 350, 600, 900]);
       await page.waitForURL((u) => u.pathname.startsWith("/fisio"));
-      await page.waitForFunction(() => !document.documentElement.dataset.portal, null, { timeout: 15000 });
-      const veu = await page.evaluate(() => window.__veu);
-      assert.ok(veu.ligado && veu.canvas && !veu.marcador, `Minha área sem portal: ${JSON.stringify(veu)}`);
+      medidas.push({ caso: "Minha área (logado) → painel", "transição (ms)": await assentou(page) });
+      await semPortal(page, "Minha área");
       await ctx.close();
+    });
+
+    await caso("login com senha errada: erro normal, sem transição nem tela escura", async () => {
+      const ctx = await contexto(browser, DESKTOP, "light");
+      const page = await ctx.newPage();
+      await page.goto(`${BASE}/login`);
+      await pace();
+      await page.getByLabel("E-mail").fill("paciente12@exemplo.test");
+      await page.getByLabel("Senha", { exact: true }).fill("senha-errada-123");
+      await page.getByRole("button", { name: "Entrar" }).click();
+      await page.getByRole("alert").waitFor({ timeout: 8000 });
+      await page.screenshot({ path: `${OUT}/login-falha-desktop-claro.png` });
+      const r = await page.evaluate(() => ({ url: location.pathname, email: document.querySelector('input[name="email"]').value, filtro: getComputedStyle(document.body.firstElementChild).filter }));
+      assert.deepEqual(r, { url: "/login", email: "paciente12@exemplo.test", filtro: "none" });
+      await semPortal(page, "login com falha");
+      await ctx.close();
+    });
+
+    await caso("20 ciclos de login e logout seguidos: página inicial íntegra e nenhuma partícula fora da cena", async () => {
+      const contas = ["paciente13@exemplo.test", "paciente14@exemplo.test", "paciente15@exemplo.test", "paciente16@exemplo.test", "paciente17@exemplo.test"];
+      const ctx = await contexto(browser, DESKTOP, "light");
+      const page = await ctx.newPage();
+      for (let i = 0; i < 20; i++) {
+        await entrar(page, { email: contas[i % contas.length], password: DEMO, home: "/app" });
+        await page.locator("main > *").first().waitFor();
+        await page.getByRole("button", { name: "Sair" }).first().click();
+        await inicioIntegro(page, `ciclo ${i + 1}`);
+      }
+      await ctx.close();
+    });
+
+    await caso("painel do paciente: sem exercícios, calendário nem atalhos; Mobilidade completa; menu dá acesso a tudo", async () => {
+      for (const [aparelho, dev, tema] of [["desktop", DESKTOP, "light"], ["desktop", DESKTOP, "dark"], ["celular", CELULAR, "light"], ["celular", CELULAR, "dark"]]) {
+        const ctx = await contexto(browser, dev, tema);
+        const page = await ctx.newPage();
+        await entrar(page, PERFIS.paciente);
+        await page.waitForTimeout(2200);
+        const r = await page.evaluate(() => {
+          const txt = document.querySelector("main").textContent; // textContent: inclui o que está abaixo da dobra (content-visibility)
+          return {
+            exercicios: /Exercícios prévios|Marcar como feito|Ver vídeo no YouTube/.test(txt), calendario: !!document.querySelector("main ol.grid-cols-7"),
+            atalhos: !!document.querySelector('main nav[aria-label="Atalhos"]'),
+            blocos: ["Próxima sessão", "Evolução da dor", "Conquistas", "Sua unidade", "Agendar mais sessões"].filter((t) => !txt.includes(t)),
+            buraco: (() => { const g = document.querySelector("main .grid.lg\\:grid-cols-12"); return g ? g.scrollWidth > g.clientWidth + 1 : false; })(),
+          };
+        });
+        assert.deepEqual(r, { exercicios: false, calendario: false, atalhos: false, blocos: [], buraco: false }, `${aparelho} ${tema}`);
+        assert.deepEqual(await invisiveis(page), []);
+        // Rola até o fim: os blocos abaixo da dobra (content-visibility) só são desenhados perto da tela
+        for (let y = 0; y < 6000; y += 500) { await page.mouse.wheel(0, 500); await page.waitForTimeout(80); }
+        await page.evaluate(() => scrollTo(0, 0));
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: `${OUT}/painel-paciente-${aparelho}-${tema}.png`, fullPage: true });
+        // Ordem no celular: boas-vindas, próxima sessão, evolução da dor, conquistas, sua unidade
+        if (aparelho === "celular") {
+          const ordem = await page.evaluate(() => ["Olá|Bom dia|Boa tarde|Boa noite", "Próxima sessão", "Evolução da dor", "Conquistas", "Sua unidade"].map((t) => {
+            const el = [...document.querySelectorAll("main h1, main h2")].find((h) => new RegExp(t).test(h.textContent));
+            return el ? Math.round(el.getBoundingClientRect().top + scrollY) : -1;
+          }));
+          assert.ok(ordem.every((y) => y >= 0) && ordem.every((y, i) => !i || y > ordem[i - 1]), `ordem no celular ${ordem}`);
+        }
+        // Mobilidade completa (exercícios, marcar como feito)
+        await page.goto(`${BASE}/app/mobilidade`);
+        await page.waitForTimeout(1500);
+        assert.ok(await page.getByRole("heading", { name: /Exercícios da semana|Exercícios prévios/ }).first().isVisible(), "Mobilidade sem exercícios");
+        // Menu (desktop) e barra + "Mais" (celular) dão acesso a Agendar, Troca, Unidades e Perfil
+        const links = await page.evaluate(() => [...document.querySelectorAll('nav[aria-label="Principal"] a, nav[aria-label="Abas"] a, nav[aria-label="Abas"] button')].map((a) => a.textContent.trim()));
+        for (const l of aparelho === "desktop" ? ["Agendar", "Troca", "Unidades", "Perfil"] : ["Agendar", "Troca", "Mais"]) assert.ok(links.some((x) => x.includes(l)), `${aparelho}: falta ${l} no menu`);
+        await ctx.close();
+      }
     });
 
     // 4. Permissões: cada perfil só vê o que é seu (somente leituras)
@@ -300,7 +353,7 @@ try {
   }
 
   // 6. Rodada 2: tema por revelação circular em todas as telas, cena com mais texto, entrada borrado → nítido
-  if (!ONLY_MEASURE && !ONLY_R3) {
+  if (!ONLY_MEASURE && !ONLY_R4) {
     /** Clica no botão de tema visível, captura quadros e confere: círculo aconteceu, tema trocou e ficou salvo. */
     async function tema(page, nome) {
       const antes = await page.evaluate(() => document.documentElement.dataset.theme);
@@ -383,181 +436,6 @@ try {
         await ctx.close();
       });
     }
-  }
-
-  // 7. Rodada 3: portal de partículas a partir de todos os pontos de entrada
-  if (!ONLY_MEASURE && (ONLY_R3 || !ONLY_R2)) {
-    /** Login só por API (sem portal), para os casos que começam já logados. */
-    const loginApi = async (ctx, perfil) => { await pace(); const r = await ctx.request.post(`${BASE}/api/auth/login`, { data: { email: perfil.email, password: perfil.password } }); assert.equal(r.status(), 200); };
-    const cenaPronta = (page) => page.waitForFunction(() => document.querySelector("[data-scene]")?.classList.contains("is-ready"), null, { timeout: 20000 });
-    const fimPortal = (page) => page.waitForFunction(() => !document.documentElement.dataset.portal, null, { timeout: 15000 });
-    const veuOk = async (page, nome) => { const v = await page.evaluate(() => window.__veu); assert.ok(v.ligado && v.canvas && !v.marcador, `${nome}: ${JSON.stringify(v)}`); };
-
-    await caso("cena: Minha área no meio de cada forma, na explosão entre formas e nas seções normais", async () => {
-      const ctx = await contexto(browser, DESKTOP, "light", { video: true });
-      await loginApi(ctx, PERFIS.recepcao);
-      const page = await ctx.newPage();
-      // Progresso da rolagem: coluna, figura, joelho, anel, esfera final e a explosão entre coluna e figura
-      const pontos = [["coluna", 0.19], ["figura", 0.37], ["articulacao", 0.55], ["anel", 0.74], ["esfera-final", 0.97], ["explosao-entre-formas", 0.28]];
-      for (const [nome, p] of pontos) {
-        await page.goto(`${BASE}/`);
-        await cenaPronta(page);
-        await page.evaluate((p) => { const s = document.querySelector("[data-scene]"); scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * p); }, p);
-        await page.waitForTimeout(1600);
-        await vigiaVeu(page);
-        await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().click();
-        if (nome === "figura" || nome === "explosao-entre-formas") await quadros(page, `cena-${nome}-desktop-claro`, [0, 120, 260, 420, 600, 800, 1000]);
-        await page.waitForURL((u) => u.pathname.startsWith("/recepcao"));
-        await fimPortal(page);
-        const f = await fases(page);
-        assert.ok(f.morph !== undefined, `${nome}: deveria transformar a forma da cena (${JSON.stringify(f)})`);
-        await veuOk(page, nome);
-        medidas.push({ caso: `portal cena ${nome}`, ...f });
-      }
-      // Seções normais (menu completo): sem canvas à vista, as partículas nascem no botão
-      for (const id of ["clinica", "especialidades", "espaco", "sistema", "equipe", "unidades", "contato"]) {
-        await page.goto(`${BASE}/#${id}`);
-        await page.waitForTimeout(1500);
-        await vigiaVeu(page);
-        await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().click();
-        if (id === "equipe") await quadros(page, "secao-equipe-desktop-claro", [0, 120, 260, 420, 600, 800, 1000]);
-        await page.waitForURL((u) => u.pathname.startsWith("/recepcao"));
-        await fimPortal(page);
-        const f = await fases(page);
-        assert.ok(f.nasce !== undefined || f.morph !== undefined, `${id}: ${JSON.stringify(f)}`);
-        await veuOk(page, id);
-      }
-      await ctx.close();
-    });
-
-    await caso("Agendar tratamento (sem conta logada) → login → portal termina em Agendar", async () => {
-      const ctx = await contexto(browser, DESKTOP, "dark");
-      const page = await ctx.newPage();
-      await page.goto(`${BASE}/`);
-      await page.getByRole("link", { name: "Agendar tratamento" }).first().click();
-      await page.waitForURL((u) => u.pathname === "/login");
-      await page.waitForTimeout(1200);
-      await vigiaVeu(page);
-      await pace();
-      await page.getByLabel("E-mail").fill("paciente11@exemplo.test");
-      await page.getByLabel("Senha", { exact: true }).fill(DEMO);
-      await page.getByRole("button", { name: "Entrar" }).click();
-      await page.waitForURL((u) => u.pathname === "/app/agendar", { timeout: 20000 });
-      await fimPortal(page);
-      await veuOk(page, "agendar");
-      await ctx.close();
-    });
-
-    await caso("login com senha errada: o portal se desfaz, o formulário fica livre e mostra o erro", async () => {
-      const ctx = await contexto(browser, DESKTOP, "light");
-      const page = await ctx.newPage();
-      await page.goto(`${BASE}/login`);
-      await page.waitForTimeout(1200);
-      await pace();
-      await page.getByLabel("E-mail").fill("paciente12@exemplo.test");
-      await page.getByLabel("Senha", { exact: true }).fill("senha-errada-123");
-      await page.getByRole("button", { name: "Entrar" }).click();
-      await page.getByRole("alert").waitFor({ timeout: 8000 });
-      await quadros(page, "login-falha-desktop-claro", [0, 150, 350]);
-      await page.waitForFunction(() => !document.documentElement.dataset.portal, null, { timeout: 2000 });
-      const estado = await page.evaluate(() => ({ url: location.pathname, email: document.querySelector('input[name="email"]').value, veu: getComputedStyle(document.querySelector("[data-entry-veil]")).display, filtro: getComputedStyle(document.body.firstElementChild).filter }));
-      assert.deepEqual(estado, { url: "/login", email: "paciente12@exemplo.test", veu: "none", filtro: "none" });
-      // O formulário responde de novo
-      await page.getByLabel("Senha", { exact: true }).fill("x");
-      await ctx.close();
-    });
-
-    await caso("duplo clique, voltar do navegador e recarregar no meio não travam nem repetem", async () => {
-      const ctx = await contexto(browser, DESKTOP, "dark");
-      await loginApi(ctx, PERFIS.paciente);
-      const page = await ctx.newPage();
-      await page.goto(`${BASE}/`);
-      await cenaPronta(page);
-      await page.waitForTimeout(600);
-      await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().dblclick();
-      await page.waitForURL((u) => u.pathname.startsWith("/app"));
-      await fimPortal(page);
-      assert.equal(await page.evaluate(() => globalThis.__portalRuns), 1, "duplo clique rodou duas vezes");
-      // Voltar logo depois de entrar: a página inicial íntegra, sem portal preso
-      await page.goBack();
-      await page.waitForURL(`${BASE}/`);
-      await page.waitForTimeout(800);
-      assert.equal(await page.evaluate(() => document.documentElement.dataset.portal ?? null), null);
-      assert.ok(await page.locator(".scene-hero h1").isVisible());
-      // Recarregar no meio da transição: a página abre normal, sem véu
-      await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().click();
-      await page.waitForTimeout(250);
-      await page.reload();
-      await page.waitForTimeout(800);
-      assert.equal(await page.evaluate(() => document.documentElement.dataset.portal ?? null), null, "véu preso depois de recarregar");
-      await ctx.close();
-    });
-
-    await caso("conexão lenta: a esfera respira até o painel ficar pronto, sem tela vazia", async () => {
-      const ctx = await contexto(browser, DESKTOP, "light", { video: true });
-      await loginApi(ctx, PERFIS.paciente);
-      const page = await ctx.newPage();
-      await page.goto(`${BASE}/`);
-      await cenaPronta(page);
-      await page.waitForTimeout(600);
-      const cdp = await ctx.newCDPSession(page);
-      await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 900, downloadThroughput: 60_000, uploadThroughput: 30_000 });
-      await vigiaVeu(page);
-      await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().click();
-      await quadros(page, "rede-lenta-desktop-claro", [0, 400, 900, 1500, 2200]);
-      await page.waitForURL((u) => u.pathname.startsWith("/app"), { timeout: 30000 });
-      await page.waitForFunction(() => !document.documentElement.dataset.portal, null, { timeout: 30000 });
-      const f = await fases(page);
-      assert.ok(f.respiro !== undefined, `não respirou na rede lenta: ${JSON.stringify(f)}`);
-      await veuOk(page, "rede lenta");
-      medidas.push({ caso: "portal rede lenta", ...f });
-      await ctx.close();
-    });
-
-    for (const [nome, dev] of [["Pixel 7", devices["Pixel 7"]], ["iPhone 14", devices["iPhone 14"]], ["360px", { viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }], ["430px", { viewport: { width: 430, height: 812 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }]]) {
-      await caso(`celular ${nome}: Minha área no topo e no meio da cena`, async () => {
-        const ctx = await contexto(browser, dev, "dark");
-        await loginApi(ctx, PERFIS.fisio);
-        const page = await ctx.newPage();
-        for (const p of [0, 0.37]) {
-          await page.goto(`${BASE}/`);
-          await cenaPronta(page);
-          await page.evaluate((p) => { const s = document.querySelector("[data-scene]"); scrollTo(0, p ? s.offsetTop + (s.offsetHeight - innerHeight) * p : 0); }, p);
-          await page.waitForTimeout(1500);
-          await vigiaVeu(page);
-          await page.locator(".site-header").getByRole("link", { name: "Minha área" }).locator("visible=true").first().tap();
-          if (nome === "Pixel 7") await quadros(page, `celular-${p ? "cena" : "topo"}-pixel7-escuro`, [0, 150, 350, 550, 800, 1100]);
-          await page.waitForURL((u) => u.pathname.startsWith("/fisio"));
-          await fimPortal(page);
-          await veuOk(page, `${nome} ${p}`);
-        }
-        await ctx.close();
-      });
-    }
-
-    await caso("20 entradas seguidas (cache limpo e quente): nunca círculo liso nem 'M' solto", async () => {
-      const contas = ["paciente13@exemplo.test", "paciente14@exemplo.test", "paciente15@exemplo.test", "paciente16@exemplo.test"];
-      let quente = null;
-      for (let i = 0; i < 20; i++) {
-        const limpo = i % 2 === 0;
-        const ctx = limpo || !quente ? await contexto(browser, i % 4 < 2 ? DESKTOP : CELULAR, i % 3 ? "light" : "dark") : quente;
-        if (!limpo) quente = null; else quente = ctx;
-        const page = await ctx.newPage();
-        await page.goto(`${BASE}/login`);
-        await page.waitForTimeout(limpo ? 1500 : 600);
-        await vigiaVeu(page);
-        await pace();
-        await page.getByLabel("E-mail").fill(contas[i % contas.length]);
-        await page.getByLabel("Senha", { exact: true }).fill(DEMO);
-        await page.getByRole("button", { name: "Entrar" }).click();
-        await page.waitForURL((u) => u.pathname.startsWith("/app"), { timeout: 20000 });
-        await fimPortal(page);
-        await veuOk(page, `entrada ${i + 1}`);
-        await ctx.clearCookies();
-        await page.close();
-        if (!quente) await ctx.close();
-      }
-    });
   }
 
   // 8. Medições comparáveis com a main (as mesmas interações, sem a entrada)

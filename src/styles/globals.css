@@ -527,31 +527,6 @@ a.card:active, button.card:active, .press:active { transform: scale(0.98); }
 .pills > [role] { position: relative; z-index: 1; transition: color 200ms ease-out; }
 .pills:not([data-pill-ready]) > [aria-checked="true"], .pills:not([data-pill-ready]) > [aria-selected="true"] { background: var(--accent-fill); }
 .pill-ind { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 999px; background: var(--accent-fill); pointer-events: none; transform-origin: 0 0; opacity: 0; }
-
-/* ══ Portal de entrada e saída (components/portal.ts) ═══════════════════════════
- * Véu fixo acima de tudo, só com html[data-portal]: o fundo escuro (cresce num círculo a partir do clique) e o canvas
- * de partículas. Nenhum marcador estático. "on": dissolvendo/juntando/respirando; "burst": explodindo (o clique já
- * passa); "cancel": login falhou, recolhendo; "fade": sem partículas (menos movimento ou portal não pronto). */
-.entry-veil { display: none; position: fixed; inset: 0; z-index: 100; overflow: hidden; contain: strict; pointer-events: none; }
-:root:is([data-portal="on"], [data-portal="burst"], [data-portal="cancel"]) .entry-veil { display: block; }
-:root[data-portal="on"] .entry-veil { pointer-events: auto; }
-/* Começa recortado (o círculo do clique o abre); sem JS nunca aparece */
-.entry-bg { position: absolute; inset: 0; background: var(--hero); clip-path: circle(0px at 50% 50%); }
-.entry-veil .entry-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 1; }
-/* Fase 1: a tela atual desfoca e esmaece por baixo do círculo (e volta nítida se o login falhar) */
-body > :not(.entry-veil, .scroll-bar, [data-portal-status]) { transition: filter 250ms ease-out, opacity 250ms ease-out; }
-:root[data-portal="on"] body > :not(.entry-veil, .scroll-bar, [data-portal-status]) { filter: blur(6px); opacity: 0.4; }
-:root:is([data-portal="on"], [data-portal="burst"]) body > :not(.entry-veil, .scroll-bar, [data-portal-status]) { transition-duration: 250ms, 250ms; }
-:root[data-portal="burst"] body > :not(.entry-veil, .scroll-bar, [data-portal-status]) { transition: none; }
-/* Coberta pelo fundo escuro: nada a pintar por baixo enquanto a esfera se forma (sem desfoque, opacidade 0) */
-:root[data-portal="on"][data-portal-cover] body > :not(.entry-veil, .scroll-bar, [data-portal-status]) { filter: none; opacity: 0; transition: none; }
-/* Sob o véu, as entradas do conteúdo esperam: começam junto com a explosão */
-:root[data-portal="on"] main * { animation-play-state: paused !important; }
-/* Sem partículas: só um fade curto do conteúdo (vence a regra global de 1 ms de menos movimento) */
-:root[data-portal="fade"] [data-side-content] { animation: fade 200ms ease-out backwards !important; }
-/* Chegou da saída do app: a cena começa da nuvem, sem o brilho de espera */
-.portal-saida .scene-glow { opacity: 0 !important; transition: none !important; }
-
 /* Menos movimento: deslocamentos viram fade curto; nada desliza, nada gira sem parar */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(.page-out) { animation: fade-away 120ms ease-out both; }
@@ -561,8 +536,6 @@ body > :not(.entry-veil, .scroll-bar, [data-portal-status]) { transition: filter
   /* Sem desfoque, deslocamento nem contagem: fade curto (vence a regra global de 1 ms) */
   main > *, .stagger > *, .reveal, .greet-in, .tab-in, main form > *, main [role="alert"] { animation: fade 150ms ease-out backwards !important; }
   .tab-out { animation: fade-away 100ms ease-out forwards !important; }
-  .entry-veil { display: none !important; }
-  :root[data-portal] body > * { filter: none !important; opacity: 1 !important; }
   .nav-ind, .tab-ind { transition: opacity 120ms !important; }
   .btn-spinner { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
   a.card:hover, button.card:hover, .lift:hover, .card.kpi:hover, a.card:active, button.card:active, .press:active { transform: none; }

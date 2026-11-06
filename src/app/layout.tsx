@@ -35,10 +35,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* React Query e avisos só entram onde são usados (área logada, cadastro, link de confirmação):
             a página pública e o login baixam menos JavaScript */}
         {children}
-        {/* Portal de entrada e saída (components/portal.ts): invisível até html[data-portal]. Sem marcador estático:
-            só o fundo e o canvas de partículas (decorativos); o aviso para leitor de tela fica fora do aria-hidden */}
-        <div data-entry-veil aria-hidden className="entry-veil"><div className="entry-bg" /></div>
-        <p data-portal-status role="status" className="sr-only" />
       </body>
     </html>
   );

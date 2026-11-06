@@ -1,16 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { AuthFrame } from "@/components/auth-frame";
 import { NewPasswordFields } from "@/components/password-fields";
 import { PatientForm } from "@/components/patient-form";
-import { enterPortal, portalCancel, preloadPortal, SHELL_PATH } from "@/components/portal";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { passwordReady } from "@/lib/password";
-import { centerOf } from "@/lib/theme";
 import { EMAIL_NOTE, maskEmail, RESEND_SECONDS, resendWait, safeNext } from "@/lib/site-content";
 
 const CONSENT = "Autorizo a Clínica Movimento a tratar meus dados pessoais e de saúde para o meu atendimento, conforme a LGPD. Posso baixar ou excluir meus dados a qualquer momento no meu perfil.";
@@ -26,9 +23,6 @@ export default function CadastroPage() {
   const [now, setNow] = useState(0);
   const [resending, setResending] = useState(false);
   const wait = sentAt ? resendWait(sentAt, now) : 0;
-  const router = useRouter();
-  // Última etapa (senha): o portal fica pronto antes de "Concluir cadastro"
-  useEffect(() => { if (step === "senha") void preloadPortal(); }, [step]);
 
   // Contagem regressiva do reenvio: um tique por segundo só enquanto falta tempo
   useEffect(() => {
@@ -100,15 +94,9 @@ export default function CadastroPage() {
       {step === "senha" && (
         <AuthFrame title="Crie sua senha" subtitle="Tudo certo com seu e-mail. Falta só a senha de acesso.">
           <form className="flex flex-col gap-4" onSubmit={run(async () => {
-            // Portal de entrada: começa no clique de "Concluir cadastro", em paralelo com a criação da conta
-            const btn = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
-            enterPortal(btn ? centerOf(btn) : { x: innerWidth / 2, y: innerHeight / 2 });
-            let r: { redirect: string };
-            try { r = await api<{ redirect: string }>("/auth/register/complete", { body: { id, ...pw } }); } catch (err) { portalCancel(); throw err; }
+            const r = await api<{ redirect: string }>("/auth/register/complete", { body: { id, ...pw } });
             // Veio de "Agendar tratamento" na página da clínica: segue para Agendar
-            const target = safeNext(new URLSearchParams(location.search).get("next")) ?? r.redirect;
-            if (SHELL_PATH.test(new URL(target, location.origin).pathname)) router.push(target);
-            else { portalCancel(); window.location.assign(target); }
+            window.location.assign(safeNext(new URLSearchParams(location.search).get("next")) ?? r.redirect);
           })}>
             <NewPasswordFields value={pw} onChange={setPw} error={error?.msg} />
             <Button type="submit" variant="brand" loading={busy} disabled={!passwordReady(pw.password, pw.confirm)} className="w-full">Concluir cadastro</Button>
