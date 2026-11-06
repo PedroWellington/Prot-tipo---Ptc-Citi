@@ -428,7 +428,8 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 
 /* Entrada de conteúdo: opacidade e subida curta. "backwards": depois de entrar, o elemento volta a ser dele
    (o hover e o :active podem mover o transform). Sem JS, a animação CSS roda igual e termina visível */
-@keyframes enter { from { opacity: 0; transform: translateY(var(--rise)); } }
+/* 0,01 e não 0: visualmente igual, mas o navegador já conta o elemento como pintado (o LCP não espera o fade) */
+@keyframes enter { from { opacity: 0.01; transform: translateY(var(--rise)); } }
 .reveal { animation: enter 400ms var(--ease-out-soft) backwards; }
 /* Grades e listas: os 8 primeiros entram em sequência (50 ms: 350 ms no total); o resto entra junto com o 8º */
 .stagger > * { animation: enter 400ms var(--ease-out-soft) backwards; animation-delay: calc(7 * var(--step)); }

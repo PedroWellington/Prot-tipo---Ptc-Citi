@@ -26,6 +26,14 @@ const DESKTOP = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }
 const CELULAR = { ...devices["Pixel 7"] };
 
 const ok = (s) => console.log(`✓ ${s}`);
+// O servidor aceita 20 logins por minuto por IP e 8 por e-mail: o roteiro espaça os logins para não bater no limite
+const logins = [];
+async function pace() {
+  const now = Date.now();
+  while (logins.length && now - logins[0] > 61_000) logins.shift();
+  if (logins.length >= 15) await new Promise((r) => setTimeout(r, 61_000 - (now - logins[0])));
+  logins.push(Date.now());
+}
 const medidas = [];
 
 /** Observadores de desempenho, instalados antes de qualquer script da página. */
@@ -59,6 +67,7 @@ async function contexto(browser, aparelho, tema, { reduce = false, video = false
 }
 
 async function entrar(page, perfil, { frames } = {}) {
+  await pace();
   await page.goto(`${BASE}/login`);
   await page.getByLabel("E-mail").fill(perfil.email);
   await page.getByLabel("Senha", { exact: true }).fill(perfil.password);
@@ -134,6 +143,7 @@ try {
     await caso("clique pula a entrada", async () => {
       const ctx = await contexto(browser, DESKTOP, "dark");
       const page = await ctx.newPage();
+      await pace();
       await page.goto(`${BASE}/login`);
       await page.getByLabel("E-mail").fill(PERFIS.paciente.email);
       await page.getByLabel("Senha", { exact: true }).fill(DEMO);
@@ -149,6 +159,7 @@ try {
     await caso("menos movimento: sem véu nem partículas, conteúdo visível", async () => {
       const ctx = await contexto(browser, CELULAR, "light", { reduce: true });
       const page = await ctx.newPage();
+      await pace();
       await page.goto(`${BASE}/login`);
       await page.getByLabel("E-mail").fill(PERFIS.recepcao.email);
       await page.getByLabel("Senha", { exact: true }).fill(DEMO);
@@ -175,6 +186,7 @@ try {
       await page.waitForFunction(() => document.querySelector("[data-scene]")?.classList.contains("is-ready"), null, { timeout: 20000 });
       assert.equal(await page.evaluate(() => document.documentElement.dataset.entrada ?? null), null);
       // Entrou de novo pela página pública: "Minha área" aparece e roda a entrada (um login novo)
+      await pace();
       await page.goto(`${BASE}/login`);
       await page.getByLabel("E-mail").fill(PERFIS.fisio.email);
       await page.getByLabel("Senha", { exact: true }).fill(DEMO);
@@ -192,9 +204,10 @@ try {
     // 4. Permissões: cada perfil só vê o que é seu (somente leituras)
     await caso("permissões dos 4 perfis seguem iguais", async () => {
       const req = await (await browser.newContext()).request;
-      const login = async (p) => { const r = await req.post(`${BASE}/api/auth/login`, { data: { email: p.email, password: p.password } }); assert.equal(r.status(), 200, p.email); };
+      const login = async (p) => { await pace(); const r = await req.post(`${BASE}/api/auth/login`, { data: { email: p.email, password: p.password } }); assert.equal(r.status(), 200, p.email); };
       const status = async (path) => (await req.get(`${BASE}/api${path}`)).status();
-      await login(PERFIS.paciente);
+      // Outra conta de paciente: o limite é de 8 logins por minuto por e-mail
+      await login({ ...PERFIS.paciente, email: "paciente10@exemplo.test" });
       assert.equal(await status("/desk/agenda"), 403, "paciente na agenda da recepção");
       assert.equal(await status("/admin/dashboard"), 403, "paciente nas análises");
       await login(PERFIS.fisio);
