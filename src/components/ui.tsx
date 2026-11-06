@@ -6,6 +6,7 @@ import { AlertCircle, Info, Search, WifiOff, X } from "lucide-react";
 import type { Tone } from "@/lib/labels";
 import { ApiError } from "@/lib/api";
 import { useCountTo } from "@/lib/motion";
+import { MarcaMovimento } from "./marca";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -188,23 +189,16 @@ export function PageTitle({ eyebrow, title, action }: { eyebrow?: string; title:
   );
 }
 
+/** O "M" da marca (MarcaMovimento, variante padrão). */
 export function LogoMark({ className, style }: { className?: string; style?: CSSProperties }) {
-  const id = useId(); // o shell renderiza dois logos, um deles oculto
-  return (
-    <svg viewBox="0 0 24 32" aria-hidden className={className} style={style}>
-      <defs>
-        <linearGradient id={id} x1="0" x2="1"><stop stopColor="var(--ring-a)" /><stop offset="1" stopColor="var(--ring-b)" /></linearGradient>
-      </defs>
-      <path d="M3 25V8l9 11 9-11v17" fill="none" stroke={`url(#${id})`} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <MarcaMovimento className={className} style={style} />;
 }
 
 /** Wordmark único: o M é o logo e a palavra continua em "ovimento". */
 export function Logo({ size = 24 }: { size?: number }) {
   return (
     <span role="img" aria-label="Movimento" className="inline-flex items-center text-ink">
-      <LogoMark style={{ height: size * 1.34, width: size }} />
+      <LogoMark style={{ height: size * 1.3, width: size * 1.3, marginRight: size * -0.08 }} />
       <span aria-hidden className="font-display leading-none" style={{ fontSize: size }}>ovimento</span>
     </span>
   );

@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "icons": "node scripts/gerar-icones.mjs",
+    "e2e": "node scripts/e2e-hero.mjs",
+    "icons": "tsx scripts/gerar-icones.ts",
+    "particulas": "tsx scripts/gerar-particulas.ts",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:unidades": "tsx scripts/atualizar-unidades.ts",
@@ -49,6 +51,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.4",
+    "playwright-core": "^1.56.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"

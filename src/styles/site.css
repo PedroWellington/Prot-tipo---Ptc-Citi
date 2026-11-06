@@ -32,126 +32,89 @@ html.is-scrolled .site-header { translate: 0 -6px; }
 html.is-scrolled .site-header::after { opacity: 1; }
 html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 
-/* ══ Cena de abertura ══════════════════════════════════════════════════════════
- * Sem .motion-ok (sem JS ou com menos movimento): blocos normais, um embaixo do outro, todo o texto visível.
- * Com .motion-ok: palco de ~420vh com um quadro preso (sticky) de 100svh. A rolagem dentro do palco vira --p (0 a 1):
- * por animation-timeline: view() onde há suporte, ou por um único requestAnimationFrame (scene-driver.tsx).
- * --p move só a esfera (transform/opacity); as frases trocam por quadro (classes .is-on/.is-past postas por um
- * IntersectionObserver nos marcadores [data-scene-step]) com transição de tempo, easing e escalonamento. */
-@property --p { syntax: "<number>"; inherits: true; initial-value: 0; }
-
+/* ══ Cena de abertura: palco de partículas ═════════════════════════════════════
+ * Sem .scene-live (sem JS, sem WebGL2 ou com menos movimento): blocos normais, um embaixo do outro, cada frase com
+ * o desenho estático da sua forma e todo o texto visível. Com .scene-live: palco de ~620vh (520vh no celular) com
+ * um quadro preso de 100svh; o canvas (decorativo, sem clique) desenha as partículas e scene-driver.tsx troca as
+ * frases. Só transform e opacity animam no HTML; --p (escrita pelo driver) só apaga a dica "Role para ver". */
 .scene { position: relative; }
-.scene-sticky { display: flex; flex-direction: column; gap: 40px; max-width: 72rem; margin: 0 auto; padding: 48px 16px 24px; }
+.scene-sticky { display: flex; flex-direction: column; gap: 56px; max-width: 72rem; margin: 0 auto; padding: 48px 16px 32px; }
 @media (min-width: 640px) { .scene-sticky { padding-inline: 24px; } }
-.scene-veil, .scene-hint, .scene-step { display: none; }
-.scene-hero { max-width: 40rem; }
-.scene-phrase { margin: 0; text-align: center; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; }
-.scene-orb { position: relative; width: 140px; aspect-ratio: 1; align-self: center; pointer-events: none; }
-
-/* Esfera: camadas de gradiente da paleta; o tom muda pela opacidade das camadas de cima */
-.orb-body, .orb-layer, .orb-halo { position: absolute; inset: 0; border-radius: 50%; }
-.orb-halo { inset: -28%; background: radial-gradient(closest-side, var(--orb-glow), transparent); }
-.orb-1 { background: radial-gradient(circle at 34% 30%, var(--orb-1a), var(--orb-1b) 72%); }
-.orb-2 { background: radial-gradient(circle at 34% 30%, var(--orb-2a), var(--orb-2b) 72%); opacity: calc(var(--tone2, 0) - var(--tone3, 0)); }
-.orb-3 { background: radial-gradient(circle at 34% 30%, var(--orb-3a), var(--orb-3b) 72%); opacity: var(--tone3, 0); }
-.orb-mark { position: absolute; inset: 0; display: grid; place-items: center; opacity: var(--mark, 1); }
-.orb-mark svg { width: 30%; height: auto; overflow: visible; }
-
-.motion-ok .scene {
-  --scene-h: 420vh;
-  height: var(--scene-h);
-  view-timeline: --scene block;
+.scene-canvas, .scene-glow, .scene-hint { display: none; }
+.scene-shape { display: block; width: min(320px, 72vw); height: auto; aspect-ratio: 1; margin-inline: auto; }
+.scene-hero { display: grid; gap: 32px; align-items: center; }
+.scene-hero-text { max-width: 40rem; }
+.scene-phrase { display: grid; gap: 16px; align-items: center; }
+.scene-text { margin: 0; text-align: center; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; }
+@media (min-width: 768px) {
+  .scene-hero { grid-template-columns: 1fr 1fr; }
+  .scene-phrase { grid-template-columns: 1fr 1fr; }
+  .scene-phrase .scene-text { text-align: left; }
+  .scene-phrase[data-side="l"] .scene-shape { order: 2; }
 }
-.motion-ok .scene-sticky {
+
+.scene-live .scene { --scene-h: 620vh; height: var(--scene-h); }
+.scene-live .scene-sticky {
   position: sticky; top: 0; display: block; height: 100svh; max-width: none; margin: 0; padding: 0; overflow: hidden;
-  /* Posição inicial da esfera (desktop: à direita do título; celular: acima dele) e as derivadas de --p */
-  --ox0: min(26vw, 340px); --oy0: 0px; --os0: 1.05; --orb-size: min(40vmin, 440px);
-  --move: clamp(0, var(--p) / 0.16, 1);
-  --grow: clamp(0, (var(--p) - 0.86) / 0.1, 1);
-  --tone2: clamp(0, (var(--p) - 0.3) / 0.15, 1);
-  --tone3: clamp(0, (var(--p) - 0.64) / 0.2, 1);
-  --mark: calc(1 - clamp(0, (var(--p) - 0.8) / 0.08, 1));
-  --veil: clamp(0, (var(--p) - 0.9) / 0.04, 1);
-  --orb-fade: clamp(0, (var(--p) - 0.94) / 0.05, 1);
 }
-@supports (animation-timeline: view()) {
-  .motion-ok .scene-sticky { animation: scene-p linear both; animation-timeline: --scene; animation-range: contain 0% contain 100%; }
+.scene-live .scene-shape { display: none; }
+.scene-live .scene-canvas {
+  display: block; position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%;
+  pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease-out);
 }
-@keyframes scene-p { from { --p: 0; } to { --p: 1; } }
-
-.motion-ok .scene-veil { display: block; position: absolute; inset: 0; z-index: 0; background: var(--page-bg); opacity: var(--veil); }
-.motion-ok .scene-orb {
-  position: absolute; z-index: 1; left: 50%; top: calc(50% + 32px); width: var(--orb-size);
-  translate: -50% -50%;
-  /* Desliza para o centro, cresce a cada quadro e no fim cobre a tela e se dissolve no fundo da seção seguinte */
-  transform:
-    translate(calc((1 - var(--move)) * var(--ox0) + (var(--p) - 0.5) * 4vw), calc((1 - var(--move)) * var(--oy0)))
-    scale(calc(var(--os0) + var(--move) * (0.85 - var(--os0)) + var(--p) * 0.4 + var(--grow) * 5.5));
-  opacity: calc(1 - var(--orb-fade));
+.scene-live .scene.is-ready .scene-canvas { opacity: 1; }
+/* Lugar da esfera enquanto as partículas carregam: brilho e o "M" (centro em 74% × 54%, como no palco) */
+.scene-live .scene-glow {
+  display: grid; place-items: center; position: absolute; z-index: 0; left: 74%; top: 54%;
+  width: min(40vw, 64vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--particle-glow), transparent); transition: opacity 500ms var(--ease-out);
 }
-.motion-ok .scene.is-live .scene-orb { will-change: transform, opacity; }
-.motion-ok .scene-step {
-  display: block; position: absolute; left: 0; width: 1px; pointer-events: none;
-  --seg: calc((var(--scene-h) - 100vh) * 0.86 / 5);
-  top: calc(50vh + var(--k) * var(--seg)); height: var(--seg);
-}
-.motion-ok .scene-step[data-scene-step="5"] { height: calc((var(--scene-h) - 100vh) * 0.14 + 50vh); }
+.scene-glow-mark { width: 30%; height: auto; opacity: 0.85; }
+.scene-live .scene.is-ready .scene-glow { opacity: 0; }
 
 /* Quadros */
-.motion-ok .scene-frame { position: absolute; z-index: 2; inset: 64px 0 0; pointer-events: none; }
-.motion-ok .scene-frame.is-on, .motion-ok .scene-frame:focus-within { pointer-events: auto; }
-.motion-ok .scene-hero {
-  inset: 50% auto auto max(16px, calc(50% - 552px)); width: min(560px, 46vw); max-width: none; translate: 0 -50%;
+.scene-live .scene-frame { position: absolute; z-index: 2; inset: 64px 0 0; pointer-events: none; }
+.scene-live .scene-frame.is-on, .scene-live .scene-frame:focus-within { pointer-events: auto; }
+.scene-live .scene-hero { display: block; }
+.scene-live .scene-hero-text {
+  position: absolute; top: 50%; left: max(16px, calc(50% - 552px)); width: min(560px, 46vw); max-width: none; translate: 0 -50%;
 }
-.motion-ok .scene-hint { display: flex; position: absolute; z-index: 2; left: 50%; bottom: 20px; translate: -50% 0; opacity: calc(1 - var(--move)); }
-.motion-ok .scene-word {
-  position: absolute; left: 50%; top: 50%; translate: -50% -50%; white-space: nowrap;
-  font-size: clamp(40px, 6.4vw, 96px);
-  --wx: calc(var(--x) * min(28vw, 420px)); --wy: calc(var(--y) * min(16vh, 150px));
+.scene-live .scene-text {
+  position: absolute; top: 50%; translate: 0 -50%; text-align: left; line-height: 1.02;
+  /* Limitada também pela altura e quebrando palavra longa: uma frase comprida salva no Admin não estoura o quadro */
+  font-size: clamp(36px, min(5.6vw, 9vh), 88px); overflow-wrap: anywhere;
 }
-.motion-ok .scene-item, .motion-ok .scene-word {
+/* A frase fica do lado oposto à forma: forma à esquerda (r) → texto à direita */
+.scene-live .scene-phrase[data-side="r"] { --side: 1; }
+.scene-live .scene-phrase[data-side="l"] { --side: -1; }
+.scene-live .scene-phrase[data-side="r"] .scene-text { left: 54%; right: max(16px, calc(50% - 552px)); }
+.scene-live .scene-phrase[data-side="l"] .scene-text { left: max(16px, calc(50% - 552px)); right: 54%; }
+.scene-live .scene-word { display: inline-block; }
+.scene-live .scene-hint { display: flex; position: absolute; z-index: 2; left: 50%; bottom: 20px; translate: -50% 0; opacity: calc(1 - min(1, var(--p, 0) * 30)); }
+
+/* Entrada e saída de lado, escalonadas: antes do quadro esperam do lado de entrada; depois saem pelo contrário */
+.scene-live .scene-item, .scene-live .scene-word {
   transition: transform 760ms var(--ease-out), opacity 520ms var(--ease-out);
   transition-delay: calc(var(--i, 0) * 60ms);
 }
-.motion-ok .scene-word { transform: translate(var(--wx), var(--wy)); }
-/* Antes do quadro: espera fora da tela do lado de entrada. Depois: sai pelo lado contrário */
-.motion-ok .scene-frame:not(.is-on) :is(.scene-item, .scene-word) { opacity: 0; }
-.motion-ok .scene-frame:not(.is-on, .is-past) .scene-item { transform: translateX(calc(var(--side) * 50vw)); }
-.motion-ok .scene-frame.is-past .scene-item { transform: translateX(calc(var(--side) * -50vw)); }
-.motion-ok .scene-frame:not(.is-on, .is-past) .scene-word { transform: translate(calc(var(--wx) + var(--side) * 50vw), var(--wy)); }
-.motion-ok .scene-frame.is-past .scene-word { transform: translate(calc(var(--wx) - var(--side) * 50vw), var(--wy)); }
+.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word) { opacity: 0; }
+.scene-live .scene-frame:not(.is-on, .is-past) :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * 40vw)); }
+.scene-live .scene-frame.is-past :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * -40vw)); }
 /* Teclado: um link focado num quadro que já saiu volta a aparecer */
-.motion-ok .scene-frame:focus-within .scene-item { opacity: 1; transform: none; }
+.scene-live .scene-frame:focus-within .scene-item { opacity: 1; transform: none; }
 
-@media (max-width: 767px) {
-  .motion-ok .scene { --scene-h: 340vh; }
-  /* Esfera no topo, logo abaixo do cabeçalho (centro = 64px + folga + raio), longe do título que fica embaixo */
-  .motion-ok .scene-sticky { --ox0: 0px; --os0: 0.5; --oy0: calc(48px + 12vw - 50svh); --orb-size: 48vw; }
-  .motion-ok .scene-hero { inset: auto 16px max(24px, 5svh) 16px; width: auto; translate: none; }
-  .motion-ok .scene-hero h1 { font-size: 38px; }
-  .motion-ok .scene-hint { display: none; }
-  /* Vertical: metade das palavras acima da esfera, metade abaixo */
-  .motion-ok .scene-word { font-size: clamp(34px, 11vw, 56px); --wx: calc(var(--mx) * 14vw); --wy: calc(var(--ms) * 27vw + var(--my) * 1.1em); }
-}
-@media (max-width: 767px) and (min-height: 760px) {
-  .motion-ok .scene-sticky { --os0: 0.8; --oy0: calc(72px + 19.2vw - 50svh); }
+@media (max-width: 767px), (orientation: portrait) {
+  .scene-live .scene { --scene-h: 520vh; }
+  .scene-live .scene-glow { left: 50%; top: 24%; width: min(52vw, 26vh); }
+  .scene-live .scene-hero-text { top: auto; bottom: max(24px, 5svh); left: 16px; right: 16px; width: auto; translate: none; }
+  .scene-live .scene-hero h1 { font-size: 38px; }
+  .scene-live .scene-hint { display: none; }
+  /* Celular: a forma fica em cima, a frase embaixo e centralizada */
+  .scene-live .scene-phrase .scene-text { top: auto; bottom: max(40px, 9svh); left: 16px; right: 16px; translate: none; text-align: center; font-size: clamp(34px, 10vw, 52px); }
 }
 
-/* Abertura (só na primeira visita da sessão, até 900 ms, nunca cobre o conteúdo):
-   o "M" gira e pulsa sozinho e a esfera cresce atrás dele. Qualquer interação pula (scene-driver.tsx) */
-@keyframes orb-intro { from { transform: scale(0.08); opacity: 0; } 45% { opacity: 1; } }
-@keyframes mark-intro {
-  from { transform: rotate(-120deg) scale(0.6); opacity: 0; }
-  40% { transform: rotate(0deg) scale(1.22); opacity: 1; }
-  70% { transform: scale(0.95); }
-}
-.motion-ok.scene-intro .orb-body { animation: orb-intro 900ms var(--ease-out) both; }
-.motion-ok.scene-intro .orb-mark svg { animation: mark-intro 900ms var(--ease-out) both; }
-.motion-ok.scene-intro-short .orb-body { animation: orb-intro 420ms var(--ease-out) both; }
-.motion-ok.scene-intro-short .orb-mark svg { animation: mark-intro 420ms var(--ease-out) both; }
-
-/* Sem .motion-ok a curva da banda fecha a cena; no palco, o véu já leva ao fundo da seção seguinte */
-.motion-ok .scene > .band-edge { display: none; }
+/* Sem .scene-live a curva da banda fecha a cena; no palco, a esfera final volta antes de a página seguir */
+.scene-live .scene > .band-edge { display: none; }
 
 /* ── Mockup do produto: notebook e celular em CSS ── */
 .device-laptop { position: relative; }
@@ -262,10 +225,6 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .faq-item .faq-chevron { transition: transform 280ms var(--ease-out); }
 .faq-item[data-open] .faq-chevron { transform: rotate(180deg); }
 
-/* Abas do "Veja o sistema por dentro": troca com fade curto */
-.tour-panel { animation: fade-in 260ms var(--ease-out); }
-@keyframes fade-in { from { opacity: 0; } }
-
 /* Menos movimento: nada contínuo, nenhum palco preso; a faixa vira linha rolável à mão e sem a cópia duplicada */
 @media (prefers-reduced-motion: reduce) {
   .scene { height: auto !important; }
@@ -273,7 +232,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
   .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
   .marquee-track { animation: none; }
   .marquee-list[aria-hidden] { display: none; }
-  .float-card, .tour-panel, .orb-body, .orb-mark svg { animation: none; }
+  .float-card { animation: none; }
   .lift, .lift::after, .site .btn, .btn-arrow, .faq-body, .faq-chevron, .site-header, .site-header::after { transition: none; }
   .lift:hover, .lift:focus-visible, .lift:has(:focus-visible), .lift:active { transform: none; }
 }

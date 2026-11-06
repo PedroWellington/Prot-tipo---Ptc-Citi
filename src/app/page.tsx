@@ -3,26 +3,22 @@ import {
   Navigation, Phone, ShieldCheck, Sparkles, Stethoscope, UserRound, Wallet, type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { Faq } from "@/components/site/faq";
 import { SiteHeader } from "@/components/site/header";
-import { SPECIALTY_ICON } from "@/components/site/illustrations";
+import { ClinicLine, SPECIALTY_ICON } from "@/components/site/illustrations";
 import { LazyMap } from "@/components/site/lazy-map";
 import { Marquee, type MarqueeItem } from "@/components/site/marquee";
-import { HeroMockup } from "@/components/site/mockup";
 import { MOTION_SCRIPT, SiteMotion } from "@/components/site/motion";
+import { SystemTour } from "@/components/site/product-tour";
 import { Scene } from "@/components/site/scene";
 import { SceneDriver } from "@/components/site/scene-driver";
 import { lines, mergeContent } from "@/lib/site-content";
 import { SITE_IMAGES } from "@/lib/site-images";
 import { NOTA_ENDERECO } from "@/lib/unidades";
 import { siteData, type SiteData } from "@/server/services/site";
-
-// Abaixo da dobra: o código das abas vem num pedaço separado
-const ProductTour = dynamic(() => import("@/components/site/product-tour"));
 
 // Estática, regenerada a cada 5 minutos (e na hora quando o admin salva um texto)
 export const revalidate = 300;
@@ -116,12 +112,6 @@ export default async function HomePage() {
     { value: n.closeHour, prefix: `${n.openHour}h–`, suffix: "h", label: n.saturday ? "de segunda a sábado" : "de segunda a sexta" },
   ];
 
-  const tour = [
-    { id: "paciente", label: "Paciente", screen: "paciente-desktop", phone: "paciente-celular", alt: "Painel do paciente: progresso, próxima sessão, fases e exercícios", points: lines(c["tour.paciente"]) },
-    { id: "recepcao", label: "Recepção", screen: "recepcao-desktop", alt: "Agenda da recepção com as sessões do dia por fisioterapeuta", points: lines(c["tour.recepcao"]) },
-    { id: "fisio", label: "Fisioterapeuta", screen: "fisio-desktop", alt: "Agenda da fisioterapeuta com botões para marcar a sessão como realizada", points: lines(c["tour.fisio"]) },
-  ] as const;
-
   return (
     <div className="site">
       {/* Antes da primeira pintura: decide se o conteúdo entra animado (com JS e sem "menos movimento") */}
@@ -148,10 +138,10 @@ export default async function HomePage() {
           edge={<Edge fill="var(--page-bg)" />}
         />
 
-        {/* 2. A clínica, com o próprio sistema no notebook e no celular */}
+        {/* 2. A clínica */}
         <Section id="clinica">
           <div className="grid items-center gap-10 md:grid-cols-12 md:gap-14">
-            <div data-reveal className="md:col-span-6"><HeroMockup /></div>
+            <div data-reveal className="md:col-span-6"><ClinicLine className="w-full" /></div>
             <div data-reveal data-side="r" className="md:col-span-6">
               <p className="eyebrow">A clínica</p>
               <h2 id="clinica-t" className="mt-2 font-display text-[36px] leading-[1.05] sm:text-[48px]">{c["clinica.titulo"]}</h2>
@@ -232,12 +222,12 @@ export default async function HomePage() {
           </p>
         </Section>
 
-        {/* 7. Veja o sistema por dentro (banda escura) */}
+        {/* 7. Veja o sistema por dentro: só a visão do paciente (banda escura) */}
         <section id="sistema" aria-labelledby="sistema-t" className="site-section site-dark overflow-x-clip">
           <Edge fill="var(--alt-bg)" flip />
           <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
             <Heading id="sistema" eyebrow="O sistema" title={c["tour.titulo"]} sub={c["tour.sub"]} />
-            <div data-reveal><ProductTour tabs={tour.map((t) => ({ ...t }))} /></div>
+            <div data-reveal><SystemTour points={lines(c["tour.paciente"])} /></div>
           </div>
           <Edge fill="var(--page-bg)" />
         </section>

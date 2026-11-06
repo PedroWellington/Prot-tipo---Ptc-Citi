@@ -57,6 +57,9 @@ describe.each(Object.entries(THEMES))("Contraste AA dos tokens: tema %s", (_, se
     // Faixa forte e botão da banda podem ser degradês: confere o texto contra cada parada
     ...fills(t("band-bg")).flatMap((s) => (["band-ink", "band-ink-2", "band-num"] as const).map((k) => [`${k}/${s}`, color(k), parse(s)] as [string, RGBA, RGBA])),
     ...fills(t("hero-cta")).map((s) => [`hero-on-cta/${s}`, color("hero-on-cta"), parse(s)] as [string, RGBA, RGBA]),
+    // Cartões de indicadores das Análises: rótulo, legenda e valor turquesa sobre o azul-marinho
+    ["kpi-ink/kpi-bg", color("kpi-card-ink"), color("kpi-card-bg")], ["kpi-ink-2/kpi-bg", color("kpi-card-ink-2"), color("kpi-card-bg")],
+    ["kpi-value/kpi-bg", color("kpi-card-value"), color("kpi-card-bg")], ["kpi-value/kpi-soft", color("kpi-card-value"), color("kpi-card-soft", color("kpi-card-bg"))],
     ...stops(t("hero")).flatMap((s) => [
       [`hero-ink/${s}`, color("hero-ink"), parse(s)], [`hero-ink-2/${s}`, color("hero-ink-2"), parse(s)],
       [`hero-badge/${s}`, color("hero-badge-ink"), color("hero-badge-bg", parse(s))],
@@ -115,11 +118,38 @@ describe("Nenhuma cor fixa fora de tokens.css", () => {
     "src/components/site/product-tour.tsx", "src/components/site/motion.tsx", "src/components/app-shell.tsx", "src/components/ui.tsx",
     "src/components/notifications.tsx", "src/components/assistant/panel.tsx", "src/components/sheet.tsx", "src/components/skeletons.tsx",
     "src/components/patient-home.tsx", "src/components/agenda-desk.tsx", "src/components/agenda-physio.tsx", "src/lib/motion.ts",
+    "src/components/site/particle-stage.ts", "src/components/site/scene-timeline.ts", "src/components/marca.tsx", "src/app/marca-teste/page.tsx",
+    "src/components/analises/shared.tsx", "src/components/analises/faltas.tsx", "src/components/analises/financeiro.tsx", "src/components/analises/previsoes.tsx",
     "src/app/(shell)/recepcao/espera/page.tsx", "src/app/(shell)/recepcao/pagamentos/page.tsx", "src/app/(shell)/recepcao/trocas/page.tsx",
   ];
   it.each(FILES)("%s", (file) => {
     const text = readFileSync(path.join(root, file), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
     const hit = text.split("\n").find((line) => COLOR.test(line));
     expect(hit).toBeUndefined();
+  });
+});
+
+describe("Cartões de indicadores das Análises (Admin e Recepção)", () => {
+  const root = path.resolve(__dirname, "../..");
+  const read = (f: string) => readFileSync(path.join(root, f), "utf8");
+  const globals = readFileSync(path.resolve(__dirname, "globals.css"), "utf8");
+
+  it("usam a classe .kpi com os tokens próprios, não a faixa unificada (.band)", () => {
+    for (const f of ["src/components/analises/faltas.tsx", "src/components/analises/financeiro.tsx", "src/components/analises/previsoes.tsx"]) {
+      const src = read(f);
+      expect(src).toMatch(/className="kpi[ "]/);
+      expect(src).not.toMatch(/className="band[ "]/);
+    }
+    expect(read("src/components/analises/shared.tsx")).toContain('className="kpi-num');
+    expect(globals).toMatch(/\.kpi \{[^}]*background: var\(--kpi-card-bg\)/);
+    expect(globals).toMatch(/\.kpi \.kpi-num \{ color: var\(--kpi-card-value\); \}/);
+  });
+
+  it.each(Object.entries(THEMES))("voltam ao azul-marinho com valor turquesa da main: tema %s", (nome, selector) => {
+    const t = block(selector);
+    const antes = nome === "claro" ? { bg: "#123a6b", value: "#5fe9dc", ink: "#ffffff" } : { bg: "#0d3352", value: "#2fe0d0", ink: "#e8f6f7" };
+    expect(t("kpi-card-bg")).toBe(antes.bg);
+    expect(t("kpi-card-value")).toBe(antes.value);
+    expect(t("kpi-card-ink")).toBe(antes.ink);
   });
 });

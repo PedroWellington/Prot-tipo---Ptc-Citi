@@ -70,7 +70,10 @@ export async function logout() {
   await api("/auth/logout", { body: {} });
   // Aparelho compartilhado: não deixa dados de saúde no cache offline
   await window.caches?.delete("mv-data").catch(() => {});
-  location.href = "/login";
+  // Termina na página inicial com navegação completa: nada da área logada (estado do React, cache das consultas,
+  // atributos de animação em <html>) sobrevive à troca, e o script inline da página pública roda de novo
+  delete document.documentElement.dataset.sideAnim;
+  location.replace("/");
 }
 
 const isActive = (path: string, href: string) => path === href || (href.split("/").length > 2 && path.startsWith(href));
@@ -228,7 +231,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
         <div className="side-inner">
           <div className="mb-5 flex min-h-11 items-center">
             <button type="button" onClick={onLogo} aria-label="Movimento: início ou expandir menu" className="flex min-h-11 items-center rounded-xl pl-3.5">
-              <span data-logo-mark className="inline-block"><LogoMark className="h-8 w-6" /></span>
+              <span data-logo-mark className="inline-block"><LogoMark className="size-8" /></span>
               <span aria-hidden className="nav-label font-display text-2xl leading-none text-ink">ovimento</span>
             </button>
           </div>

@@ -8,7 +8,12 @@ import { SITE_FIELDS } from "@/lib/site-content";
 import { SECTIONS } from "./header";
 import { Marquee } from "./marquee";
 import { MOTION_SCRIPT } from "./motion";
-import { layoutWords, Scene, SceneOrb, SCENE_SYMBOL } from "./scene";
+import { caminhos, VARIANTES } from "@/lib/marca";
+import { MarcaMovimento } from "../marca";
+import { placements } from "./particle-stage";
+import { SystemTour } from "./product-tour";
+import { FORMAS_DIR, Scene, SHAPES, splitWords } from "./scene";
+import { frameAt, timeline } from "./scene-timeline";
 
 const root = path.resolve(__dirname, "../../..");
 const read = (p: string) => readFileSync(path.join(root, p), "utf8");
@@ -133,78 +138,144 @@ describe("Sem rolagem lateral no celular", () => {
   });
 });
 
-describe("Cena de abertura", () => {
-  const phrases = ["Menos faltas", "Mais sessões concluídas", "Tratamento até o fim", "Cuidado que acompanha você"];
+describe("Abertura com partículas", () => {
+  const phrases = ["Menos faltas", "Mais sessões concluídas", "Cuidado que acompanha você", "Tratamento até o fim"];
   const html = renderToStaticMarkup(createElement(Scene, {
     hero: [{ node: createElement("h1", { id: "inicio-t" }, "Título da abertura"), lcp: true }, { node: createElement("p", null, "Frase da abertura"), lcp: true }],
     phrases,
   }));
   const text = html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+  const live = all.filter((r) => /scene/.test(r.selector) && r.selector.includes(".scene-live"));
+  const engine = read("src/components/site/particle-stage.ts");
+  const driver = read("src/components/site/scene-driver.tsx");
 
-  it("todo o texto da cena está no HTML, na ordem de leitura (leitor de tela e sem JavaScript)", () => {
+  it("todo o texto está no HTML, na ordem de leitura; o canvas é decorativo e não recebe clique", () => {
     for (const p of ["Título da abertura", "Frase da abertura", ...phrases]) expect(text).toContain(p);
     let at = 0;
     for (const p of phrases) { const i = text.indexOf(p, at); expect(i).toBeGreaterThanOrEqual(at); at = i; }
-    // O primeiro quadro (título = LCP) já vem ativo do servidor; nenhum texto depende de JS para existir
-    expect(html).toMatch(/class="scene-frame scene-hero hero-seq is-on"/);
+    expect(html).toMatch(/<canvas aria-hidden="true" class="scene-canvas"/);
+    expect(live.find((r) => r.selector === ".scene-live .scene-canvas")?.body).toContain("pointer-events: none");
+    // O primeiro quadro (título = LCP) já vem ativo do servidor
+    expect(html).toMatch(/class="scene-frame scene-hero is-on"/);
     expect(html).toMatch(/class="scene-item hero-lcp"/);
   });
 
-  it("sem .motion-ok (sem JS ou com menos movimento) não há palco preso nem texto escondido", () => {
-    const hides = all.filter((r) => /position:\s*sticky|opacity:\s*0[;\s]|opacity:\s*0$|view-timeline|height:\s*var\(--scene-h\)/.test(r.body) && /scene|orb/.test(r.selector));
+  it("sem .scene-live (sem JS, sem WebGL2 ou com menos movimento): nada preso, nada escondido, formas em SVG estático", () => {
+    const hides = all.filter((r) => /position:\s*sticky|opacity:\s*0[;\s]|opacity:\s*0$|height:\s*var\(--scene-h\)|display:\s*none/.test(r.body) && /scene-(sticky|frame|item|word|text)|\.scene(?![-\w])/.test(r.selector));
+    // Canvas, brilho e dica são decorativos (sem texto): escondê-los no modo estático é o certo
     expect(hides.length).toBeGreaterThan(0);
-    // Vírgulas dentro de :is(...) não separam seletores
-    for (const r of hides) for (const sel of r.selector.split(/,(?![^(]*\))/)) expect(sel.trim()).toMatch(/^\.motion-ok/);
-    // E o script que liga .motion-ok não liga com prefers-reduced-motion
-    expect(MOTION_SCRIPT).toMatch(/prefers-reduced-motion: reduce\)"\)\.matches\)return/);
+    for (const r of hides) for (const sel of r.selector.split(/,(?![^(]*\))/)) expect(sel.trim()).toMatch(/^\.scene-live/);
+    // Cada frase tem o desenho estático da forma (baixado só quando aparece)
+    for (const s of SHAPES) expect(html).toContain(`src="${FORMAS_DIR}/${s.key}.svg"`);
+    expect(html.match(/loading="lazy"/g)?.length).toBe(SHAPES.length + 1);
+    // O script que liga o palco exige movimento permitido e WebGL2
+    expect(MOTION_SCRIPT).toMatch(/prefers-reduced-motion: reduce/);
+    expect(MOTION_SCRIPT).toContain('"WebGL2RenderingContext"in window)d.classList.add("scene-live")');
   });
 
-  it("com prefers-reduced-motion: nada de sticky nem altura de palco, mesmo que .motion-ok exista", () => {
+  it("com prefers-reduced-motion: nenhum palco preso mesmo que a classe exista", () => {
     const reduced = all.filter((r) => r.media.some((m) => m.includes("prefers-reduced-motion: reduce")));
     const body = (sel: string) => reduced.find((r) => r.selector.split(",").map((x) => x.trim()).includes(sel))?.body ?? "";
     expect(body(".scene-sticky")).toContain("position: static !important");
     expect(body(".scene")).toContain("height: auto !important");
-    expect(body(".orb-body")).toContain("animation: none");
   });
 
-  it("só transform e opacity animam na cena; --p é a única variável que a rolagem escreve", () => {
-    const sceneRules = all.filter((r) => /scene|orb/.test(r.selector) && /transition|animation/.test(r.body));
-    for (const r of sceneRules) {
-      const t = /transition:([^;]*)/.exec(r.body)?.[1] ?? "";
-      for (const prop of t.split(",").map((x) => x.trim().split(" ")[0]).filter(Boolean)) expect(["transform", "opacity"]).toContain(prop);
-    }
-    expect(css).toMatch(/@property --p \{ syntax: "<number>"/);
-    expect(css).toMatch(/animation-timeline: --scene/);
-    expect(css).not.toMatch(/filter:\s*blur/);
-    const driver = read("src/components/site/scene-driver.tsx");
-    expect(driver).toContain('passive: true');
-    expect(driver.match(/style\.setProperty\(/g)).toHaveLength(1);
-    expect(driver).toContain('setProperty("--p"');
+  it("a página reaplica as classes ao montar (navegação do cliente), o palco zera ao entrar e sair termina em /", () => {
+    expect(read("src/components/site/motion.tsx")).toMatch(/useLayoutEffect\(\(\) => \{[\s\S]*?applyMotionClasses\(\)/);
+    expect(driver).toMatch(/useLayoutEffect\(\(\) => \{\s*applyMotionClasses\(\);/);
+    expect(driver).toContain("scrollTo(0, 0)");
+    expect(driver).toContain("stage?.destroy()");
+    expect(read("src/components/app-shell.tsx")).toContain('location.replace("/")');
   });
 
-  it("símbolo trocável: M por padrão, esfera lisa por variável", () => {
-    expect(SCENE_SYMBOL).toBe("m");
-    const m = renderToStaticMarkup(createElement(SceneOrb, {}));
-    const liso = renderToStaticMarkup(createElement(SceneOrb, { symbol: "liso" }));
-    expect(m).toContain('data-symbol="m"');
-    expect(m).toContain("M3 25V8l9 11 9-11v17");
-    expect(liso).toContain('data-symbol="liso"');
-    expect(liso).not.toContain("<svg");
-    expect(m).toContain('aria-hidden="true"');
+  it("rolagem: um listener passivo que só grava o alvo; o motor só baixa depois da primeira pintura", () => {
+    expect(driver.match(/addEventListener\("scroll"/g)).toHaveLength(1);
+    expect(driver).toContain('addEventListener("scroll", onScroll, { passive: true })');
+    expect(driver).toMatch(/requestIdleCallback/);
+    expect(driver).toContain('await import("./particle-stage")');
+    expect(read("src/app/page.tsx")).not.toContain("particle-stage");
   });
 
-  it("palavras: lados alternados, entrada pelo lado onde param, metade acima e metade abaixo no celular", () => {
-    const w = layoutWords("Mais sessões concluídas");
-    expect(w.map((x) => x.word)).toEqual(["Mais", "sessões", "concluídas"]);
-    expect(w.map((x) => x.side)).toEqual([-1, 1, -1]);
-    expect(w.map((x) => x.x)).toEqual([-1, 1, -1]);
-    expect(w.map((x) => x.ms)).toEqual([-1, -1, 1]);
-    expect(layoutWords("  um  ")).toHaveLength(1);
-    expect(layoutWords("Cuidado que acompanha você").filter((x) => x.ms < 0)).toHaveLength(2);
+  it("motor: WebGL2 puro, uma chamada de desenho instanciada, DPR limitado, pausa fora da tela, libera tudo", () => {
+    expect(engine).toContain('getContext("webgl2"');
+    expect(engine.match(/drawArraysInstanced/g)).toHaveLength(1);
+    expect(engine).toMatch(/opts\.mobile \? 1\.5 : 2/);
+    expect(engine).toContain("new IntersectionObserver");
+    expect(engine).toContain('"visibilitychange"');
+    expect(engine).toMatch(/deleteBuffer[\s\S]*deleteVertexArray[\s\S]*deleteProgram/);
+    expect(engine).toMatch(/fps < 50/);
+    expect(engine).toContain('getContext("2d")');
+    expect(read("package.json")).not.toMatch(/"three"|"pixi|"gsap"|"ogl"/);
   });
 
-  it("as frases são editáveis em Admin > Textos", () => {
+  it("linha do tempo: abertura, nuvem entre as formas e cada frase com a forma montada, alternando de lado", () => {
+    expect(frameAt(0)).toBe(0);
+    expect(timeline(0.92)).toEqual({ seg: 4, t: 1 });
+    const seen = new Set<number>();
+    for (let p = 0; p <= 1; p += 0.002) seen.add(frameAt(p));
+    expect([...seen].sort()).toEqual([-1, 0, 1, 2, 3, 4]);
+    // No meio de cada segmento é só nuvem, sem texto
+    for (let s = 0; s < 5; s++) expect(frameAt(((s + 0.5) / 5) * 0.92)).toBe(-1);
+    const d = placements(1366, 860, false);
+    expect(d[0][0]).toBeGreaterThan(683);
+    expect([d[1][0] < 683, d[2][0] > 683, d[3][0] < 683, d[4][0] > 683]).toEqual([true, true, true, true]);
+    expect(html.match(/data-side="(r|l)"/g)).toEqual(['data-side="r"', 'data-side="l"', 'data-side="r"', 'data-side="l"']);
+    // Celular: a esfera inicial fica acima do título
+    const m = placements(360, 640, true, 260);
+    expect(m[0][1] + m[0][2]).toBeLessThan(260);
+  });
+
+  it("palavras: frase editável quebrada em palavras, sem perder nenhuma", () => {
+    expect(splitWords("  Cuidado   que acompanha você ")).toEqual(["Cuidado", "que", "acompanha", "você"]);
     for (let i = 1; i <= 4; i++) expect(SITE_FIELDS.some((f) => f.key === `cena.${i}` && f.section === "Cena de abertura")).toBe(true);
-    expect(page).toContain('phrases={[1, 2, 3, 4].map((i) => c[`cena.${i}`])}');
+    expect(read("src/app/page.tsx")).toContain("phrases={[1, 2, 3, 4].map((i) => c[`cena.${i}`])}");
+  });
+
+  it("as formas geradas existem e o arquivo de pontos é pequeno", () => {
+    const pub = path.join(root, "public/site");
+    for (const s of [...SHAPES.map((x) => x.key), "esfera"]) expect(readdirSync(path.join(pub, "formas-v1"))).toContain(`${s}.svg`);
+    for (const n of [2000, 6000]) {
+      const j = JSON.parse(read(`public/site/particulas-v1-${n}.json`));
+      expect(j.n).toBe(n);
+      expect(Buffer.from(j.esfera, "base64")).toHaveLength(n * 4);
+      for (const s of SHAPES) expect(Buffer.from(j[s.key], "base64")).toHaveLength(n * 2);
+    }
+    expect(read("public/site/particulas-v1-6000.json").length).toBeLessThan(110_000);
+  });
+});
+
+describe("Monograma", () => {
+  it("MarcaMovimento renderiza as 3 variantes, cada uma com seu traço", () => {
+    const out = VARIANTES.map((v) => renderToStaticMarkup(createElement(MarcaMovimento, { variante: v, title: `M ${v}` })));
+    out.forEach((h, i) => {
+      expect(h).toContain(`data-variante="${VARIANTES[i]}"`);
+      expect(h).toContain('role="img"');
+      for (const d of caminhos(VARIANTES[i])) expect(h).toContain(d);
+    });
+    expect(new Set(out.map((h) => h.replace(/id="[^"]+"|url\(#[^)]+\)/g, ""))).size).toBe(3);
+  });
+
+  it("nenhuma variante tem o V reto central do M do Gmail: o meio é curva, círculo ou vértebras", () => {
+    // Um "V" reto seria uma reta descendo até o meio (x = 24) e outra subindo; aqui o centro nunca é vértice de retas
+    for (const v of VARIANTES) expect(caminhos(v).join(" ")).not.toMatch(/L24 /);
+  });
+
+  it("a página /marca-teste fica fora dos buscadores e sem link em menu", () => {
+    const pagina = read("src/app/marca-teste/page.tsx");
+    expect(pagina).toContain("robots: { index: false");
+    for (const f of ["src/app/page.tsx", "src/components/site/header.tsx", "src/components/app-shell.tsx"]) expect(read(f)).not.toContain("marca-teste");
+  });
+});
+
+describe("Veja o sistema por dentro: só o paciente", () => {
+  const html = renderToStaticMarkup(createElement(SystemTour, { points: ["Acompanhe cada sessão."] }));
+  it("sem abas e sem telas internas da clínica", () => {
+    expect(html).not.toMatch(/role="tab"|Recepção|Fisioterapeuta|recepcao|fisio-/);
+    expect(html).toContain("tela-v2-paciente-desktop");
+    expect(html).toContain("tela-v2-paciente-celular");
+    expect(read("src/app/page.tsx")).not.toMatch(/tour\.(recepcao|fisio)|recepcao-desktop|fisio-desktop/);
+    expect(SITE_FIELDS.some((f) => /tour\.(recepcao|fisio)/.test(f.key))).toBe(false);
+    expect(readdirSync(path.join(root, "public/site")).filter((f) => /tela-(recepcao|fisio)/.test(f))).toEqual([]);
+    expect(read("src/lib/site-screens.ts")).not.toMatch(/recepcao|fisio/);
   });
 });

@@ -11,8 +11,13 @@ export const SITE_FIELDS: SiteField[] = [
   f("Abertura", "hero.titulo", "Título", "Cuidado em fisioterapia, do primeiro dia à alta"),
   f("Abertura", "hero.texto", "Frase", "Avaliação sem pressa, sessões no seu ritmo e acompanhamento até a alta combinada, em Boa Viagem e Casa Forte.", true),
 
-  ...["Menos faltas", "Mais sessões concluídas", "Tratamento até o fim", "Cuidado que acompanha você"].map((v, i) =>
-    f("Cena de abertura", `cena.${i + 1}`, `Frase ${i + 1} (curta, de 2 a 4 palavras)`, v)),
+  // Cada frase aparece ao lado de uma forma feita de partículas, nesta ordem
+  ...([
+    ["Menos faltas", "coluna vertebral"],
+    ["Mais sessões concluídas", "figura em movimento"],
+    ["Cuidado que acompanha você", "articulação do joelho"],
+    ["Tratamento até o fim", "anel de progresso"],
+  ] as const).map(([v, forma], i) => f("Cena de abertura", `cena.${i + 1}`, `Frase ${i + 1}, ao lado da ${forma} (curta, de 2 a 5 palavras)`, v)),
 
   f("A clínica", "clinica.titulo", "Título", "Uma clínica feita para você chegar até o fim"),
   f("A clínica", "clinica.p1", "Parágrafo 1", "A Movimento nasceu de uma ideia simples: a fisioterapia funciona melhor quando você entende o próprio tratamento. Cada plano começa com uma avaliação cuidadosa e segue com metas claras, revistas a cada fase.", true),
@@ -70,10 +75,8 @@ export const SITE_FIELDS: SiteField[] = [
   f("Faixa em movimento", "faixa.especialidades", "Especialidades e tratamentos (um por linha)", "Coluna e postura\nOmbros\nJoelhos e quadril\nReabilitação pós-operatória\nMobilidade\nPrevenção de dores recorrentes\nExercícios em casa\nAcompanhamento por sessão\nAlta combinada", true),
 
   f("Sistema por dentro", "tour.titulo", "Título", "Veja o sistema por dentro"),
-  f("Sistema por dentro", "tour.sub", "Subtítulo", "O mesmo sistema conecta quem trata, quem organiza e quem se cuida.", true),
-  f("Sistema por dentro", "tour.paciente", "Paciente (um tópico por linha)", "Acompanha cada sessão e a fase do tratamento pelo celular.\nConfirma presença ou troca o horário com um toque.\nVê os exercícios para casa e marca o que já fez.", true),
-  f("Sistema por dentro", "tour.recepcao", "Recepção (um tópico por linha)", "Vê a agenda do dia, da semana e do mês por unidade.\nConfirma pagamentos e autoriza trocas de horário.\nAcompanha as renovações do convênio antes de vencerem.", true),
-  f("Sistema por dentro", "tour.fisio", "Fisioterapeuta (um tópico por linha)", "Abre a própria agenda e marca a sessão como realizada.\nRegistra a dor do paciente e a evolução por sessão.\nEnvia exercícios para casa com vídeo ou arquivo.", true),
+  f("Sistema por dentro", "tour.sub", "Subtítulo", "O sistema acompanha cada sessão do seu tratamento, do primeiro dia à alta.", true),
+  f("Sistema por dentro", "tour.paciente", "O que você faz no sistema (um tópico por linha)", "Acompanhe cada sessão e a fase do tratamento pelo celular.\nConfirme presença ou troque o horário com um toque.\nVeja os exercícios para casa e marque o que já fez.", true),
 
   f("Subtítulos das seções", "sub.especialidades", "Especialidades", "Planos para as dores mais comuns, com exercícios que você entende e repete em casa.", true),
   f("Subtítulos das seções", "sub.como", "Como funciona", "Um caminho claro, com metas revistas a cada fase.", true),

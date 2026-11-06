@@ -120,13 +120,13 @@ export function PrevisoesTab({ f }: { f: Filters }) {
       {d && (
         <div className={`flex flex-col gap-4 transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <ExportCard className="band" spec={stat("faltas-previstas-semana", "Faltas previstas na semana", "Esperadas", num(d.week.expected), `80%: ${num(d.week.p80[0])} a ${num(d.week.p80[1])} · ${d.week.sessions} sessões`)}>
+            <ExportCard className="kpi" spec={stat("faltas-previstas-semana", "Faltas previstas na semana", "Esperadas", num(d.week.expected), `80%: ${num(d.week.p80[0])} a ${num(d.week.p80[1])} · ${d.week.sessions} sessões`)}>
               <Figure icon={<CalendarDays />} tone="danger" label={semana === "proxima" ? "Faltas previstas na próxima semana" : "Faltas previstas até domingo"} value={num(d.week.expected)} hint={`80%: ${num(d.week.p80[0])} a ${num(d.week.p80[1])} · ${d.week.sessions} sessões`} />
             </ExportCard>
-            <ExportCard className="band" spec={stat("faltas-previstas-mes", "Faltas previstas até o fim do mês", "Esperadas", num(d.month.expected), `80%: ${num(d.month.p80[0])} a ${num(d.month.p80[1])} · ${d.month.sessions} sessões`, "mes-atual")}>
+            <ExportCard className="kpi" spec={stat("faltas-previstas-mes", "Faltas previstas até o fim do mês", "Esperadas", num(d.month.expected), `80%: ${num(d.month.p80[0])} a ${num(d.month.p80[1])} · ${d.month.sessions} sessões`, "mes-atual")}>
               <Figure icon={<Target />} tone="warn" label="Faltas previstas até o fim do mês" value={num(d.month.expected)} hint={`80%: ${num(d.month.p80[0])} a ${num(d.month.p80[1])} · ${d.month.sessions} sessões`} />
             </ExportCard>
-            <ExportCard className="band" spec={stat("taxa-falta-prevista", "Taxa de falta prevista", "Na semana", pct(d.week.rate, 1), `no mês: ${pct(d.month.rate, 1)}`)}>
+            <ExportCard className="kpi" spec={stat("taxa-falta-prevista", "Taxa de falta prevista", "Na semana", pct(d.week.rate, 1), `no mês: ${pct(d.month.rate, 1)}`)}>
               <Figure icon={<Clock />} tone="info" label="Taxa de falta prevista na semana" value={pct(d.week.rate, 1)} hint={`No mês: ${pct(d.month.rate, 1)}`} />
             </ExportCard>
           </div>

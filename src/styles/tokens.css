@@ -71,6 +71,13 @@
   --band-num: #071d33;
   --band-line: rgb(7 29 51 / 0.16);
   --band-soft: rgb(255 255 255 / 0.3);
+  /* Cartões de indicadores das Análises: o azul-marinho de antes da unificação, com valor turquesa */
+  --kpi-card-bg: #0d3352;
+  --kpi-card-ink: #e8f6f7;
+  --kpi-card-ink-2: #b7d3e6;
+  --kpi-card-value: #2fe0d0;
+  --kpi-card-line: rgb(255 255 255 / 0.12);
+  --kpi-card-soft: rgb(255 255 255 / 0.12);
   --chart-1: #2fe0d0;
   --chart-2: #4aa8ff;
   --chart-3: #f2a516;
@@ -98,12 +105,12 @@
   --float-bg: #103a45;
   --float-ink: #ecf8f9;
   --float-shadow: 0 16px 36px -16px rgb(0 0 0 / 0.55);
-  /* Esfera da cena de abertura: turquesa → azul → petróleo, só tons da paleta, terminando no fundo da página */
-  --orb-1a: #2fe0d0; --orb-1b: #0e8f88;
-  --orb-2a: #4aa8ff; --orb-2b: #1d5fa3;
-  --orb-3a: #17495a; --orb-3b: #071f26;
-  --orb-mark: #052a30;
-  --orb-glow: rgb(47 224 208 / 0.28);
+  /* Partículas da abertura (sobre a banda petróleo): só tons da paleta, em variações de brilho */
+  --particle-1: #2fe0d0;
+  --particle-2: #4aa8ff;
+  --particle-3: #9cf3ea;
+  --particle-4: #78bdff;
+  --particle-glow: rgb(47 224 208 / 0.18);
   color-scheme: dark;
 }
 
@@ -168,6 +175,13 @@
   --band-num: #071d33;
   --band-line: rgb(7 29 51 / 0.16);
   --band-soft: rgb(255 255 255 / 0.3);
+  /* Cartões de indicadores das Análises: o azul-marinho de antes da unificação, com valor turquesa */
+  --kpi-card-bg: #123a6b;
+  --kpi-card-ink: #ffffff;
+  --kpi-card-ink-2: #c4dcf0;
+  --kpi-card-value: #5fe9dc;
+  --kpi-card-line: rgb(255 255 255 / 0.14);
+  --kpi-card-soft: rgb(255 255 255 / 0.12);
   /* Preenchimentos: turquesa, azul, âmbar, coral e marinho bem separados; o valor sempre vem escrito ao lado */
   --chart-1: #14c4b6;
   --chart-2: #1f7fe0;
@@ -194,11 +208,12 @@
   --float-bg: #ffffff;
   --float-ink: #0b2440;
   --float-shadow: 0 16px 36px -16px rgb(0 0 0 / 0.55);
-  --orb-1a: #5fe9dc; --orb-1b: #19d3c5;
-  --orb-2a: #8ec9ff; --orb-2b: #1f7fe0;
-  --orb-3a: #f4fcfd; --orb-3b: #eaf7f8;
-  --orb-mark: #0f2f57;
-  --orb-glow: rgb(95 233 220 / 0.3);
+  /* Partículas da abertura (sobre a banda azul-marinho): turquesa, azul e tons claros da paleta */
+  --particle-1: #5fe9dc;
+  --particle-2: #4aa8ff;
+  --particle-3: #bff6f0;
+  --particle-4: #19d3c5;
+  --particle-glow: rgb(95 233 220 / 0.2);
   /* "only": sem isso, o escuro automático do Chrome/Android escurece o tema claro */
   color-scheme: only light;
 }
