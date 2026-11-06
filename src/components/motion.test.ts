@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { countText } from "@/lib/motion";
 
 /** Navegador mínimo para os módulos que tocam em document/sessionStorage (o vitest roda em Node). */
@@ -36,61 +36,6 @@ describe("Números contando (countText)", () => {
     expect(countText("R$ 2.000", "R$ 10.000", 0)).toBe("R$ 2.000");
     expect(countText("30,0%", "20,0%", 0.5)).toBe("25,0%");
     expect(countText("7 dias", "3 dias", 0.5)).toBe("5 dias");
-  });
-});
-
-describe("Transição de entrada", () => {
-  beforeEach(() => vi.resetModules());
-
-  it("só roda quando foi pedida, uma vez por login, e pedido velho não roda", async () => {
-    const { entryDecision, ENTRY_DONE, ENTRY_STALE_MS } = await import("./entry-transition");
-    const now = 1_000_000;
-    expect(entryDecision(null, now).run).toBe(false);
-    expect(entryDecision(ENTRY_DONE, now).run).toBe(false);
-    expect(entryDecision(String(now - 500), now)).toEqual({ run: true, startedAt: now - 500 });
-    expect(entryDecision(String(now - ENTRY_STALE_MS - 1), now).run).toBe(false);
-    expect(entryDecision("lixo", now).run).toBe(false);
-  });
-
-  it("login → entra (escurece já); recarregar a página logada não roda de novo; sair libera a próxima", async () => {
-    const { store, dataset } = fakeBrowser();
-    const m = await import("./entry-transition");
-    m.markEntry(false);
-    expect(dataset.entrada).toBe("in");
-    expect(store.get(m.ENTRY_KEY)).toMatch(/^\d+$/);
-    m.resumeEntry(); // sem o véu no DOM de teste: cai no fade curto
-    expect(store.get(m.ENTRY_KEY)).toBe(m.ENTRY_DONE);
-    // Recarregou (ou trocou de aba): nada de véu
-    delete dataset.entrada;
-    expect(m.resumeEntry()).toBe(false);
-    expect(dataset.entrada).toBeUndefined();
-    // "Minha área" de novo no mesmo login: não escurece
-    m.markEntry(true);
-    expect(dataset.entrada).toBeUndefined();
-    await m.playExit();
-    expect(store.get(m.ENTRY_KEY)).toBeUndefined();
-    m.markEntry(false);
-    expect(dataset.entrada).toBe("in");
-  });
-
-  it("menos movimento: sem véu nem partículas, só o fade curto do conteúdo", async () => {
-    const { dataset } = fakeBrowser({ reduce: true });
-    const m = await import("./entry-transition");
-    m.markEntry(true);
-    expect(dataset.entrada).toBe("rm");
-    m.resumeEntry();
-    expect(m.entryActive()).toBe(false);
-    await m.whenRevealed(); // os números não esperam nada
-  });
-
-  it("o script de antes da pintura só religa o véu nas rotas da área logada e é JavaScript válido", async () => {
-    const { THEME_SCRIPT } = await import("@/lib/theme");
-    expect(() => new Function(THEME_SCRIPT)).not.toThrow();
-    const { SHELL_PATH } = await import("./entry-transition");
-    for (const p of ["/app", "/app/mobilidade", "/recepcao/trocas", "/fisio", "/admin"]) expect(SHELL_PATH.test(p)).toBe(true);
-    for (const p of ["/", "/login", "/cadastro", "/application", "/trocar-senha"]) expect(SHELL_PATH.test(p)).toBe(false);
-    // O mesmo padrão nos dois lugares (o script não pode importar o módulo)
-    expect(THEME_SCRIPT).toContain("/^\\/(app|recepcao|fisio|admin)(\\/|$)/");
   });
 });
 
@@ -172,9 +117,9 @@ describe("Nada fica invisível sem JavaScript ou com menos movimento", () => {
     expect(rm).toContain(".bar, .bar-h, .ring-arc { animation: none !important; }");
   });
 
-  it("o véu some sozinho se o JavaScript nunca assumir", () => {
-    expect(css).toMatch(/:root\[data-entrada="in"\] \.entry-veil \{ animation: fade 150ms ease-out backwards, veil-safety 250ms ease-in 6s forwards; \}/);
-    expect(keyframes("veil-safety")).toContain("visibility: hidden");
+  it("sem JavaScript o véu do portal nunca aparece (só o JS liga html[data-portal])", () => {
+    expect(css).toMatch(/\.entry-veil \{ display: none;/);
+    expect(css).not.toMatch(/data-entrada/);
   });
 
   it("pílula sem JS: a opção ativa pinta o próprio fundo", () => {

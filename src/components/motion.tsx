@@ -10,7 +10,7 @@
  */
 import { createContext, use, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { COUNT_MS, countText, easeOutExpo, reducedMotion, toMs } from "@/lib/motion";
-import { entryActive, whenRevealed } from "./entry-transition";
+import { portalActive, whenRevealed } from "./portal";
 
 const noop = () => () => {};
 /** false enquanto o React hidrata o HTML do servidor; true quando o componente nasce no navegador. */
@@ -26,7 +26,7 @@ export function CountUp({ value, className }: { value: string | number; classNam
   const ref = useRef<HTMLSpanElement>(null);
   const shown = useRef<string | null>(null);
   const born = useBornOnClient();
-  const fromZero = useRef(born || entryActive());
+  const fromZero = useRef(born || portalActive());
   // O React escreve só o primeiro valor; depois o texto é do efeito (não disputam o mesmo nó)
   const [first] = useState(text);
   useLayoutEffect(() => {

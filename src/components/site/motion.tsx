@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect } from "react";
  */
 const MOTION_TEST = `"IntersectionObserver"in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches`;
 
-export const MOTION_SCRIPT = `(function(){var d=document.documentElement;if(!(${MOTION_TEST}))return;d.classList.add("motion-ok");if("WebGL2RenderingContext"in window)d.classList.add("scene-live");try{if(!sessionStorage.getItem("mv-intro")){sessionStorage.setItem("mv-intro","1");d.classList.add("scene-intro")}}catch(e){}setTimeout(function(){if(!window.__siteMotion)d.classList.remove("motion-ok","scene-live")},4000)})()`;
+export const MOTION_SCRIPT = `(function(){var d=document.documentElement;if(!(${MOTION_TEST}))return;d.classList.add("motion-ok");if("WebGL2RenderingContext"in window)d.classList.add("scene-live");try{if(!sessionStorage.getItem("mv-intro")){sessionStorage.setItem("mv-intro","1");d.classList.add("scene-intro")}}catch(e){}try{var x=sessionStorage.getItem("mv-saida");if(x&&Date.now()-x<8000)d.classList.add("portal-saida")}catch(e){}setTimeout(function(){if(!window.__siteMotion)d.classList.remove("motion-ok","scene-live")},4000)})()`;
 
 /** Mesmo teste do script inline; devolve se o movimento está ligado. */
 export function applyMotionClasses(): boolean {

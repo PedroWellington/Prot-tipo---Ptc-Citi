@@ -7,9 +7,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { memo, useEffect, useRef, useState, ViewTransition, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
-import { toggleSidebar } from "@/lib/theme";
+import { centerOf, toggleSidebar } from "@/lib/theme";
 import { AssistantButton } from "./assistant/button";
-import { entryActive, entryReady, playExit, resumeEntry } from "./entry-transition";
+import { exitPortal, portalActive, portalReady, preloadPortal } from "./portal";
 import { GreetContext, useMotionBudget, type GreetTexts } from "./motion";
 import { Sheet } from "./lazy-sheet";
 import { BellButton, NotificationPanel } from "./notifications";
@@ -60,7 +60,7 @@ export const NAV: Record<string, Item[]> = {
 /** Rodapé da sidebar, em todos os perfis: leva à página pública. Recolhida, só o ícone com tooltip. */
 export function HomeLink() {
   return (
-    <Link href="/" prefetch={false} aria-label="Voltar à página inicial" className="side-home nav-link row-hover relative mb-1 flex min-h-11 items-center gap-3 rounded-xl pl-4 text-sm text-nav-ink">
+    <Link href="/" prefetch={false} onClick={goHome} aria-label="Voltar à página inicial" className="side-home nav-link row-hover relative mb-1 flex min-h-11 items-center gap-3 rounded-xl pl-4 text-sm text-nav-ink">
       <Home strokeWidth={1.5} className="size-5 shrink-0" />
       <span className="nav-label truncate">Voltar à página inicial</span>
       <span aria-hidden className="nav-tip">Voltar à página inicial</span>
@@ -68,15 +68,26 @@ export function HomeLink() {
   );
 }
 
-export async function logout() {
-  // A esfera se junta (~600 ms) enquanto a sessão encerra; nenhuma espera a mais
-  await Promise.all([api("/auth/logout", { body: {} }), playExit()]);
+type Origin = { currentTarget: Element } | undefined;
+const originOf = (e: Origin) => (e?.currentTarget ? centerOf(e.currentTarget) : { x: innerWidth / 2, y: innerHeight / 2 });
+
+export async function logout(e?: Origin) {
+  // O app se dissolve em partículas que se juntam e explodem (~750 ms) enquanto a sessão encerra; nenhuma espera a mais
+  await Promise.all([api("/auth/logout", { body: {} }), exitPortal(originOf(e))]);
   // Aparelho compartilhado: não deixa dados de saúde no cache offline
   await window.caches?.delete("mv-data").catch(() => {});
   // Termina na página inicial com navegação completa: nada da área logada (estado do React, cache das consultas,
   // atributos de animação em <html>) sobrevive à troca, e o script inline da página pública roda de novo
   delete document.documentElement.dataset.sideAnim;
   location.replace("/");
+}
+
+/** "Voltar à página inicial": a mesma saída em partículas, sem encerrar a sessão. Nova aba/janela segue normal. */
+export function goHome(e: React.MouseEvent<HTMLElement>) {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  const from = originOf(e);
+  void exitPortal(from).then(() => { delete document.documentElement.dataset.sideAnim; location.assign("/"); });
 }
 
 const isActive = (path: string, href: string) => path === href || (href.split("/").length > 2 && path.startsWith(href));
@@ -154,7 +165,7 @@ const Tabs = memo(function Tabs({ items, path, locked }: { items: Item[]; path: 
           <ul className="flex flex-col gap-1">
             {[...rest, { href: "/", label: "Voltar à página inicial", icon: Home }].map((i) => (
               <li key={i.href}>
-                <Link href={i.href} prefetch={i.href !== "/"} aria-current={isActive(path, i.href) ? "page" : undefined} onClick={() => setMoreAt(null)}
+                <Link href={i.href} prefetch={i.href !== "/"} aria-current={isActive(path, i.href) ? "page" : undefined} onClick={(e) => { setMoreAt(null); if (i.href === "/") goHome(e); }}
                   className={cx("flex min-h-12 items-center gap-3 rounded-xl px-3 text-[15px]", isActive(path, i.href) ? "bg-nav-active font-semibold text-nav-active-ink" : "row-hover text-ink")}>
                   <i.icon strokeWidth={1.5} className="size-5 shrink-0" />{i.label}
                 </Link>
@@ -196,17 +207,22 @@ function usePreloadData(role: string, path: string) {
 
 const SKELETON = 'main [role="status"][aria-label^="Carregando"]';
 
-/** Entrada (login ou "Minha área"): a esfera explode quando o painel não tem mais esqueleto de carregamento. */
+/**
+ * Portal de entrada (login, cadastro ou "Minha área"): avisa quando o painel montou sem esqueleto de carregamento,
+ * para a esfera explodir. Também deixa o portal aquecido para a saída (logout, "Voltar à página inicial").
+ */
 function useEntry() {
   useEffect(() => {
-    if (!resumeEntry()) return;
+    const idle = globalThis.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 400));
+    idle(() => void preloadPortal(), { timeout: 3000 } as IdleRequestOptions);
+    if (!portalActive()) return;
     const id = setInterval(() => {
-      if (!entryActive()) return clearInterval(id);
+      if (!portalActive()) return clearInterval(id);
       if (document.querySelector("main")?.childElementCount && !document.querySelector(SKELETON)) {
         clearInterval(id);
-        entryReady();
+        portalReady();
       }
-    }, 60);
+    }, 40);
     return () => clearInterval(id);
   }, []);
 }
@@ -270,7 +286,7 @@ export function AppShell({ role, name, deskless, greet = {}, children }: { role:
             <div className="side-foot flex pl-1">
               <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
               <ThemeToggle />
-              <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
+              <button type="button" onClick={(e) => void logout(e)} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
             </div>
           </div>
         </div>
@@ -280,11 +296,11 @@ export function AppShell({ role, name, deskless, greet = {}, children }: { role:
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface pr-2 pl-4 lg:hidden" style={{ paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}>
           <Link href={items[0].href} aria-label="Início"><Logo size={22} /></Link>
           <div className="flex items-center">
-            <Link href="/" prefetch={false} aria-label="Voltar à página inicial" title="Voltar à página inicial" className="flex size-11 items-center justify-center rounded-full text-ink-2"><Home strokeWidth={1.5} className="size-5" /></Link>
+            <Link href="/" prefetch={false} onClick={goHome} aria-label="Voltar à página inicial" title="Voltar à página inicial" className="flex size-11 items-center justify-center rounded-full text-ink-2"><Home strokeWidth={1.5} className="size-5" /></Link>
             <ThemeToggle />
             <BellButton onOpen={openFromHeader} />
             {role !== "PACIENTE" && (
-              <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
+              <button type="button" onClick={(e) => void logout(e)} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
             )}
           </div>
         </header>

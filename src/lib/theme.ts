@@ -103,7 +103,6 @@ export function toggleSidebar() {
   content?.animate([{ transform: `translateX(${collapsing ? SIDE_SHIFT : -SIDE_SHIFT}px)` }, { transform: "none" }], options);
 }
 
-// Roda antes da primeira pintura: sem flash de tema nem de sidebar, e o véu da entrada (components/entry-transition.ts)
-// já escuro quando o login recarrega a página. Só aceita "dark"; qualquer outro valor vira o claro.
+// Roda antes da primeira pintura: sem flash de tema nem de sidebar. Só aceita "dark"; qualquer outro valor vira o claro.
 // Também apaga a chave antiga, que fazia telas abrirem escuras.
-export const THEME_SCRIPT = `(function(){var d=document.documentElement;function g(k){try{var v=localStorage.getItem(k);if(v)return v}catch(e){}var m=document.cookie.match(new RegExp("(?:^|; )"+k+"=([a-z]+)"));return m&&m[1]}try{localStorage.removeItem("mv-theme")}catch(e){}document.cookie="mv-theme=; path=/; max-age=0";d.dataset.theme=g("${THEME_KEY}")==="dark"?"dark":"light";d.dataset.sidebar=g("mv-sidebar")||"open";try{var e=sessionStorage.getItem("mv-entrada");if(e&&e!=="feita"&&Date.now()-e<6000&&/^\\/(app|recepcao|fisio|admin)(\\/|$)/.test(location.pathname))d.dataset.entrada=matchMedia("(prefers-reduced-motion: reduce)").matches?"rm":"in"}catch(e){}})()`;
+export const THEME_SCRIPT = `(function(){var d=document.documentElement;function g(k){try{var v=localStorage.getItem(k);if(v)return v}catch(e){}var m=document.cookie.match(new RegExp("(?:^|; )"+k+"=([a-z]+)"));return m&&m[1]}try{localStorage.removeItem("mv-theme")}catch(e){}document.cookie="mv-theme=; path=/; max-age=0";d.dataset.theme=g("${THEME_KEY}")==="dark"?"dark":"light";d.dataset.sidebar=g("mv-sidebar")||"open"})()`;

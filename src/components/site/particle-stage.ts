@@ -17,14 +17,34 @@ import { SEGMENTS, timeline } from "./scene-timeline";
  */
 export type MobileLayout = { top: number; heroTop: number; copyTops: number[]; bottom: number };
 /** `centered`: só a esfera, no centro da tela (transição de entrada do app). `count`: teto de partículas. */
-export type StageOptions = { mobile: boolean; intro: boolean; palette: [string, string, string, string]; pointer: boolean; layout?: () => MobileLayout; centered?: boolean; count?: number };
-/** `burst(to, ms)`: leva a nuvem até `to` (1 = espalhada pela tela, 0 = esfera montada) em `ms`. */
-export type Stage = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; burst(to: number, ms: number): void; relayout(): void; destroy(): void; kind: "webgl" | "2d" };
+export type StageOptions = { mobile: boolean; intro: boolean; palette: [string, string, string, string]; pointer: boolean; layout?: () => MobileLayout; centered?: boolean; count?: number; maxDpr?: number };
+/**
+ * `burst(to, ms)`: leva a nuvem até `to` (1 = espalhada pela tela, 0 = forma montada) em `ms`.
+ * Portal de entrada (components/portal.ts), só no motor WebGL:
+ * - `portal(spawn)`: liga o modo portal. Com `spawn`, as partículas nascem nesse ponto (o botão clicado); sem ele,
+ *   partem de onde estão (a forma atual da cena) — a fase 1 e a 2 viram um único morph;
+ * - `gather(to, ms)`: 0 = no ponto de partida, 1 = na esfera com o M no centro da tela (trajetórias curvas);
+ * - `pulse(to, ms)`: respiro da esfera enquanto o destino carrega.
+ * `lost`: o contexto WebGL foi perdido; quem usa cria outro palco.
+ */
+export type Stage = {
+  setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; burst(to: number, ms: number): void;
+  portal(spawn: { x: number; y: number } | null): void; gather(to: number, ms: number): void; pulse(to: number, ms: number): void;
+  resize(): void; relayout(): void; destroy(): void; readonly lost: boolean; kind: "webgl" | "2d";
+};
 
 const DATA_VERSION = 1;
 type Data = { esfera: Int8Array; formas: Int8Array[] };
 
-async function loadData(n: number): Promise<Data> {
+const dataCache = new Map<number, Promise<Data>>();
+/** Baixa (uma vez por página) os pontos das formas. */
+export function loadData(n: number): Promise<Data> {
+  let d = dataCache.get(n);
+  if (!d) { d = fetchData(n); dataCache.set(n, d); d.catch(() => dataCache.delete(n)); }
+  return d;
+}
+
+async function fetchData(n: number): Promise<Data> {
   const res = await fetch(`/site/particulas-v${DATA_VERSION}-${n}.json`);
   if (!res.ok) throw new Error(`partículas: ${res.status}`);
   const j = (await res.json()) as Record<string, string>;
@@ -85,6 +105,9 @@ uniform int u_seg;
 uniform vec3 u_place[6];
 uniform vec3 u_pal[4];
 uniform vec3 u_pointer;
+uniform vec3 u_center;
+uniform vec3 u_spawn;
+uniform float u_gather, u_pulse, u_portal;
 out vec3 v_col;
 out float v_alpha;
 out vec3 v_bary;
@@ -114,17 +137,39 @@ void main() {
   // Cada partícula sai e chega no seu tempo: a forma se desfaz e se refaz de modo orgânico
   float d = (a_seed.z - 0.5) * 0.16;
   float m = smoothstep(0.3 + d, 0.7 + d, u_t);
-  float burst = pow(sin(3.14159265 * m), 0.75);
-  burst = max(burst, u_intro * (0.55 + 0.45 * a_seed.w));
+  float sb = pow(sin(3.14159265 * m), 0.75);
   vec2 cloud = a_seed.xy * u_res * 1.08 - u_res * 0.04;
   cloud += vec2(sin(u_time * 0.35 + a_seed.z * 6.283), cos(u_time * 0.29 + a_seed.w * 6.283)) * 26.0;
   vec2 formed = mix(A.xy, B.xy, m) + vec2(sin(u_time * 1.3 + a_seed.w * 20.0), cos(u_time * 1.1 + a_seed.z * 20.0)) * 1.1;
-  vec2 pos = mix(formed, cloud, burst);
+  vec2 pos = mix(formed, cloud, sb);
   // Mouse (só desktop, u_pointer.z = 1): empurra de leve as partículas a até 90 px do ponteiro
   vec2 away = pos - (u_pointer.xy * 0.5 + 0.5) * u_res;
   float dist = max(length(away), 0.001);
   pos += away / dist * max(0.0, 90.0 - dist) * 0.35 * u_pointer.z;
-  float depth = mix(mix(A.z, B.z, m), 0.3, burst);
+  float depth = mix(mix(A.z, B.z, m), 0.3, sb);
+  float born = 1.0;
+  // Portal: cada partícula sai do ponto de partida com atraso próprio e chega à esfera central por uma curva
+  // (Bézier quadrática com o ponto de controle fora da reta); a esfera respira com u_pulse
+  if (u_portal > 0.5) {
+    vec3 S = sphereAt(u_center, u_time * 0.12 + 1.3);
+    S.xy = u_center.xy + (S.xy - u_center.xy) * (1.0 + u_pulse * 0.045 * sin(u_time * 4.2));
+    float q = clamp((u_gather - a_seed.z * 0.35) / 0.65, 0.0, 1.0);
+    q = q * q * (3.0 - 2.0 * q);
+    vec2 dir = normalize(a_seed.xy - 0.5 + 0.001);
+    bool fromPoint = u_spawn.z > 0.5;
+    vec2 P0 = fromPoint ? u_spawn.xy : pos;
+    vec2 P1 = fromPoint
+      ? u_spawn.xy + dir * u_res.y * (0.18 + 0.32 * a_seed.w)
+      : mix(P0, S.xy, 0.5) + vec2(-dir.y, dir.x) * u_res.y * 0.22 * (a_seed.w - 0.5);
+    float iq = 1.0 - q;
+    pos = iq * iq * P0 + 2.0 * iq * q * P1 + q * q * S.xy;
+    depth = mix(depth, S.z, q);
+    sb *= iq;
+    if (fromPoint) born = smoothstep(0.0, 0.12, q);
+  }
+  float ib = u_intro * (0.55 + 0.45 * a_seed.w);
+  pos = mix(pos, cloud, ib);
+  float burst = max(sb, ib);
   float size = u_size * (0.65 + a_seed.w * 0.7) * (0.8 + 0.2 * depth) * (1.0 + burst * 0.5);
   float ang = a_seed.w * 6.283 + u_time * (0.25 + burst * 2.2) * (a_seed.z - 0.5);
   int vid = gl_VertexID;
@@ -137,7 +182,7 @@ void main() {
   vec3 col = ci == 0 ? u_pal[0] : ci == 1 ? u_pal[1] : ci == 2 ? u_pal[2] : u_pal[3];
   v_col = col * (0.82 + 0.36 * a_seed.y);
   float front = clamp(depth * 0.5 + 0.5, 0.0, 1.0);
-  v_alpha = (0.35 + 0.65 * front) * (1.0 - burst * 0.2) * (a_sph.w > 0.5 ? 1.15 : 1.0);
+  v_alpha = (0.35 + 0.65 * front) * (1.0 - burst * 0.2) * (a_sph.w > 0.5 ? 1.15 : 1.0) * born;
   v_bary = vid == 0 ? vec3(1, 0, 0) : vid == 1 ? vec3(0, 1, 0) : vec3(0, 0, 1);
 }`;
 
@@ -173,12 +218,16 @@ function seeds(n: number) {
   return out;
 }
 
-type Loop = Omit<Stage, "kind">;
+type Loop = Omit<Stage, "kind" | "portal" | "lost">;
+/** Um valor que caminha até o alvo numa velocidade fixa (por segundo). */
+type Chan = { v: number; to: number; rate: number };
+const step = (c: Chan, dt: number) => { if (c.v !== c.to) c.v = c.v < c.to ? Math.min(c.to, c.v + dt * c.rate) : Math.max(c.to, c.v - dt * c.rate); };
+const aim = (c: Chan, to: number, ms: number) => { c.to = Math.max(0, Math.min(1, to)); c.rate = 1000 / Math.max(16, ms); };
 
 /** Ciclo comum aos dois motores: progresso suavizado, visibilidade, resize com debounce, FPS adaptativo. */
-function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: number; h: number; dpr: number; time: number; p: number; intro: number; pointer: [number, number, number] }) => void,
+function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: number; h: number; dpr: number; time: number; p: number; intro: number; gather: number; pulse: number; pointer: [number, number, number] }) => void,
   onResize: (w: number, h: number, dpr: number) => void, reduce: () => boolean, cleanup: () => void): Loop {
-  const maxDpr = opts.mobile ? 1.5 : 2;
+  const maxDpr = Math.min(opts.maxDpr ?? 2, opts.mobile ? 1.5 : 2);
   let w = 0, h = 0, dpr = 1;
   const resize = () => {
     const r = canvas.getBoundingClientRect();
@@ -197,14 +246,16 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
 
   let target = 0, p = 0, intro = opts.intro ? 1 : 0;
   // A abertura da página pública só desfaz a nuvem (0,9 s); burst() escolhe o destino e o tempo
-  let introTo = 0, introRate = 1 / 0.9;
+  const introC: Chan = { v: intro, to: 0, rate: 1 / 0.9 };
+  const gatherC: Chan = { v: 0, to: 0, rate: 1 };
+  const pulseC: Chan = { v: 0, to: 0, rate: 1 };
   const pointer: [number, number, number] = [0, 0, 0];
   const pTarget: [number, number] = [0, 0];
   const onMove = (e: PointerEvent) => { pTarget[0] = (e.clientX / innerWidth) * 2 - 1; pTarget[1] = (e.clientY / innerHeight) * 2 - 1; };
   if (opts.pointer) addEventListener("pointermove", onMove, { passive: true });
 
   const start = performance.now();
-  let visible = true, frame = 0, last = start;
+  let visible = true, frame = 0, last = start, destroyed = false;
   // FPS: mede ~1,5 s de cada vez; abaixo de ~50 fps reduz a quantidade (até duas vezes)
   let fpsFrames = 0, fpsStart = last, cuts = 0;
   const tick = (now: number) => {
@@ -213,10 +264,11 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
     last = now;
     p += (target - p) * (1 - Math.exp(-dt * 9));
     if (Math.abs(target - p) < 0.0004) p = target;
-    if (intro !== introTo) intro = intro < introTo ? Math.min(introTo, intro + dt * introRate) : Math.max(introTo, intro - dt * introRate);
+    step(introC, dt); step(gatherC, dt); step(pulseC, dt);
+    intro = introC.v;
     pointer[0] += (pTarget[0] - pointer[0]) * (1 - Math.exp(-dt * 4));
     pointer[1] += (pTarget[1] - pointer[1]) * (1 - Math.exp(-dt * 4));
-    draw({ w, h, dpr, time: (now - start) / 1000, p, intro: intro * intro * (3 - 2 * intro), pointer });
+    draw({ w, h, dpr, time: (now - start) / 1000, p, intro: intro * intro * (3 - 2 * intro), gather: gatherC.v, pulse: pulseC.v, pointer });
     fpsFrames++;
     if (cuts < 2 && now - fpsStart > 1500) {
       const fps = (fpsFrames * 1000) / (now - fpsStart);
@@ -226,7 +278,7 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
     }
     if (visible && !document.hidden) frame = requestAnimationFrame(tick);
   };
-  const play = () => { if (!frame && visible && !document.hidden) { last = performance.now(); fpsStart = last; fpsFrames = 0; frame = requestAnimationFrame(tick); } };
+  const play = () => { if (!destroyed && !frame && visible && !document.hidden) { last = performance.now(); fpsStart = last; fpsFrames = 0; frame = requestAnimationFrame(tick); } };
   const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) play(); });
   io.observe(canvas);
   const onVis = () => play();
@@ -235,10 +287,16 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
   return {
     setProgress(v) { target = Math.max(0, Math.min(1, v)); play(); },
     setPalette() { /* trocado pelo motor */ },
-    skipIntro() { intro = introTo = 0; },
-    burst(to, ms) { introTo = Math.max(0, Math.min(1, to)); introRate = 1000 / Math.max(16, ms); play(); },
+    skipIntro() { introC.v = introC.to = intro = 0; },
+    burst(to, ms) { aim(introC, to, ms); play(); },
+    gather(to, ms) { aim(gatherC, to, ms); play(); },
+    pulse(to, ms) { aim(pulseC, to, ms); play(); },
+    resize() { resize(); play(); },
     relayout() { onResize(w, h, dpr); },
     destroy() {
+      // Idempotente: o portal e a cena podem chamar em sequência
+      if (destroyed) return;
+      destroyed = true;
       cancelAnimationFrame(frame); frame = 0; visible = false;
       io.disconnect();
       clearTimeout(resizeTimer);
@@ -289,7 +347,12 @@ function startWebGL(canvas: HTMLCanvasElement, data: Data, n: number, opts: Stag
 
   gl.useProgram(prog);
   const u = (name: string) => gl.getUniformLocation(prog, name);
-  const U = { res: u("u_res"), time: u("u_time"), t: u("u_t"), seg: u("u_seg"), place: u("u_place"), pal: u("u_pal"), size: u("u_size"), intro: u("u_intro"), line: u("u_line"), pointer: u("u_pointer") };
+  const U = { res: u("u_res"), time: u("u_time"), t: u("u_t"), seg: u("u_seg"), place: u("u_place"), pal: u("u_pal"), size: u("u_size"), intro: u("u_intro"), line: u("u_line"), pointer: u("u_pointer"),
+    center: u("u_center"), spawn: u("u_spawn"), gather: u("u_gather"), pulse: u("u_pulse"), portal: u("u_portal") };
+  let portalOn = false, spawn: { x: number; y: number } | null = null, lost = false;
+  // Contexto perdido (GPU reiniciada, aba em segundo plano no celular): para de desenhar e avisa; quem usa recria
+  const onLost = (e: Event) => { e.preventDefault(); lost = true; };
+  canvas.addEventListener("webglcontextlost", onLost);
   const setPal = (pal: StageOptions["palette"]) => { gl.useProgram(prog); gl.uniform3fv(U.pal, new Float32Array(pal.flatMap(hex))); };
   setPal(opts.palette);
   gl.enable(gl.BLEND);
@@ -298,7 +361,8 @@ function startWebGL(canvas: HTMLCanvasElement, data: Data, n: number, opts: Stag
 
   let count = n;
   let place = new Float32Array(18);
-  const loop = runLoop(canvas, opts, ({ w, h, dpr, time, p, intro, pointer }) => {
+  const loop = runLoop(canvas, opts, ({ w, h, dpr, time, p, intro, gather, pulse, pointer }) => {
+    if (lost) return;
     const { seg, t } = timeline(p);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
@@ -312,7 +376,12 @@ function startWebGL(canvas: HTMLCanvasElement, data: Data, n: number, opts: Stag
     gl.uniform1f(U.size, opts.mobile ? 3.4 : 4.4);
     gl.uniform1f(U.intro, intro);
     gl.uniform1f(U.line, 1.25 * dpr);
-    gl.uniform3f(U.pointer, pointer[0], pointer[1], opts.pointer ? 1 : 0);
+    gl.uniform3f(U.pointer, pointer[0], pointer[1], opts.pointer && !portalOn ? 1 : 0);
+    gl.uniform1f(U.portal, portalOn ? 1 : 0);
+    gl.uniform3f(U.center, w / 2, h / 2, Math.min(w, h) * (opts.mobile ? 0.26 : 0.2));
+    gl.uniform3f(U.spawn, spawn?.x ?? 0, spawn?.y ?? 0, spawn ? 1 : 0);
+    gl.uniform1f(U.gather, gather);
+    gl.uniform1f(U.pulse, pulse);
     gl.bindVertexArray(vao);
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 3, count);
     gl.bindVertexArray(null);
@@ -321,12 +390,18 @@ function startWebGL(canvas: HTMLCanvasElement, data: Data, n: number, opts: Stag
     count = Math.max(1200, Math.floor(count * 0.6));
     return true;
   }, () => {
+    canvas.removeEventListener("webglcontextlost", onLost);
+    if (lost) return;
     buffers.forEach((b) => gl.deleteBuffer(b));
     gl.deleteVertexArray(vao);
     gl.deleteProgram(prog);
     gl.getExtension("WEBGL_lose_context")?.loseContext();
   });
-  return { ...loop, setPalette: setPal, kind: "webgl" };
+  return {
+    ...loop, setPalette: setPal, kind: "webgl",
+    portal(from) { portalOn = true; spawn = from; loop.gather(0, 16); },
+    get lost() { return lost; },
+  };
 }
 
 /** Plano B sem WebGL2: a mesma conta na CPU, com no máximo 1200 triângulos preenchidos. */
@@ -370,7 +445,7 @@ function start2D(canvas: HTMLCanvasElement, data: Data, opts: StageOptions): Sta
       ctx.fill();
     }
   }, (w, h) => { place = placements(w, h, opts.mobile, opts.layout?.(), opts.centered); }, () => false, () => {});
-  return { ...loop, setPalette: (p) => { pal = p; }, kind: "2d" };
+  return { ...loop, setPalette: (p) => { pal = p; }, kind: "2d", portal() { /* só no WebGL */ }, lost: false };
 }
 
 /** Sobe o palco no canvas. Devolve null se não houver como desenhar (o chamador mostra o fallback estático). */
