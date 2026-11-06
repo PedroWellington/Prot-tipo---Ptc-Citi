@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AuthFrame } from "@/components/auth-frame";
+import { markEntry } from "@/components/entry-transition";
 import { PasswordInput } from "@/components/password-fields";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -11,6 +12,8 @@ import { safeNext } from "@/lib/site-content";
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Chegou aqui vindo de "Minha área" sem sessão: nada do véu da entrada fica na tela
+  useEffect(() => { delete document.documentElement.dataset.entrada; }, []);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,6 +25,8 @@ export default function LoginPage() {
       const params = new URLSearchParams(location.search);
       // Volta só para rotas internas; troca de senha obrigatória vem antes de tudo
       const back = safeNext(params.get("next") ?? params.get("volta"));
+      // Escurece já; a página seguinte (navegação completa) religa o véu antes de pintar e faz a explosão
+      markEntry(false);
       location.href = back && r.home !== "/trocar-senha" ? back : r.home;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível entrar.");

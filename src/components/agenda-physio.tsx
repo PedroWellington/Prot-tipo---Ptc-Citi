@@ -9,6 +9,7 @@ import { DayList, MODES, MonthView, useMode, weekStartOf, WeekView } from "@/com
 import { DayNav } from "@/components/day-nav";
 import { GoogleButton } from "@/components/google-calendar";
 import { MissSheet, type MissInput } from "@/components/miss-sheet";
+import { Greeting, sessions } from "@/components/motion";
 import { useAction } from "@/components/providers";
 import { Button, Empty, ErrorState, ListSkeleton, PageTitle, Segmented, Stat } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -52,9 +53,15 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless, googl
   });
 
   const rows = data?.filter((s) => s.status !== "REAGENDADA");
+  // Saudação: só o dia de hoje que o servidor já trouxe
+  const [today] = useState(() => {
+    const live = initial.filter((s) => s.status !== "REAGENDADA");
+    return { sessoes: sessions(live.length), atender: live.filter(isOpen).length.toLocaleString("pt-BR") };
+  });
 
   return (
     <>
+      <Greeting context="saudacao.fisio" vars={today} className="mb-5" />
       <PageTitle eyebrow="Fisioterapeuta" title="Minha agenda" action={<GoogleButton configured={google} />} />
       <div className="flex flex-col gap-4">
         <Segmented label="Visão da agenda" value={mode} onChange={setMode} options={MODES} />
@@ -62,7 +69,7 @@ export function AgendaPhysio({ initial, day: firstDay, serverAt, deskless, googl
         {mode === "semana" && <WeekView start={week} rows={weekQ.data?.filter((s) => s.status !== "REAGENDADA")} loading={weekQ.isLoading} onDay={openDay} />}
         {mode === "mes" && <MonthView day={day} params={NO_PARAMS} onOpenDay={openDay} renderDay={(d) => <DayList day={d} endpoint="/physio/agenda" filters={NO_FILTERS} />} />}
         {mode === "dia" && <>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="stagger grid grid-cols-3 gap-3">
           <Stat label="Sessões" value={rows?.length ?? 0} icon={<CalendarDays />} tone="info" />
           <Stat label="Realizadas" value={rows?.filter((s) => s.status === "REALIZADA").length ?? 0} icon={<CircleCheckBig />} tone="ok" />
           <Stat label="A atender" value={rows?.filter(isOpen).length ?? 0} icon={<Clock />} tone="warn" />

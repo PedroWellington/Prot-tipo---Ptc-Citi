@@ -5,8 +5,8 @@ import { useEffect, useId, useRef, useState, type ComponentProps, type CSSProper
 import { AlertCircle, Info, Search, WifiOff, X } from "lucide-react";
 import type { Tone } from "@/lib/labels";
 import { ApiError } from "@/lib/api";
-import { useCountTo } from "@/lib/motion";
 import { MarcaMovimento } from "./marca";
+import { CountUp, PillIndicator } from "./motion";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -130,13 +130,30 @@ export function Toggle({ label, hint, checked, onChange }: { label: string; hint
   );
 }
 
+/** Filtro em pílula (radiogroup): um destaque só desliza até a opção escolhida. */
 export function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-1 rounded-full bg-surface-2 p-1">
+    <div role="radiogroup" aria-label={label} className="pills flex gap-1 rounded-full bg-surface-2 p-1">
+      <PillIndicator index={options.findIndex((o) => o.value === value)} />
       {options.map((o) => (
         <button key={o.value} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}
-          className={cx("min-h-10 flex-1 rounded-full px-3 text-sm font-semibold transition-opacity whitespace-nowrap", value === o.value ? "bg-accent-fill text-on-accent" : "text-ink-2")}>
+          className={cx("min-h-10 flex-1 rounded-full px-3 text-sm font-semibold whitespace-nowrap", value === o.value ? "text-on-accent" : "text-ink-2")}>
           {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Abas em pílula (tablist), com o mesmo destaque deslizante do Segmented. */
+export function SlidingTabs<T extends string>({ value, onChange, tabs, label }: { value: T; onChange: (v: T) => void; tabs: readonly { id: T; label: string }[]; label: string }) {
+  return (
+    <div role="tablist" aria-label={label} className="pills flex gap-1 rounded-full bg-surface-2 p-1">
+      <PillIndicator index={tabs.findIndex((t) => t.id === value)} />
+      {tabs.map((t) => (
+        <button key={t.id} type="button" role="tab" aria-selected={value === t.id} onClick={() => onChange(t.id)}
+          className={cx("min-h-11 flex-1 rounded-full px-3 text-sm font-semibold whitespace-nowrap", value === t.id ? "text-on-accent" : "text-ink-2")}>
+          {t.label}
         </button>
       ))}
     </div>
@@ -179,7 +196,7 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
 
 export function PageTitle({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: ReactNode }) {
   return (
-    <header className="mb-6 flex items-end justify-between gap-4">
+    <header className="reveal mb-6 flex items-end justify-between gap-4">
       <div>
         {eyebrow && <p className="mb-1 text-sm text-ink-3">{eyebrow}</p>}
         <h1 className="font-display text-[34px] leading-tight sm:text-[40px]">{title}</h1>
@@ -207,9 +224,10 @@ export function Logo({ size = 24 }: { size?: number }) {
 function EmptyArt() {
   return (
     <svg viewBox="0 0 96 64" className="h-16 w-24 text-accent" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden>
-      <path d="M4 52c14 0 14-30 28-30s14 22 28 22 14-30 32-34" opacity=".9" />
-      <circle cx="32" cy="22" r="3" fill="var(--bg)" />
-      <circle cx="60" cy="44" r="3" fill="var(--bg)" />
+      {/* O traço se desenha uma vez ao aparecer; os pontos entram depois */}
+      <path d="M4 52c14 0 14-30 28-30s14 22 28 22 14-30 32-34" opacity=".9" pathLength={1} className="draw" />
+      <circle cx="32" cy="22" r="3" fill="var(--bg)" className="fade-late" />
+      <circle cx="60" cy="44" r="3" fill="var(--bg)" className="fade-late" />
     </svg>
   );
 }
@@ -226,19 +244,11 @@ export function SuccessCheck() {
 
 export function Stat({ label, value, hint, icon, tone }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode; tone?: Tone }) {
   return (
-    <div data-tone={tone} className={cx("card p-4 sm:p-5", !!icon && "stripe")}>
+    <div data-tone={tone} className={cx("card lift p-4 sm:p-5", !!icon && "stripe")}>
       {icon && <Tile tone={tone} className="mb-3">{icon}</Tile>}
       <p className="text-sm text-ink-2">{label}</p>
-      <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{typeof value === "number" ? <CountTo value={value} /> : value}</p>
+      <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{typeof value === "number" || typeof value === "string" ? <CountUp value={value} /> : value}</p>
       {hint && <p className="mt-2 text-sm text-ink-3">{hint}</p>}
     </div>
   );
-}
-
-/** Número que anima do valor anterior para o novo; no HTML do servidor já vem o valor final. */
-export function CountTo({ value }: { value: number }) {
-  const ref = useCountTo(value);
-  // O React só escreve o primeiro valor; daí em diante o texto é do hook (evita disputar o mesmo nó de texto)
-  const [first] = useState(value);
-  return <span ref={ref}>{first.toLocaleString("pt-BR")}</span>;
 }

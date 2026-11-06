@@ -16,8 +16,10 @@ import { SEGMENTS, timeline } from "./scene-timeline";
  * começa o bloco de texto de cada quadro. Cada forma cabe inteira no espaço entre o cabeçalho e o seu texto.
  */
 export type MobileLayout = { top: number; heroTop: number; copyTops: number[]; bottom: number };
-export type StageOptions = { mobile: boolean; intro: boolean; palette: [string, string, string, string]; pointer: boolean; layout?: () => MobileLayout };
-export type Stage = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; relayout(): void; destroy(): void; kind: "webgl" | "2d" };
+/** `centered`: só a esfera, no centro da tela (transição de entrada do app). `count`: teto de partículas. */
+export type StageOptions = { mobile: boolean; intro: boolean; palette: [string, string, string, string]; pointer: boolean; layout?: () => MobileLayout; centered?: boolean; count?: number };
+/** `burst(to, ms)`: leva a nuvem até `to` (1 = espalhada pela tela, 0 = esfera montada) em `ms`. */
+export type Stage = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; burst(to: number, ms: number): void; relayout(): void; destroy(): void; kind: "webgl" | "2d" };
 
 const DATA_VERSION = 1;
 type Data = { esfera: Int8Array; formas: Int8Array[] };
@@ -49,7 +51,8 @@ const MARGIN = 16;
  * final volta ao centro (como antes). Celular (ou tela em pé): cada forma centralizada na área útil entre o fim do
  * cabeçalho e o seu bloco de texto, com 16 px de margem lateral, tamanho por min(largura, altura útil) com piso e teto.
  */
-export function placements(w: number, h: number, mobile: boolean, L?: MobileLayout): [number, number, number][] {
+export function placements(w: number, h: number, mobile: boolean, L?: MobileLayout, centered = false): [number, number, number][] {
+  if (centered) return Array.from({ length: 6 }, () => [w / 2, h / 2, Math.min(w, h) * (mobile ? 0.26 : 0.2)] as [number, number, number]);
   // Formas ~12% maiores no desktop, como na rodada anterior
   const G = 1.12;
   if (mobile) {
@@ -170,7 +173,7 @@ function seeds(n: number) {
   return out;
 }
 
-type Loop = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; relayout(): void; destroy(): void };
+type Loop = Omit<Stage, "kind">;
 
 /** Ciclo comum aos dois motores: progresso suavizado, visibilidade, resize com debounce, FPS adaptativo. */
 function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: number; h: number; dpr: number; time: number; p: number; intro: number; pointer: [number, number, number] }) => void,
@@ -193,6 +196,8 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
   addEventListener("resize", onWinResize, { passive: true });
 
   let target = 0, p = 0, intro = opts.intro ? 1 : 0;
+  // A abertura da página pública só desfaz a nuvem (0,9 s); burst() escolhe o destino e o tempo
+  let introTo = 0, introRate = 1 / 0.9;
   const pointer: [number, number, number] = [0, 0, 0];
   const pTarget: [number, number] = [0, 0];
   const onMove = (e: PointerEvent) => { pTarget[0] = (e.clientX / innerWidth) * 2 - 1; pTarget[1] = (e.clientY / innerHeight) * 2 - 1; };
@@ -208,7 +213,7 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
     last = now;
     p += (target - p) * (1 - Math.exp(-dt * 9));
     if (Math.abs(target - p) < 0.0004) p = target;
-    if (intro > 0) intro = Math.max(0, intro - dt / 0.9);
+    if (intro !== introTo) intro = intro < introTo ? Math.min(introTo, intro + dt * introRate) : Math.max(introTo, intro - dt * introRate);
     pointer[0] += (pTarget[0] - pointer[0]) * (1 - Math.exp(-dt * 4));
     pointer[1] += (pTarget[1] - pointer[1]) * (1 - Math.exp(-dt * 4));
     draw({ w, h, dpr, time: (now - start) / 1000, p, intro: intro * intro * (3 - 2 * intro), pointer });
@@ -230,7 +235,8 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
   return {
     setProgress(v) { target = Math.max(0, Math.min(1, v)); play(); },
     setPalette() { /* trocado pelo motor */ },
-    skipIntro() { intro = 0; },
+    skipIntro() { intro = introTo = 0; },
+    burst(to, ms) { introTo = Math.max(0, Math.min(1, to)); introRate = 1000 / Math.max(16, ms); play(); },
     relayout() { onResize(w, h, dpr); },
     destroy() {
       cancelAnimationFrame(frame); frame = 0; visible = false;
@@ -310,7 +316,7 @@ function startWebGL(canvas: HTMLCanvasElement, data: Data, n: number, opts: Stag
     gl.bindVertexArray(vao);
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 3, count);
     gl.bindVertexArray(null);
-  }, (w, h) => { place = new Float32Array(placements(w, h, opts.mobile, opts.layout?.()).flat()); }, () => {
+  }, (w, h) => { place = new Float32Array(placements(w, h, opts.mobile, opts.layout?.(), opts.centered).flat()); }, () => {
     if (count <= 1200) return false;
     count = Math.max(1200, Math.floor(count * 0.6));
     return true;
@@ -330,7 +336,7 @@ function start2D(canvas: HTMLCanvasElement, data: Data, opts: StageOptions): Sta
   const n = Math.min(1200, data.esfera.length / 4);
   const sd = seeds(n);
   let pal = opts.palette;
-  let place = placements(1, 1, opts.mobile);
+  let place = placements(1, 1, opts.mobile, undefined, opts.centered);
   const loop = runLoop(canvas, opts, ({ w, h, dpr, time, p, intro, pointer }) => {
     const { seg, t } = timeline(p);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -363,7 +369,7 @@ function start2D(canvas: HTMLCanvasElement, data: Data, opts: StageOptions): Sta
       for (let v = 0; v < 3; v++) { const a = ang + 1.5708 + v * 2.0944; ctx[v ? "lineTo" : "moveTo"](x + Math.cos(a) * size, y + Math.sin(a) * size); }
       ctx.fill();
     }
-  }, (w, h) => { place = placements(w, h, opts.mobile, opts.layout?.()); }, () => false, () => {});
+  }, (w, h) => { place = placements(w, h, opts.mobile, opts.layout?.(), opts.centered); }, () => false, () => {});
   return { ...loop, setPalette: (p) => { pal = p; }, kind: "2d" };
 }
 
@@ -371,5 +377,6 @@ function start2D(canvas: HTMLCanvasElement, data: Data, opts: StageOptions): Sta
 export async function startParticleStage(canvas: HTMLCanvasElement, opts: StageOptions): Promise<Stage | null> {
   const n = opts.mobile ? 2000 : 6000;
   const data = await loadData(n);
-  return startWebGL(canvas, data, n, opts) ?? start2D(canvas, data, opts);
+  // Os arquivos de pontos só existem com 2000 e 6000; menos que isso, desenha só as primeiras
+  return startWebGL(canvas, data, Math.min(n, opts.count ?? n), opts) ?? start2D(canvas, data, opts);
 }

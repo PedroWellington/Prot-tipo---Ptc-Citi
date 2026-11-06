@@ -18,6 +18,7 @@ import type { patientHome } from "@/server/services/patients";
 import { AddToCalendar, MiniMonth } from "./patient-calendar";
 import { GenericExercises } from "./generic-exercises";
 import { CopyCode, ExpiredNotice, PendingPaymentNotice } from "./payment-notices";
+import { Greeting } from "./motion";
 import { ProgressRing } from "./progress-ring";
 import { useAction } from "./providers";
 import { Badge, Button, Card, cx, Empty, LinkButton, Skeleton, SuccessCheck, Tile } from "./ui";
@@ -54,7 +55,7 @@ function SectionTitle({ icon, tone, children, aside }: { icon: ReactNode; tone?:
 }
 
 // ── 1. Hero ───────────────────────────────────────────────────
-function Hero({ name, done, total, message, finished, children }: { name: string; done: number; total: number; message: string; finished?: boolean; children: ReactNode }) {
+function Hero({ name, done, total, message, finished, next, children }: { name: string; done: number; total: number; message: string; finished?: boolean; next?: SessionRow; children: ReactNode }) {
   const stage = STAGES[stageOf(done, total)];
   return (
     <Card className="hero grid items-center gap-6 sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)] lg:col-span-8">
@@ -64,7 +65,7 @@ function Hero({ name, done, total, message, finished, children }: { name: string
       </div>
       <div className="flex flex-col items-start gap-3">
         <Badge tone="accent"><Sparkles className="size-3.5" />Fase: {stage.name}</Badge>
-        <h1 className="font-display text-[34px] leading-tight sm:text-[40px]">Olá, {name}</h1>
+        <Greeting as="h1" name={name} context={next ? "saudacao.paciente" : "saudacao.paciente.sem"} vars={next ? { proxima: fmtLong(next.startsAt) } : undefined} />
         <p key={done} className="page-enter max-w-prose leading-relaxed text-ink-2">{message || stage.hint}</p>
         <div className="mt-1 flex w-full flex-wrap gap-2 sm:w-auto">{children}</div>
       </div>
@@ -457,11 +458,11 @@ function AwaitingView({ a, name, expiredPayment }: { a: Awaiting; name: string; 
   // O servidor vence a reserva antes de responder: com prazo esgotado o PIX já vem nulo
   const valid = !!a.pixCode;
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-12">
       {expiredPayment && <div className="lg:col-span-12"><ExpiredNotice id={expiredPayment} /></div>}
       <Card className="hero flex flex-col items-start gap-2 lg:col-span-12">
         <Badge tone="warn"><Hourglass className="size-3.5" />Reserva feita</Badge>
-        <h1 className="font-display text-[34px] leading-tight sm:text-[40px]">Olá, {name}</h1>
+        <Greeting as="h1" name={name} />
         <p className="max-w-prose leading-relaxed text-ink-2">Que bom ter você na Clínica Movimento. Seus horários estão reservados.</p>
       </Card>
       <section aria-labelledby="aguardando-t" className="card flex flex-col gap-4 border-warn/50 p-5 sm:p-6 lg:col-span-7">
@@ -513,7 +514,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
   // Sem pacote: o mesmo desenho do painel em andamento, com tudo zerado
   if (!data.treatment)
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-12">
         {data.expiredPayment && <div className="lg:col-span-12"><ExpiredNotice id={data.expiredPayment} /></div>}
         <Hero name={name} done={0} total={10} message={data.message}>
           <LinkButton variant="brand" href="/app/agendar" className="flex-1 sm:flex-none"><CalendarPlus strokeWidth={1.5} className="size-4" />Agendar meu tratamento</LinkButton>
@@ -542,7 +543,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
   const recent = t.guidances.filter((g) => serverAt - new Date(g.createdAt).getTime() < 7 * DAY_MS);
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-12">
       {(pendingRequest || data.expiredPayment || pendingPayment || late) && (
         <div className="flex flex-col gap-3 lg:col-span-12">
           {pendingRequest && (
@@ -557,7 +558,7 @@ export function HomeClient({ initial, name, serverAt }: { initial: Home; name: s
         </div>
       )}
 
-      <Hero name={name} done={t.done} total={t.total} message={data.message} finished={t.finished}>
+      <Hero name={name} done={t.done} total={t.total} message={data.message} finished={t.finished} next={ended ? undefined : next}>
         <LinkButton variant="brand" href="/app/agendar" className="flex-1 sm:flex-none">
           <CalendarPlus strokeWidth={1.5} className="size-4" />{ended ? "Agendar novo tratamento" : "Agendar mais sessões"}
         </LinkButton>
@@ -607,7 +608,7 @@ export function MobilityClient({ initial, serverAt }: { initial: Home; serverAt:
     );
   const { treatment: t, generic } = data as Full;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="stagger flex flex-col gap-4">
       {t.guidances.length ? <><Exercises items={t.guidances} /><GenericExercises items={generic} collapsed /></> : <GenericExercises items={generic} />}
     </div>
   );

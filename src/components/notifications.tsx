@@ -112,7 +112,7 @@ function Popover({ onClose, anchor, closing, children }: { onClose: () => void; 
       <div className={cx("absolute inset-0 bg-scrim/15", closing ? "fade-out" : "fade-in")} onClick={onClose} aria-hidden />
       <div ref={panel} role="dialog" aria-modal="true" aria-label="Notificações" tabIndex={-1}
         style={{ left: anchor.right + 12, bottom: Math.max(16, window.innerHeight - anchor.bottom) }}
-        className={cx(closing ? "panel-out" : "panel-in", "absolute flex max-h-[min(640px,calc(100dvh-32px))] w-[420px] flex-col rounded-2xl border border-line-strong bg-surface shadow-2xl outline-none")}>
+        className={cx(closing ? "panel-out" : "panel-in", "absolute origin-bottom-left flex max-h-[min(640px,calc(100dvh-32px))] w-[420px] flex-col rounded-2xl border border-line-strong bg-surface shadow-2xl outline-none")}>
         <header className="flex items-center justify-between px-5 pt-4 pb-2">
           <h2 className="font-display text-2xl">Notificações</h2>
           <button type="button" onClick={onClose} aria-label="Fechar notificações" className="-mr-2 flex size-11 items-center justify-center rounded-full text-ink-2"><X strokeWidth={1.5} className="size-5" /></button>

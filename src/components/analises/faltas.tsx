@@ -5,13 +5,14 @@ import { Armchair, CalendarCheck, ClipboardList, Hourglass, LogOut, Repeat, Shie
 import type { ReactNode } from "react";
 import { Bars, Columns } from "@/components/charts";
 import { useUnits } from "@/components/patient-form";
-import { ErrorState, ListSkeleton } from "@/components/ui";
+import { ErrorState, Skeleton } from "@/components/ui";
 import { api } from "@/lib/api";
 import { brl } from "@/lib/labels";
 import type { Tone } from "@/lib/labels";
 import { DAY } from "@/lib/time";
 import type { dashboard } from "@/server/services/metrics";
 import { ExportCard } from "../export-png";
+import { CountUp } from "../motion";
 import { CardTitle, Figure, type Filters } from "./shared";
 
 type Data = Awaited<ReturnType<typeof dashboard>>;
@@ -20,6 +21,16 @@ const pctN = (n: number) => `${n.toLocaleString("pt-BR", { maximumFractionDigits
 export const dashboardQs = (dias: number, unitId: string, now: number) =>
   `from=${new Date(now - dias * DAY).toISOString()}&to=${new Date(now).toISOString()}${unitId ? `&unitId=${unitId}` : ""}`;
 
+/** Mesmo desenho da aba carregada: 8 indicadores e os dois gráficos do topo. */
+function FaltasSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" role="status" aria-label="Carregando as análises">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-36 rounded-[20px]" />)}</div>
+      <div className="grid gap-4 xl:grid-cols-3"><Skeleton className="h-80 rounded-[20px] xl:col-span-2" /><Skeleton className="h-80 rounded-[20px]" /></div>
+    </div>
+  );
+}
+
 /** A tela de métricas de faltas de antes, inteira, com "Baixar PNG" em cada cartão. */
 export function FaltasTab({ f, now }: { f: Filters; now: number }) {
   const { data: units } = useUnits();
@@ -27,7 +38,7 @@ export function FaltasTab({ f, now }: { f: Filters; now: number }) {
   const { data: d, isLoading, isPlaceholderData, error, refetch } = useQuery({ queryKey: ["dashboard", f.dias, f.unitId], queryFn: () => api<Data>(`/admin/dashboard?${qs}`), staleTime: 300_000 });
   const filt = { unidade: f.unidade, periodo: f.periodo };
 
-  if (isLoading) return <ListSkeleton rows={5} />;
+  if (isLoading) return <FaltasSkeleton />;
   if (error || !d) return <ErrorState error={error} retry={refetch} />;
 
   const stat = (item: string, icon: ReactNode, tone: Tone, label: string, value: string, hint?: string) => (
@@ -43,7 +54,7 @@ export function FaltasTab({ f, now }: { f: Filters; now: number }) {
 
   return (
     <div className={`flex flex-col gap-4 transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
+      <div className="stagger grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
         {stat("taxa-de-faltas", <UserX />, "danger", "Taxa de faltas", pctN(d.noShowRate), `${d.totals.faltas} faltas`)}
         {stat("abandono", <LogOut />, "warn", "Abandono antes da 10ª", pctN(d.abandonRate))}
         {stat("taxa-de-confirmacao", <CalendarCheck />, "info", "Taxa de confirmação", pctN(d.confirmationRate))}
@@ -78,7 +89,7 @@ export function FaltasTab({ f, now }: { f: Filters; now: number }) {
         <CardTitle icon={<ClipboardList />} tone="info">Registro padronizado</CardTitle>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {[["Faltas", d.totals.faltas], ["Desmarcações", d.totals.desmarcacoes], ["Desmarcações tardias", d.totals.tardias], ["Reagendamentos", d.totals.reagendamentos], ["Atrasos", d.totals.atrasos]].map(([k, v]) => (
-            <div key={k}><p className="text-sm text-ink-2">{k}</p><p className="font-display text-3xl tabular-nums">{v}</p></div>
+            <div key={k}><p className="text-sm text-ink-2">{k}</p><p className="font-display text-3xl tabular-nums"><CountUp value={v} /></p></div>
           ))}
         </div>
       </ExportCard>

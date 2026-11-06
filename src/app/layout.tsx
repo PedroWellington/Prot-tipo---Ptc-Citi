@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import type { ReactNode } from "react";
+import { MarcaMovimento } from "@/components/marca";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "@/styles/globals.css";
@@ -35,6 +36,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* React Query e avisos só entram onde são usados (área logada, cadastro, link de confirmação):
             a página pública e o login baixam menos JavaScript */}
         {children}
+        {/* Véu da entrada no app (components/entry-transition.ts): invisível até html[data-entrada]; decorativo */}
+        <div data-entry-veil aria-hidden className="entry-veil">
+          <div className="entry-bg" />
+          <div className="entry-mark"><MarcaMovimento className="entry-mark-svg" /></div>
+        </div>
       </body>
     </html>
   );

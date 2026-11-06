@@ -9,6 +9,8 @@ import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { toggleSidebar } from "@/lib/theme";
 import { AssistantButton } from "./assistant/button";
+import { entryActive, entryReady, playExit, resumeEntry } from "./entry-transition";
+import { GreetContext, type GreetTexts } from "./motion";
 import { Sheet } from "./lazy-sheet";
 import { BellButton, NotificationPanel } from "./notifications";
 import { ThemeToggle } from "./theme-toggle";
@@ -67,7 +69,8 @@ export function HomeLink() {
 }
 
 export async function logout() {
-  await api("/auth/logout", { body: {} });
+  // A esfera se junta (~600 ms) enquanto a sessão encerra; nenhuma espera a mais
+  await Promise.all([api("/auth/logout", { body: {} }), playExit()]);
   // Aparelho compartilhado: não deixa dados de saúde no cache offline
   await window.caches?.delete("mv-data").catch(() => {});
   // Termina na página inicial com navegação completa: nada da área logada (estado do React, cache das consultas,
@@ -191,7 +194,24 @@ function usePreloadData(role: string, path: string) {
   }, [qc, role]);
 }
 
-export function AppShell({ role, name, deskless, children }: { role: string; name: string; deskless?: boolean; children: ReactNode }) {
+const SKELETON = 'main [role="status"][aria-label^="Carregando"]';
+
+/** Entrada (login ou "Minha área"): a esfera explode quando o painel não tem mais esqueleto de carregamento. */
+function useEntry() {
+  useEffect(() => {
+    if (!resumeEntry()) return;
+    const id = setInterval(() => {
+      if (!entryActive()) return clearInterval(id);
+      if (document.querySelector("main")?.childElementCount && !document.querySelector(SKELETON)) {
+        clearInterval(id);
+        entryReady();
+      }
+    }, 60);
+    return () => clearInterval(id);
+  }, []);
+}
+
+export function AppShell({ role, name, deskless, greet = {}, children }: { role: string; name: string; deskless?: boolean; greet?: GreetTexts; children: ReactNode }) {
   const path = usePathname();
   // Unidade sem recepção: a fisioterapeuta assume as filas dos próprios pacientes
   const items = deskless ? [...NAV.FISIOTERAPEUTA, ...DESK_FOR_PHYSIO] : NAV[role];
@@ -205,6 +225,8 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
   // Recolhida, o "M" expande; expandida, leva ao início
   const onLogo = () => (document.documentElement.dataset.sidebar === "collapsed" ? toggleSidebar() : router.push(items[0].href));
   usePreloadData(role, path);
+  useEntry();
+  const [greetValue] = useState(() => ({ name, texts: greet }));
   const locked = useMobilityLocked(role);
 
   useEffect(() => {
@@ -226,6 +248,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
   };
 
   return (
+    <GreetContext value={greetValue}>
     <div className="min-h-dvh">
       <aside className="side-panel border-r border-line-strong bg-sidebar">
         <div className="side-inner">
@@ -245,7 +268,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
             <p className="nav-label truncate px-4 pb-1 text-sm text-ink-2">{name}</p>
             <div className="side-foot flex pl-1">
               <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
-              <ThemeToggle />
+              <ThemeToggle reveal />
               <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
             </div>
           </div>
@@ -257,7 +280,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
           <Link href={items[0].href} aria-label="Início"><Logo size={22} /></Link>
           <div className="flex items-center">
             <Link href="/" prefetch={false} aria-label="Voltar à página inicial" title="Voltar à página inicial" className="flex size-11 items-center justify-center rounded-full text-ink-2"><Home strokeWidth={1.5} className="size-5" /></Link>
-            <ThemeToggle />
+            <ThemeToggle reveal />
             <BellButton onOpen={openFromHeader} />
             {role !== "PACIENTE" && (
               <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
@@ -274,5 +297,6 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
       {analyst && <AssistantButton />}
       <NotificationPanel open={notesAt === path} anchor={anchor} onClose={() => setNotesAt(null)} />
     </div>
+    </GreetContext>
   );
 }

@@ -91,6 +91,16 @@ export const SITE_FIELDS: SiteField[] = [
   f("Subtítulos das seções", "sub.convenios", "Convênios e pagamento", "Convênio ou particular, sem surpresa na hora de pagar.", true),
   f("Subtítulos das seções", "sub.faq", "Perguntas frequentes", "O que costumam perguntar antes de começar.", true),
 
+  // Área logada: saudação no início de cada perfil. {campos} vêm dos dados que a tela já carrega; nada inventado
+  f("Saudação no sistema (área logada)", "saudacao.manha", "Saudação de manhã (5h às 12h)", "Bom dia"),
+  f("Saudação no sistema (área logada)", "saudacao.tarde", "Saudação de tarde (12h às 18h)", "Boa tarde"),
+  f("Saudação no sistema (área logada)", "saudacao.noite", "Saudação de noite", "Boa noite"),
+  f("Saudação no sistema (área logada)", "saudacao.paciente", "Paciente com sessão marcada ({proxima} = dia e hora)", "Sua próxima sessão é {proxima}."),
+  f("Saudação no sistema (área logada)", "saudacao.paciente.sem", "Paciente sem sessão marcada", "Escolha seus horários e o plano fica pronto aqui."),
+  f("Saudação no sistema (área logada)", "saudacao.recepcao", "Recepção ({sessoes} = sessões do dia, {confirmar} = a confirmar)", "Hoje: {sessoes} na agenda, {confirmar} a confirmar."),
+  f("Saudação no sistema (área logada)", "saudacao.fisio", "Fisioterapeuta ({sessoes} = sessões do dia, {atender} = a atender)", "Hoje: {sessoes} na sua agenda, {atender} a atender."),
+  f("Saudação no sistema (área logada)", "saudacao.admin", "Administração ({periodo} = período escolhido)", "Indicadores da clínica nos últimos {periodo}."),
+
   f("Contato", "contato.titulo", "Título", "Pronto para começar?"),
   f("Contato", "contato.texto", "Texto", "Entre ou crie sua conta para escolher os horários. Prefere falar com alguém? Ligue para a unidade.", true),
   f("Contato", "contato.email.BV", "E-mail de Boa Viagem", "boaviagem@movimento.example"),

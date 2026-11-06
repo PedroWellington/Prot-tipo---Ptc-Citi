@@ -209,17 +209,20 @@ textarea.field { padding-block: 12px; }
 @keyframes pop { from { opacity: 0; transform: scale(0.96); } }
 
 /* Linha do gráfico: desenha uma vez ao montar (stroke-dashoffset é só pintura, sem layout) */
-.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 500ms var(--ease-out-soft) 100ms forwards; }
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 900ms var(--ease-out-soft) 150ms forwards; }
+.fade-late { animation: fade 400ms ease-out 500ms backwards; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 .rise { animation: rise 260ms var(--ease-out-soft) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
-.bar { transform-origin: bottom; animation: bar 200ms var(--ease-out-soft) both; }
-.bar-h { transform-origin: left; animation: bar-h 200ms var(--ease-out-soft) both; }
+/* Crescem da linha de base em sequência (--i); a troca de filtro anima do valor anterior (motion.tsx: useGrowFrom) */
+.bar { transform-origin: bottom; animation: bar 600ms var(--ease-out-soft) calc(min(var(--i, 0), 12) * 35ms) backwards; }
+.bar-h { transform-origin: left; animation: bar-h 600ms var(--ease-out-soft) calc(min(var(--i, 0), 8) * 50ms) backwards; }
 @keyframes bar { from { transform: scaleY(0); } }
 @keyframes bar-h { from { transform: scaleX(0); } }
 
-.ring-arc { transition: stroke-dashoffset 200ms var(--ease-out-soft); }
+.ring-arc { transition: stroke-dashoffset 800ms var(--ease-out-soft); animation: ring-in 900ms var(--ease-out-soft) 120ms backwards; }
+@keyframes ring-in { from { stroke-dashoffset: var(--ring-c); } }
 
 /* Leaflet no tema */
 .leaflet-container { background: var(--surface-2); font-family: inherit; border-radius: 16px; z-index: 0; }
@@ -385,10 +388,11 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
  * Rapidez e continuidade, nada cinematográfico. Só transform e opacity; fechar é mais rápido que abrir;
  * will-change só enquanto anima; nada bloqueia clique (::view-transition deixa o toque passar). */
 :root {
-  --dur-in: 200ms; --dur-out: 120ms;           /* troca de tela */
+  --dur-in: 240ms; --dur-out: 120ms;           /* troca de tela */
   --dur-panel-in: 250ms; --dur-panel-out: 150ms; /* painéis, menus, popover */
   --dur-slide: 250ms;                           /* indicador das abas */
-  --step: 40ms;                                 /* escalonamento de listas */
+  --step: 50ms;                                 /* escalonamento de listas e grades */
+  --rise: 14px;                                 /* subida curta da entrada de conteúdo */
 }
 
 /* Troca de rota (React <ViewTransition> em app-shell.tsx): só o conteúdo anima; sidebar e topo ficam vivos e parados */
@@ -397,24 +401,48 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 ::view-transition-old(.page-out) { animation: vt-out var(--dur-out) var(--ease-out-soft) both; }
 ::view-transition-new(.page-in) { animation: vt-in var(--dur-in) var(--ease-out-soft) both; }
 @keyframes vt-out { to { opacity: 0; transform: translateY(-4px); } }
-@keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(var(--rise)); } }
+@keyframes vt-in-blur { from { opacity: 0; transform: translateY(var(--rise)); filter: blur(6px); } }
+/* Com mouse (desktop): a tela nova sai de um desfoque curto. Um contêiner só (o quadro da página), 6 px → 0 */
+@media (hover: hover) and (pointer: fine) {
+  ::view-transition-new(.page-in) { animation-name: vt-in-blur; }
+}
+/* Abas de conteúdo (Análises): o antigo sai em 120 ms e o novo entra com fade, subida e desfoque curto */
+::view-transition-old(.tab-out) { animation: fade-away 120ms ease-out both; }
+::view-transition-new(.tab-in) { animation: vt-in 260ms var(--ease-out-soft) 60ms both; }
+@media (hover: hover) and (pointer: fine) { ::view-transition-new(.tab-in) { animation-name: vt-in-blur; } }
+
+/* Tema: só durante a troca a página inteira vira um quadro; o novo se abre num círculo (lib/theme.ts) */
+:root[data-vt^="theme"] { view-transition-name: root; }
+:root[data-vt="theme"]::view-transition-old(root), :root[data-vt="theme"]::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+:root[data-vt="theme"]::view-transition-new(root) { z-index: 1; }
+:root[data-vt="theme-fade"]::view-transition-old(root), :root[data-vt="theme-fade"]::view-transition-new(root) { animation-duration: 160ms; }
 
 /* Painéis (notificações, assistente): abrem com escala + fade, fecham mais rápido; fundo sólido */
 .panel-in { animation: panel-in var(--dur-panel-in) var(--ease-out-soft) both; }
 .panel-out { animation: panel-out var(--dur-panel-out) var(--ease-out-soft) both; pointer-events: none; }
-@keyframes panel-in { from { opacity: 0; scale: 0.97; } }
+@keyframes panel-in { from { opacity: 0; scale: 0.96; } }
 @keyframes panel-out { to { opacity: 0; scale: 0.99; } }
 .fade-in { animation: fade var(--dur-panel-in) ease-out both; }
 .fade-out { animation: fade-away var(--dur-panel-out) ease-out both; pointer-events: none; }
 @keyframes fade-away { to { opacity: 0; } }
 
-/* Listas: os primeiros 6 itens entram escalonados (40 ms); o resto entra junto com o 6º */
-.stagger > * { animation: rise 260ms var(--ease-out-soft) both; animation-delay: calc(5 * var(--step)); }
+/* Entrada de conteúdo: opacidade e subida curta. "backwards": depois de entrar, o elemento volta a ser dele
+   (o hover e o :active podem mover o transform). Sem JS, a animação CSS roda igual e termina visível */
+@keyframes enter { from { opacity: 0; transform: translateY(var(--rise)); } }
+.reveal { animation: enter 400ms var(--ease-out-soft) backwards; }
+/* Grades e listas: os 8 primeiros entram em sequência (50 ms: 350 ms no total); o resto entra junto com o 8º */
+.stagger > * { animation: enter 400ms var(--ease-out-soft) backwards; animation-delay: calc(7 * var(--step)); }
 .stagger > :nth-child(1) { animation-delay: 0ms; }
 .stagger > :nth-child(2) { animation-delay: var(--step); }
 .stagger > :nth-child(3) { animation-delay: calc(2 * var(--step)); }
 .stagger > :nth-child(4) { animation-delay: calc(3 * var(--step)); }
 .stagger > :nth-child(5) { animation-delay: calc(4 * var(--step)); }
+.stagger > :nth-child(6) { animation-delay: calc(5 * var(--step)); }
+.stagger > :nth-child(7) { animation-delay: calc(6 * var(--step)); }
+/* Saudação: entra com fade e leve subida; a frase de contexto logo depois */
+.greet-in { animation: enter 400ms var(--ease-out-soft) backwards; }
+.greet-in-2 { animation-delay: 90ms; }
 /* Item removido sai deslizando (lib/motion.ts: leave) antes de a lista mudar */
 .is-leaving { animation: leave 180ms var(--ease-out-soft) forwards; pointer-events: none; }
 @keyframes leave { to { opacity: 0; transform: translateX(24px); } }
@@ -443,12 +471,55 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 .tab-ind::before { content: ""; position: absolute; inset: 4px 2px; border-radius: 12px; background: var(--tab-active-bg); }
 .tab-ind[data-on] { opacity: 1; }
 
-/* Hover com leve elevação só com mouse; no toque, só o retorno ao pressionar */
-a.card, button.card { transition: transform 200ms var(--ease-out-soft); }
+/* Hover com leve elevação só com mouse (cartões clicáveis e indicadores): sobe 3 px e uma sombra mais funda
+   aparece por um pseudo-elemento com opacidade (box-shadow não é animado). No toque, só o retorno ao pressionar */
+a.card, button.card, .lift, .card.kpi { position: relative; transition: transform 220ms var(--ease-out-soft); }
 @media (hover: hover) and (pointer: fine) {
-  a.card:hover, button.card:hover { transform: translateY(-2px); }
+  a.card::after, button.card::after, .lift::after, .card.kpi::after {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+    border: 1px solid var(--line-strong); box-shadow: var(--lift-shadow); opacity: 0; transition: opacity 220ms ease-out;
+  }
+  a.card:hover, button.card:hover, .lift:hover, .card.kpi:hover { transform: translateY(-3px); }
+  a.card:hover::after, button.card:hover::after, .lift:hover::after, .card.kpi:hover::after { opacity: 1; }
+  main tbody tr { transition: background-color 150ms ease-out; }
+  main tbody tr:hover { background: var(--accent-soft); }
 }
 a.card:active, button.card:active, .press:active { transform: scale(0.98); }
+
+/* Abas e filtros em pílula: um destaque só (motion.tsx: PillIndicator) desliza por transform entre as opções.
+   Até ele ser medido (sem JS), a opção ativa pinta o próprio fundo */
+.pills { position: relative; isolation: isolate; }
+.pills > [role] { position: relative; z-index: 1; transition: color 200ms ease-out; }
+.pills:not([data-pill-ready]) > [aria-checked="true"], .pills:not([data-pill-ready]) > [aria-selected="true"] { background: var(--accent-fill); }
+.pill-ind { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 999px; background: var(--accent-fill); pointer-events: none; transform-origin: 0 0; opacity: 0; }
+
+/* ══ Entrada no app (components/entry-transition.ts) ═══════════════════════════
+ * Véu fixo acima de tudo, só com html[data-entrada]. "in": escurece (150 ms) e, se o JS nunca assumir, some sozinho
+ * em 6 s. "run": o JS assumiu. "burst": explodindo, já deixa o clique passar. "out": saída. */
+.entry-veil { display: none; position: fixed; inset: 0; z-index: 100; place-items: center; overflow: hidden; contain: strict; }
+:root[data-entrada="in"] .entry-veil, :root[data-entrada="run"] .entry-veil, :root[data-entrada="burst"] .entry-veil, :root[data-entrada="out"] .entry-veil { display: grid; }
+:root[data-entrada="in"] .entry-veil { animation: fade 150ms ease-out backwards, veil-safety 250ms ease-in 6s forwards; }
+:root[data-entrada="out"] .entry-veil { animation: fade 150ms ease-out backwards; }
+:root[data-entrada="burst"] .entry-veil { pointer-events: none; }
+@keyframes veil-safety { to { opacity: 0; visibility: hidden; } }
+.entry-bg { position: absolute; inset: 0; background: var(--hero); }
+.entry-mark {
+  position: relative; display: grid; place-items: center; width: min(52vmin, 360px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--particle-glow), transparent);
+  --ring-a: var(--hero-ring-a); --ring-b: var(--hero-ring-b);
+  animation: pop 300ms var(--ease-out-soft) backwards; transition: opacity 220ms ease-out;
+}
+.entry-mark-svg { width: 30%; height: auto; }
+.entry-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 220ms ease-out; }
+.entry-veil.is-live .entry-canvas { opacity: 1; }
+.entry-veil.is-live .entry-mark { opacity: 0; }
+/* Painel ainda carregando: a esfera pulsa de leve até ficar pronto */
+.entry-veil.is-waiting .entry-canvas, .entry-veil.is-waiting .entry-mark { animation: entry-pulse 700ms ease-in-out infinite alternate; }
+@keyframes entry-pulse { to { transform: scale(1.04); } }
+/* Sob o véu, as entradas do conteúdo esperam: começam junto com a explosão */
+:root[data-entrada="in"] main *, :root[data-entrada="run"] main * { animation-play-state: paused !important; }
+/* Menos movimento: sem véu nem partículas, só um fade curto do conteúdo (vence a regra global de 1 ms) */
+:root[data-entrada="rm"] [data-side-content] { animation: fade 200ms ease-out backwards !important; }
 
 /* Menos movimento: deslocamentos viram fade curto; nada desliza, nada gira sem parar */
 @media (prefers-reduced-motion: reduce) {
@@ -456,8 +527,10 @@ a.card:active, button.card:active, .press:active { transform: scale(0.98); }
   ::view-transition-new(.page-in) { animation: fade 120ms ease-out both; }
   .panel-in, .fade-in { animation: fade 120ms ease-out both !important; }
   .panel-out, .fade-out { animation: fade-away 120ms ease-out both !important; }
-  .stagger > * { animation: none !important; }
+  .stagger > *, .reveal, .greet-in { animation: none !important; }
+  .entry-veil { display: none !important; }
   .nav-ind, .tab-ind { transition: opacity 120ms !important; }
   .btn-spinner { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
-  a.card:hover, button.card:hover, a.card:active, button.card:active, .press:active { transform: none; }
+  a.card:hover, button.card:hover, .lift:hover, .card.kpi:hover, a.card:active, button.card:active, .press:active { transform: none; }
+  .bar, .bar-h, .ring-arc { animation: none !important; }
 }

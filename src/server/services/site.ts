@@ -37,6 +37,14 @@ export async function siteData() {
 }
 export type SiteData = Awaited<ReturnType<typeof siteData>>;
 
+/** Saudação da área logada (Admin > Textos): padrões + o que foi salvo. Só leitura, só as chaves "saudacao.". */
+export async function greetTexts(): Promise<Record<string, string>> {
+  // Falhou a leitura: ficam os padrões (a saudação nunca derruba a área logada)
+  const rows = await prisma.siteContent.findMany({ where: { key: { startsWith: "saudacao." } }, select: { key: true, value: true } }).catch(() => []);
+  const all = mergeContent(rows);
+  return Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith("saudacao.")));
+}
+
 export async function adminSiteContent() {
   const rows = await prisma.siteContent.findMany({ select: { key: true, value: true, updatedAt: true } });
   const saved = new Map(rows.map((r) => [r.key, r]));

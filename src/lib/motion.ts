@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Tempos de saída (iguais aos do CSS em globals.css): fechar é mais rápido que abrir. */
 export const PANEL_OUT_MS = 150;
@@ -34,28 +34,33 @@ export function leave(from: EventTarget | Element | null, then: () => void) {
   setTimeout(then, LEAVE_MS);
 }
 
-/** Número que anima do valor anterior para o novo (escreve direto no DOM, sem re-render por quadro). */
-export function useCountTo(value: number, ms = 400) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const shown = useRef(value);
-  useEffect(() => {
-    const el = ref.current;
-    const from = shown.current;
-    shown.current = value;
-    if (!el || from === value || reducedMotion()) {
-      if (el) el.textContent = value.toLocaleString("pt-BR");
-      return;
-    }
-    const start = performance.now();
-    let id = 0;
-    const step = (t: number) => {
-      const p = Math.min((t - start) / ms, 1);
-      const eased = 1 - (1 - p) ** 3;
-      el.textContent = Math.round(from + (value - from) * eased).toLocaleString("pt-BR");
-      if (p < 1) id = requestAnimationFrame(step);
-    };
-    id = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(id);
-  }, [value, ms]);
-  return ref;
+/** Duração da contagem dos indicadores. */
+export const COUNT_MS = 800;
+export const easeOutCubic = (p: number) => 1 - (1 - p) ** 3;
+
+// Número em pt-BR: "10.897", "21,6", "7". O ponto é sempre milhar; a vírgula, decimal.
+const NUM = /\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?/g;
+type Num = { v: number; d: number; group: boolean };
+const parse = (s: string): Num[] =>
+  [...s.matchAll(NUM)].map(([m]) => ({ v: Number(m.replace(/\./g, "").replace(",", ".")), d: m.split(",")[1]?.length ?? 0, group: m.includes(".") }));
+const fmt = (n: number, d: number, group: boolean) => {
+  const [i, f] = n.toFixed(d).split(".");
+  const int = group ? i.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : i;
+  return f ? `${int},${f}` : int;
+};
+
+/**
+ * Texto de um indicador no meio da contagem: cada número de `to` ("R$ 10.897", "21,6%", "8/12", "7 dias") vai do
+ * número na mesma posição de `from` (ou de 0) até o seu valor, com as mesmas casas decimais e o milhar com ponto.
+ * Em t ≥ 1 devolve `to` exatamente como veio.
+ */
+export function countText(from: string, to: string, t: number): string {
+  if (t >= 1) return to;
+  const a = parse(from), b = parse(to);
+  let k = 0;
+  return to.replace(NUM, () => {
+    const target = b[k], start = a[k]?.v ?? 0;
+    k++;
+    return fmt(start + (target.v - start) * Math.max(0, t), target.d, target.group || !!a[k - 1]?.group);
+  });
 }

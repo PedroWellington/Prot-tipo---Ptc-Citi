@@ -1,6 +1,11 @@
 "use client";
 
+import type { CSSProperties } from "react";
+import { useGrowFrom } from "./motion";
 import { cx } from "./ui";
+
+/** Índice da sequência de entrada das barras (globals.css: .bar, .bar-h). */
+const seq = (i: number) => ({ "--i": i }) as CSSProperties;
 
 export type Series = { key: string; label: string; color: string };
 type Row = Record<string, number | string> & { key: string };
@@ -32,8 +37,9 @@ function DataTable({ rows, series, head }: { rows: Row[]; series: Series[]; head
 export function Columns({ rows, series, head, highlight, note }: { rows: Row[]; series: Series[]; head: string; highlight?: string; note?: string }) {
   const max = Math.max(10, ...rows.flatMap((r) => series.map((s) => Number(r[s.key]))));
   const top = Math.ceil(max / 10) * 10;
+  const grow = useGrowFrom<HTMLElement>();
   return (
-    <figure>
+    <figure ref={grow}>
       <Legend series={series} />
       <div className="relative mt-4 h-52 pl-8">
         {[0, 0.5, 1].map((f) => (
@@ -43,11 +49,11 @@ export function Columns({ rows, series, head, highlight, note }: { rows: Row[]; 
           </div>
         ))}
         <div className="relative flex h-full items-end gap-1 sm:gap-2">
-          {rows.map((r) => (
+          {rows.map((r, ri) => (
             <div key={r.key} tabIndex={0} aria-label={`${head} ${r.key}: ${series.map((s) => `${s.label} ${fmt(Number(r[s.key]))}`).join(", ")}`}
               className={cx("group relative flex h-full flex-1 items-end justify-center gap-0.5 rounded-t-md outline-none focus-visible:bg-accent-soft", r.key === highlight && "bg-accent-soft")}>
               {series.map((s) => (
-                <div key={s.key} className="bar w-full max-w-5 rounded-t" style={{ height: `${(Number(r[s.key]) / top) * 100}%`, background: s.color }} />
+                <div key={s.key} data-bar="y" className="bar w-full max-w-5 rounded-t" style={{ ...seq(ri), height: `${(Number(r[s.key]) / top) * 100}%`, background: s.color }} />
               ))}
               <div role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs whitespace-nowrap opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100">
                 <b className="font-semibold">{head} {r.key}</b>
@@ -69,13 +75,14 @@ export function Columns({ rows, series, head, highlight, note }: { rows: Row[]; 
 /** Barras horizontais com rótulo direto, para poucas categorias. */
 export function Bars({ rows, label }: { rows: { key: string; rate: number }[]; label: string }) {
   const max = Math.max(1, ...rows.map((r) => r.rate));
+  const grow = useGrowFrom<HTMLUListElement>();
   return (
-    <ul aria-label={label} className="flex flex-col gap-3">
+    <ul ref={grow} aria-label={label} className="flex flex-col gap-3">
       {rows.map((r, i) => (
         <li key={r.key}>
           <div className="mb-1 flex justify-between text-sm"><span className="text-ink-2">{r.key}</span><span className="font-semibold tabular-nums">{fmt(r.rate)}</span></div>
           <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-            <div className="bar-h h-full rounded-full" style={{ width: `${(r.rate / max) * 100}%`, background: `var(--bar-${(i % 5) + 1})` }} />
+            <div data-bar="x" className="bar-h h-full rounded-full" style={{ ...seq(i), width: `${(r.rate / max) * 100}%`, background: `var(--bar-${(i % 5) + 1})` }} />
           </div>
         </li>
       ))}
@@ -122,9 +129,9 @@ export function DaySummary({ sessions }: { sessions: { status: string; startsAt:
       <div>
         <p className="mb-2 text-sm font-medium">Sessões por hora</p>
         <div role="img" aria-label={`Pico de ${peak} sessões por hora`} className="flex h-16 items-end gap-1">
-          {hours.map((h) => (
+          {hours.map((h, i) => (
             <span key={h} className="flex h-full flex-1 flex-col justify-end">
-              <span className="bar rounded-t-sm" style={{ height: `${((byHour.get(h) ?? 0) / peak) * 100}%`, background: "var(--chart-1)", opacity: byHour.get(h) ? 1 : 0 }} />
+              <span className="bar rounded-t-sm" style={{ ...seq(i), height: `${((byHour.get(h) ?? 0) / peak) * 100}%`, background: "var(--chart-1)", opacity: byHour.get(h) ? 1 : 0 }} />
             </span>
           ))}
         </div>

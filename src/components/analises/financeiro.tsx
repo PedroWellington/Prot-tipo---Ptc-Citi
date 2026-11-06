@@ -42,7 +42,7 @@ export function FinanceCards({ d, f }: { d: Data; f: Filters }) {
   });
   const range = (r: { p80: [number, number] }) => `80%: ${brl(r.p80[0])} a ${brl(r.p80[1])}`;
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <ExportCard className="kpi" spec={card("receita-realizada", "Receita realizada", "Até hoje", brl(c.realized), `${c.realizedCount} sessões realizadas`)}>
         <Figure icon={<CircleDollarSign />} tone="ok" label="Receita realizada até hoje" value={brl(c.realized)} hint={`${c.realizedCount} sessões realizadas`} />
       </ExportCard>

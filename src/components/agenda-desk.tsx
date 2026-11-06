@@ -13,6 +13,7 @@ import { DayNav } from "./day-nav";
 import { GoogleButton } from "./google-calendar";
 import { Sheet } from "./lazy-sheet";
 import { MissSheet, type MissInput } from "./miss-sheet";
+import { Greeting, sessions } from "./motion";
 import { useUnits } from "./patient-form";
 import { useAction } from "./providers";
 import { DaySummary } from "./charts";
@@ -157,6 +158,11 @@ export function AgendaDesk({ initial, day: firstDay, serverAt, fixedUnit, google
   const [picked, setPicked] = useState<AgendaItem | null>(null);
   const openDay = (d: number) => { setDay(d); setMode("dia"); };
 
+  // Saudação: só o dia de hoje que o servidor já trouxe (não muda ao navegar entre os dias)
+  const [today] = useState(() => {
+    const live = initial.filter((s) => s.status !== "REAGENDADA" && s.status !== "DESMARCADA");
+    return { sessoes: sessions(live.length), confirmar: live.filter((s) => s.status === "AGENDADA").length.toLocaleString("pt-BR") };
+  });
   const selected = data?.find((s) => s.id === selectedId) ?? (picked?.id === selectedId ? picked : null);
   const details = selected && (
     <Details s={selected} onConfirm={() => confirm.mutate(selected.id)} onMiss={() => setMiss(selected.id)} onCheckIn={() => checkIn.mutate(selected.id)} onLate={() => markLate.mutate(selected.id)} />
@@ -164,9 +170,10 @@ export function AgendaDesk({ initial, day: firstDay, serverAt, fixedUnit, google
 
   return (
     <>
+      <Greeting context="saudacao.recepcao" vars={today} className="mb-5" />
       <PageTitle eyebrow="Painel do dia" title="Agenda" action={<GoogleButton configured={google} />} />
       <div className="flex flex-col gap-4">
-        {mode !== "mes" && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {mode !== "mes" && <div className="stagger grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label="Confirmadas" value={counts.CONFIRMADA ?? 0} icon={<CalendarCheck />} tone="info" />
           <Stat label="A confirmar" value={counts.AGENDADA ?? 0} icon={<Clock />} tone="warn" />
           <Stat label="Realizadas" value={counts.REALIZADA ?? 0} icon={<CircleCheckBig />} tone="ok" />
