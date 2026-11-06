@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, ViewTransition } from "react";
+import { Suspense, useState } from "react";
 import { dashboardQs, FaltasTab } from "@/components/analises/faltas";
 import { Greeting } from "@/components/motion";
 import { FinanceSkeleton } from "@/components/analises/financeiro";
@@ -47,16 +47,15 @@ function Analises() {
           <Segmented label="Unidade" value={unit} onChange={setUnit} options={[{ value: "", label: "Todas" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
         </div>
       </div>
-      {/* Altura reservada: a aba nova não faz a página saltar enquanto carrega. A troca é uma View Transition
-          (o conteúdo antigo sai em 120 ms, o novo entra com fade, subida e desfoque curto) */}
+      {/* Altura reservada: a aba nova não faz a página saltar enquanto carrega. A aba nova entra com fade, subida e
+          (com mouse) desfoque curto, só CSS. Uma View Transition aqui fotografava a página a cada troca e criava
+          tarefas longas no celular (medido): cortada */}
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === aba)!.label} className="min-h-[70vh]">
-        <ViewTransition key={aba} enter="tab-in" exit="tab-out" default="none">
-          <div>
-            {aba === "faltas" && <FaltasTab f={f} now={now} />}
-            {aba === "financeiro" && <FinanceiroTab f={f} />}
-            {aba === "previsoes" && <PrevisoesTab f={f} />}
-          </div>
-        </ViewTransition>
+        <div key={aba} className="tab-in">
+          {aba === "faltas" && <FaltasTab f={f} now={now} />}
+          {aba === "financeiro" && <FinanceiroTab f={f} />}
+          {aba === "previsoes" && <PrevisoesTab f={f} />}
+        </div>
       </div>
     </>
   );

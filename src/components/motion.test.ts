@@ -134,6 +134,7 @@ describe("Nada fica invisível sem JavaScript ou com menos movimento", () => {
   const keyframes = (name: string) => css.match(new RegExp(`@keyframes ${name} \\{([^\\n]*)\\}`))?.[1] ?? "";
 
   it("as entradas só têm o quadro inicial: terminam no estado normal do elemento (visível)", () => {
+    // .tab-in usa vt-in / vt-in-blur
     for (const k of ["enter", "fade", "bar", "bar-h", "ring-in", "vt-in", "vt-in-blur", "pop"]) {
       const body = keyframes(k);
       expect(body, k).toMatch(/^\s*from \{/);
@@ -145,7 +146,7 @@ describe("Nada fica invisível sem JavaScript ou com menos movimento", () => {
 
   it("menos movimento desliga entradas, contagens visuais e o véu", () => {
     const rm = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
-    expect(rm).toContain(".stagger > *, .reveal, .greet-in { animation: none !important; }");
+    expect(rm).toContain(".stagger > *, .reveal, .greet-in, .tab-in { animation: none !important; }");
     expect(rm).toContain(".entry-veil { display: none !important; }");
     expect(rm).toContain(".bar, .bar-h, .ring-arc { animation: none !important; }");
   });

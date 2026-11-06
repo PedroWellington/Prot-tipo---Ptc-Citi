@@ -2,7 +2,7 @@
 // desktop e celular, claro e escuro. Grava vídeo e quadros em OUT e imprime medições (eventos lentos, tarefas longas,
 // FPS da entrada). Também confere que cada perfil só vê o que é seu.
 // Uso (app rodando, Chrome instalado):  node --env-file=.env scripts/e2e-acabamento.mjs
-//   BASE=http://localhost:3000   OUT=.playwright-mcp/acabamento   SO=medir (só as medições, para comparar com a main)
+//   BASE=http://localhost:3000   OUT=.playwright-mcp/acabamento   SO=medir ROTULO=main (só as medições, para comparar)
 // Faz login com contas @exemplo.test (o login grava a sessão, como qualquer acesso); não altera outros dados.
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
@@ -254,7 +254,7 @@ try {
       for (const per of ["30 dias", "90 dias", "6 meses"]) { await page.getByRole("radio", { name: per }).click(); await page.waitForTimeout(1200); }
       const p = await perf(page);
       const ev = p.events.map((e) => e.d).sort((a, b) => a - b);
-      medidas.push({ caso: `${ONLY_MEASURE ? "main" : "branch"} ${aparelho}${dev === CELULAR ? " (CPU 4x)" : ""}`, "INP aprox. (ms)": ev.at(-1) ?? 0, "tarefas longas > 100 ms": p.long.filter((d) => d > 100).length, "maior tarefa (ms)": Math.max(0, ...p.long) });
+      medidas.push({ caso: `${process.env.ROTULO ?? "branch"} ${aparelho}${dev === CELULAR ? " (CPU 4x)" : ""}`, "INP aprox. (ms)": ev.at(-1) ?? 0, "tarefas longas > 100 ms": p.long.filter((d) => d > 100).length, "maior tarefa (ms)": Math.max(0, ...p.long) });
       await ctx.close();
     });
   }

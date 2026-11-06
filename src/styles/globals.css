@@ -407,10 +407,9 @@ ul.card > li { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 @media (hover: hover) and (pointer: fine) {
   ::view-transition-new(.page-in) { animation-name: vt-in-blur; }
 }
-/* Abas de conteúdo (Análises): o antigo sai em 120 ms e o novo entra com fade, subida e desfoque curto */
-::view-transition-old(.tab-out) { animation: fade-away 120ms ease-out both; }
-::view-transition-new(.tab-in) { animation: vt-in 260ms var(--ease-out-soft) 60ms both; }
-@media (hover: hover) and (pointer: fine) { ::view-transition-new(.tab-in) { animation-name: vt-in-blur; } }
+/* Abas de conteúdo (Análises): a aba nova entra com fade, subida e, com mouse, desfoque curto (só CSS) */
+.tab-in { animation: vt-in 260ms var(--ease-out-soft) backwards; }
+@media (hover: hover) and (pointer: fine) { .tab-in { animation-name: vt-in-blur; } }
 
 /* Tema: só durante a troca a página inteira vira um quadro; o novo se abre num círculo (lib/theme.ts) */
 :root[data-vt^="theme"] { view-transition-name: root; }
@@ -527,7 +526,7 @@ a.card:active, button.card:active, .press:active { transform: scale(0.98); }
   ::view-transition-new(.page-in) { animation: fade 120ms ease-out both; }
   .panel-in, .fade-in { animation: fade 120ms ease-out both !important; }
   .panel-out, .fade-out { animation: fade-away 120ms ease-out both !important; }
-  .stagger > *, .reveal, .greet-in { animation: none !important; }
+  .stagger > *, .reveal, .greet-in, .tab-in { animation: none !important; }
   .entry-veil { display: none !important; }
   .nav-ind, .tab-ind { transition: opacity 120ms !important; }
   .btn-spinner { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
