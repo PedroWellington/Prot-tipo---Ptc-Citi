@@ -5,6 +5,7 @@ import { ArrowUp, ExternalLink, History, Maximize2, Minimize2, RotateCcw, Sparkl
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import { api } from "@/lib/api";
+import { usePresence } from "@/lib/motion";
 import { autocomplete, fold, GROUPS, readSize, writeSize, type PanelSize } from "@/lib/assistente";
 import type { ExportSpec } from "@/lib/exportar";
 import type { Answer } from "@/server/services/assistente";
@@ -84,6 +85,8 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
   const asked = msgs.filter((m) => m.role === "user").map((m) => m.text);
   const askedSet = new Set(asked.map(fold));
 
+  // Fecha com a mesma suavidade com que abre: fica montado durante a saída
+  const { present, closing } = usePresence(open);
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
   useEffect(() => {
     const el = list.current;
@@ -140,9 +143,9 @@ export default function AssistantPanel({ open, onClose, anchor }: { open: boolea
 
   return (
     <>
-      <div aria-hidden className={cx("fixed inset-0 z-40 bg-black/45 transition-opacity", open ? "opacity-100" : "pointer-events-none opacity-0", !wide && "sm:hidden")} />
-      <div ref={panel} role="dialog" aria-modal={wide} aria-label="Assistente de análises" hidden={!open} data-size={size}
-        className="assistant-panel page-enter fixed z-50 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-2xl">
+      <div aria-hidden className={cx("fixed inset-0 z-40 bg-scrim/45 transition-opacity duration-150", open ? "opacity-100" : "pointer-events-none opacity-0", !wide && "sm:hidden")} />
+      <div ref={panel} role="dialog" aria-modal={wide} aria-label="Assistente de análises" hidden={!present} data-size={size}
+        className={cx("assistant-panel fixed", closing ? "panel-out" : "panel-in", " z-50 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-2xl")}>
         <header className="flex items-center gap-2 border-b border-line px-4 py-3">
           <span aria-hidden className="tile bg-accent-soft text-accent"><Sparkles /></span>
           <div className="min-w-0 flex-1">

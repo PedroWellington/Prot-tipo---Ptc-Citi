@@ -46,6 +46,8 @@ Nenhuma senha fica no repositório. Copie `.env.example` para `.env` e defina `A
 | Fisioterapeutas | fisio1 a fisio3 (BV), fisio4 e fisio5 (CF) @exemplo.test | `DEMO_PASSWORD` |
 | Pacientes | paciente01 a paciente25 @exemplo.test | `DEMO_PASSWORD` |
 
+CPF no cadastro: protótipo de demonstração, aceita qualquer número de 11 dígitos (sem dígitos verificadores); a regra de um CPF por conta continua. Não informe dados reais.
+
 Pontos de partida: `paciente01` (onboarding, particular), `paciente04` (convênio na 3ª sessão), `paciente06` (convênio com troca em andamento), `paciente09` (lista de espera).
 
 Os telefones do seed começam com `81 00000`: assinantes iniciados em 0 não existem no plano de numeração, então nenhum número pertence a alguém. O seed cria também 160 pacientes históricos para o dashboard ter 6 meses de dados.
@@ -72,7 +74,7 @@ Tema claro e escuro com botão em todos os perfis; todo mundo começa no claro, 
 
 ## Trocar a cor verde
 
-Altere `--green-*` em [src/styles/tokens.css](src/styles/tokens.css), o único arquivo de cor da marca. Depois ajuste `theme_color` em [src/app/manifest.ts](src/app/manifest.ts) e rode `npm run icons` para regenerar os ícones.
+Altere as cores em [src/styles/tokens.css](src/styles/tokens.css), o único arquivo de cor da marca. O monograma "M" fica em [src/lib/marca.ts](src/lib/marca.ts) (variantes A, B e C; veja e escolha em `/marca-teste`, página oculta). Depois ajuste `theme_color` em [src/app/manifest.ts](src/app/manifest.ts) e rode `npm run icons` para regenerar o favicon e os ícones do PWA.
 
 ## PIX (particulares)
 
@@ -158,7 +160,8 @@ Nenhuma imagem, texto ou logotipo foi copiado de outros sites. Nenhuma imagem fo
 |---|---|---|---|---|
 | `public/site/espaco-*.webp` | Nosso espaço | [Wikimedia Commons: LRMC Physical, Occupational Therapy Clinics… (10036396)](https://commons.wikimedia.org/wiki/File:LRMC_Physical,_Occupational_Therapy_Clinics_Help_Service_Members_Recover,_Return_to_Duty_(10036396).jpg) | Bernhard Lashleyleidner, Exército dos EUA (ID 261020-A-HN506-1013) | Domínio público (obra do governo dos EUA) |
 | `public/site/exercicios-*.webp` | A terapia ideal | [Wikimedia Commons: Exercise equipment (rubber ball, light-weight dumbbells, jump rope)](https://commons.wikimedia.org/wiki/File:Exercise_equipment_(rubber_ball,_light-weight_dumbbells,_jump_rope).jpg) | Debora Cartagena, CDC (PHIL #14407) | Domínio público (obra do governo dos EUA) |
-| `public/site/tela-*.webp` | Mockups do hero e de "Veja o sistema por dentro" | Capturas do próprio sistema em modo demonstração (dados fictícios, sem CPF, e-mail ou telefone), geradas com Playwright e convertidas por `node scripts/telas-site.mjs <pasta>` | Projeto | Parte do projeto |
+| `public/site/tela-paciente-*.webp` | Mockup de "Veja o sistema por dentro" (só a visão do paciente) | Capturas do próprio sistema em modo demonstração (dados fictícios, sem CPF, e-mail ou telefone), geradas com Playwright e convertidas por `node scripts/telas-site.mjs <pasta>` | Projeto | Parte do projeto |
+| `public/site/particulas-v1-*.json`, `public/site/formas-v1/*.svg` | Formas da abertura (esfera com o "M", coluna, figura, joelho, anel) | Geradas por `npm run particulas` (scripts/gerar-particulas.ts), desenho original | Projeto | Parte do projeto |
 | Ilustração de "A clínica" e ícones das especialidades | `src/components/site/illustrations.tsx` | SVG de linha fina original (sem pessoas) e ícones Lucide (licença ISC) | — | Parte do projeto |
 
 Para "A clínica" foi avaliada a foto CC0 [Physical Therapy Teaching Lab at CU Anschutz (October 2025)](https://commons.wikimedia.org/wiki/File:Physical_Therapy_Teaching_Lab_at_CU_Anschutz_(October_2025).jpg) e descartada: mostra pessoas e o logotipo de uma universidade real. No lugar, ilustração de linha.
@@ -168,6 +171,20 @@ As licenças foram conferidas foto a foto pela API do Wikimedia Commons (campo `
 ### Movimento na página pública
 
 Sem biblioteca de animação: CSS e um único `IntersectionObserver` ([src/components/site/motion.tsx](src/components/site/motion.tsx)). Um script inline liga `.motion-ok` antes da primeira pintura só quando há JavaScript e movimento permitido; sem ele (ou com `prefers-reduced-motion`) tudo aparece parado e visível. A faixa em movimento é CSS puro (conteúdo duplicado com `aria-hidden` na cópia), pausa sob o mouse e no foco e só roda visível. Hover (`.lift`) só em `(hover: hover) and (pointer: fine)`; no toque, `scale(0.98)` ao pressionar. Regras em [src/styles/site.css](src/styles/site.css).
+
+A abertura é um palco de partículas ([src/components/site/scene.tsx](src/components/site/scene.tsx), motor em [particle-stage.ts](src/components/site/particle-stage.ts)): uma seção de ~620vh (520vh no celular) com um quadro `sticky`. Milhares de triângulos pequenos formam a esfera com o "M"; ao rolar, eles se soltam numa nuvem e se refazem em coluna, figura em movimento, joelho e anel de progresso, voltando à esfera no fim. Cada frase (Admin > Textos > Cena de abertura) aparece do lado oposto à sua forma.
+
+- WebGL2 puro, uma única chamada de desenho com instâncias; o vertex shader interpola uma forma até a seguinte e espalha as partículas no meio do caminho. Sem WebGL2 no contexto: canvas 2D com menos partículas.
+- Um único listener de rolagem passivo grava o progresso; o motor suaviza e só desenha com o canvas visível e a aba ativa. Quantidade adaptativa (6 mil no desktop, 2 mil no celular, reduz se ficar abaixo de ~50 fps), DPR até 2 (1,5 no celular).
+- O motor e os pontos só baixam depois da primeira pintura: o título da abertura é o LCP.
+- Sem JavaScript, sem WebGL2 ou com `prefers-reduced-motion`: sem palco, cada frase em bloco normal com o desenho estático (SVG) da forma.
+- As classes `motion-ok`/`scene-live` são ligadas antes da primeira pintura e de novo ao montar a página (navegação do cliente, por exemplo depois de sair da conta). `npm run e2e` confere o hero depois de entrar e sair em todos os perfis.
+- Cada frase tem um texto curto embaixo (Admin > Textos > Cena de abertura). Na base da primeira tela, o aviso "Role para ver" ("Deslize para ver" no celular) leva até a primeira forma e some depois de ~40 px de rolagem.
+- Durante a cena o cabeçalho fica transparente, só com logo, tema e Entrar; os links de seção ficam `inert`. Quando o palco termina (um `IntersectionObserver` no marcador do fim), o menu completo desce. Sem palco ou abrindo por âncora, o menu completo fica sempre.
+
+### Paleta única e fluidez no sistema
+
+Página pública e área logada usam os mesmos tokens ([src/styles/tokens.css](src/styles/tokens.css)): a banda escura do site é o cartão principal do app (`.hero, .site-dark`), a faixa dos números é a faixa de indicadores (`.band, .site-strong`) e a sidebar tem a cor do cabeçalho do site. `tokens.test.ts` confere contraste AA e que nenhum arquivo de estilo/componente alterado tem cor fixa. Dentro do app: troca de rota com `<ViewTransition>` do React (só o conteúdo anima), esqueletos `loading.tsx` no formato de cada tela, indicador deslizante na sidebar e na barra do celular, painéis que fecham com a mesma suavidade com que abrem e itens removidos que saem deslizando ([src/lib/motion.ts](src/lib/motion.ts)). Exceção: os cartões de indicadores das Análises (Admin e Recepção) mantêm o azul-marinho com valor turquesa de antes, pela classe `.kpi` e os tokens `--kpi-card-*`.
 
 ## Análises: como calculamos as previsões
 

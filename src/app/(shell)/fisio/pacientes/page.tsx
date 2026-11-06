@@ -80,7 +80,7 @@ export default function Page() {
           {error && <ErrorState error={error} retry={refetch} />}
           {data && !rows.length && <div className="card"><Empty title="Ninguém encontrado" /></div>}
           {!!rows.length && (
-            <ul className="card divide-y divide-line overflow-hidden lg:max-h-[calc(100dvh-300px)] lg:overflow-y-auto">
+            <ul className="stagger card divide-y divide-line overflow-hidden lg:max-h-[calc(100dvh-300px)] lg:overflow-y-auto">
               {rows.map((p) => <Row key={p.id} p={p} selected={p.treatments[0].id === selected} onPick={onPick} />)}
             </ul>
           )}

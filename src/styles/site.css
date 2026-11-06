@@ -1,8 +1,9 @@
 /*
- * Página pública: bandas, mockups, faixa em movimento, entrada ao rolar e hover.
+ * Página pública: cena de abertura rolada, bandas, mockups, faixa em movimento, entrada ao rolar e hover.
  * Só transform/translate/scale e opacity animam (a linha do "Como funciona" usa stroke-dashoffset num SVG pequeno).
- * Tudo que esconde conteúdo depende de .motion-ok, posta por um script inline só quando há JS e movimento permitido:
- * sem JavaScript, ou com prefers-reduced-motion, a página aparece inteira e parada.
+ * Tudo que esconde conteúdo ou prende a tela depende de .motion-ok, posta por um script inline só quando há JS e
+ * movimento permitido: sem JavaScript, ou com prefers-reduced-motion, a página aparece inteira, parada e em sequência.
+ * Nenhuma cor aqui: tudo vem de tokens.css (as bandas .site-dark/.site-strong estão em globals.css, junto de .hero/.band).
  */
 .site {
   /* Cores reais das bandas claras, resolvidas aqui: dentro da banda escura --bg/--surface-2 mudam */
@@ -10,36 +11,7 @@
   --alt-bg: var(--surface-2);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-pop: cubic-bezier(0.34, 1.45, 0.64, 1);
-  /* Banda escura: azul-marinho no claro, petróleo no escuro */
-  --dark-bg: #0f2f57;
-  --dark-bg-2: #143c6c;
-  --dark-ink: #f2f8fb;
-  --dark-ink-2: #c9dceb;
-  --dark-accent: #5fe9dc;
-  --dark-line: rgb(255 255 255 / 0.14);
-  /* Faixa forte dos indicadores: turquesa → azul, texto azul-marinho (AA nos dois temas) */
-  --strong-bg: linear-gradient(100deg, #19d3c5 0%, #4aa8ff 100%);
-  --strong-ink: #071d33;
-  --lift-shadow: 0 2px 6px rgb(18 58 107 / 0.08), 0 22px 40px -18px rgb(18 58 107 / 0.45);
 }
-[data-theme="dark"] .site {
-  --dark-bg: #0a3540;
-  --dark-bg-2: #0e4553;
-  --dark-ink: #ecf8f9;
-  --dark-ink-2: #c3e3e7;
-  --lift-shadow: 0 2px 6px rgb(0 0 0 / 0.3), 0 22px 40px -18px rgb(0 0 0 / 0.75);
-}
-
-/* Banda escura: os tokens viram os da banda, então cartões, textos e botões dentro dela se ajustam sozinhos */
-.site-dark {
-  background: radial-gradient(120% 90% at 85% 0%, var(--dark-bg-2) 0%, var(--dark-bg) 60%);
-  color: var(--dark-ink);
-  --ink: var(--dark-ink); --ink-2: var(--dark-ink-2); --ink-3: var(--dark-ink-2);
-  --line: var(--dark-line); --line-strong: rgb(255 255 255 / 0.24);
-  --surface: rgb(255 255 255 / 0.06); --surface-2: rgb(255 255 255 / 0.1);
-  --accent: var(--dark-accent); --accent-soft: rgb(95 233 220 / 0.14);
-}
-.site-strong { background: var(--strong-bg); color: var(--strong-ink); --ink: var(--strong-ink); --ink-2: var(--strong-ink); --ink-3: var(--strong-ink); }
 .site-alt { background: var(--alt-bg); }
 
 /* Transição entre bandas: curva SVG leve, na cor da banda seguinte */
@@ -49,35 +21,184 @@
 /* Rótulo pequeno em caixa-alta acima dos títulos */
 .eyebrow { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
 
-/* ── Cabeçalho: encolhe e ganha sombra ao rolar (só transform/opacity) ── */
+/* ── Cabeçalho ──
+ * Normal: fundo da superfície (pseudo-elemento ::before), borda fina e sombra ao rolar; encolhe um pouco.
+ * Durante a cena (.scene-live sem data-mode="completo"): transparente, sem borda nem sombra, texto claro da banda,
+ * só logo, tema e Entrar. No fim do palco o fundo e o menu descem de cima (translateY -100% → 0 com fade, 320 ms);
+ * a cor do texto troca com transição curta. Altura fixa (64 px) nas duas versões. */
 .site-header { transition: translate 260ms var(--ease-out); }
+.site-header::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out);
+}
+.site-header :is(a, button, span) { transition-property: color, background-color, border-color, opacity, transform, visibility; transition-duration: 300ms; }
+.header-sections, .header-extra { transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out), visibility 0s; }
+.scene-live .site-header:not([data-mode="completo"]) {
+  --ink: var(--hero-ink); --ink-2: var(--hero-ink-2); --line: transparent; --accent: var(--hero-badge-ink);
+  --btn-line-border: var(--hero-badge-ink); color: var(--hero-ink);
+}
+.scene-live .site-header:not([data-mode="completo"])::before { transform: translateY(-100%); opacity: 0; }
+.scene-live .site-header:not([data-mode="completo"])::after { opacity: 0 !important; }
+.scene-live .site-header:not([data-mode="completo"]) :is(.header-sections, .header-extra) {
+  opacity: 0; visibility: hidden; transform: translateY(-100%);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out), visibility 0s 200ms;
+}
+.scene-live .site-header:not([data-mode="completo"]) .header-menu { display: none; }
+/* Fim do palco: marcador que o cabeçalho observa */
+.scene-end { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; pointer-events: none; }
 .site-header::after {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  box-shadow: 0 10px 30px -18px rgb(7 29 51 / 0.55); opacity: 0; transition: opacity 260ms var(--ease-out);
+  box-shadow: var(--header-shadow); opacity: 0; transition: opacity 260ms var(--ease-out);
 }
 .site-header .logo-shrink { transition: scale 260ms var(--ease-out); transform-origin: left center; }
 html.is-scrolled .site-header { translate: 0 -6px; }
 html.is-scrolled .site-header::after { opacity: 1; }
 html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 
+/* ══ Cena de abertura: palco de partículas ═════════════════════════════════════
+ * Sem .scene-live (sem JS, sem WebGL2 ou com menos movimento): blocos normais, um embaixo do outro, cada frase com
+ * o desenho estático da sua forma e todo o texto visível. Com .scene-live: palco de ~620vh (520vh no celular) com
+ * um quadro preso de 100svh; o canvas (decorativo, sem clique) desenha as partículas e scene-driver.tsx troca as
+ * frases. Só transform e opacity animam no HTML. */
+.scene { position: relative; }
+.scene-sticky { display: flex; flex-direction: column; gap: 56px; max-width: 72rem; margin: 0 auto; padding: 48px 16px 32px; }
+@media (min-width: 640px) { .scene-sticky { padding-inline: 24px; } }
+.scene-canvas, .scene-glow { display: none; }
+.scene-shape { display: block; width: min(320px, 72vw); height: auto; aspect-ratio: 1; margin-inline: auto; }
+.scene-hero { display: grid; gap: 32px; align-items: center; }
+.scene-hero-text { max-width: 40rem; }
+.scene-phrase { display: grid; gap: 16px; align-items: center; order: 2; }
+.scene-copy { text-align: center; }
+.scene-text { margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; }
+/* Texto curto embaixo da frase grande: corpo menor, cor secundária (AA sobre a banda), até ~46 caracteres por linha */
+.scene-sub { max-width: 46ch; margin: 16px auto 0; font-size: clamp(16px, 1.25vw, 18px); line-height: 1.55; color: var(--ink-2); }
+@media (min-width: 768px) {
+  .scene-hero { grid-template-columns: 1fr 1fr; }
+  .scene-phrase { grid-template-columns: 1fr 1fr; }
+  .scene-phrase .scene-copy { text-align: left; }
+  .scene-phrase .scene-sub { margin-inline: 0; }
+  .scene-phrase[data-side="l"] .scene-shape { order: 2; }
+}
+
+/* Aviso "Role para ver": pílula com borda turquesa clara, texto branco (AA sobre a banda) e seta que pulsa.
+   Sem palco (blocos estáticos) fica logo abaixo da abertura; no palco, na base da primeira tela (100svh) */
+.scene-hint {
+  order: 1; align-self: center; display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  border: 2px solid var(--hero-badge-ink); border-radius: 999px; background: var(--hero-badge-bg);
+  color: var(--hero-ink); font-size: 16px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  box-shadow: 0 0 0 6px var(--hero-badge-bg);
+}
+.scene-hint:focus-visible { outline: 2px solid var(--hero-badge-ink); outline-offset: 3px; }
+.hint-mob { display: none; }
+@media (hover: none), (pointer: coarse) {
+  .hint-desk { display: none; }
+  span.hint-mob { display: inline; }
+  svg.hint-mob { display: block; }
+}
+@keyframes hint-pulse { 0%, 100% { transform: translateY(0); opacity: 0.7; } 50% { transform: translateY(5px); opacity: 1; } }
+.hint-arrow { animation: hint-pulse 1.6s ease-in-out infinite; }
+
+/* O palco começa atrás do cabeçalho (64 px): durante a cena o cabeçalho é transparente e a tela tem uma cor só */
+.scene-live .scene { --scene-h: 620vh; height: var(--scene-h); margin-top: -64px; }
+.scene-live .scene-sticky {
+  position: sticky; top: 0; display: block; height: 100svh; max-width: none; margin: 0; padding: 0; overflow: hidden;
+}
+.scene-live .scene-shape { display: none; }
+.scene-live .scene-canvas {
+  display: block; position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%;
+  pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease-out);
+}
+.scene-live .scene.is-ready .scene-canvas { opacity: 1; }
+/* Lugar da esfera enquanto as partículas carregam: brilho e o "M" (centro em 74% × 54%, como no palco) */
+.scene-live .scene-glow {
+  display: grid; place-items: center; position: absolute; z-index: 0; left: 74%; top: 54%;
+  width: min(44vw, 70vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--particle-glow), transparent); transition: opacity 500ms var(--ease-out);
+}
+.scene-glow-mark { width: 30%; height: auto; opacity: 0.85; }
+.scene-live .scene.is-ready .scene-glow { opacity: 0; }
+
+/* Quadros */
+.scene-live .scene-frame { position: absolute; z-index: 2; inset: 64px 0 0; pointer-events: none; }
+.scene-live .scene-frame.is-on, .scene-live .scene-frame:focus-within { pointer-events: auto; }
+.scene-live .scene-hero { display: block; }
+.scene-live .scene-hero-text {
+  position: absolute; top: 50%; left: max(16px, calc(50% - 552px)); width: min(560px, 46vw); max-width: none; translate: 0 -50%;
+}
+.scene-live .scene-copy { position: absolute; top: 50%; translate: 0 -50%; text-align: left; }
+.scene-live .scene-text {
+  line-height: 1.02;
+  /* Limitada também pela altura e quebrando palavra longa: uma frase comprida salva no Admin não estoura o quadro */
+  font-size: clamp(36px, min(5.6vw, 9vh), 88px); overflow-wrap: anywhere;
+}
+.scene-live .scene-sub { margin: 20px 0 0; }
+/* A frase fica do lado oposto à forma: forma à esquerda (r) → texto à direita */
+.scene-live .scene-phrase[data-side="r"] { --side: 1; }
+.scene-live .scene-phrase[data-side="l"] { --side: -1; }
+.scene-live .scene-phrase[data-side="r"] .scene-copy { left: 54%; right: max(16px, calc(50% - 552px)); }
+.scene-live .scene-phrase[data-side="l"] .scene-copy { left: max(16px, calc(50% - 552px)); right: 54%; }
+.scene-live .scene-word { display: inline-block; }
+.scene-live .scene-hint {
+  position: absolute; z-index: 3; left: 50%; bottom: max(20px, 3svh); translate: -50% 0;
+  animation: hint-in 300ms var(--ease-out) 300ms both;
+  transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+}
+@keyframes hint-in { from { opacity: 0; } }
+.scene-live .scene[data-hint="off"] .scene-hint { opacity: 0; transform: translateY(8px); pointer-events: none; }
+
+/* Entrada e saída de lado, escalonadas: antes do quadro esperam do lado de entrada; depois saem pelo contrário */
+.scene-live .scene-item, .scene-live .scene-word {
+  transition: transform 760ms var(--ease-out), opacity 520ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 60ms);
+}
+.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word) { opacity: 0; }
+.scene-live .scene-frame:not(.is-on, .is-past) :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * 40vw)); }
+.scene-live .scene-frame.is-past :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * -40vw)); }
+/* O texto embaixo entra ~100 ms depois da última palavra, com fade e deslocamento curto; sai junto com o quadro */
+.scene-live .scene-sub {
+  transition: transform 600ms var(--ease-out), opacity 450ms var(--ease-out);
+  transition-delay: calc(var(--n, 1) * 60ms + 100ms);
+}
+.scene-live .scene-frame:not(.is-on) .scene-sub { opacity: 0; transform: translateY(12px); transition-delay: 0ms; }
+.scene-live .scene-frame.is-past .scene-sub { transform: translateY(-8px); }
+/* Teclado: um link focado num quadro que já saiu volta a aparecer */
+.scene-live .scene-frame:focus-within .scene-item { opacity: 1; transform: none; }
+
+@media (max-width: 767px), (orientation: portrait) {
+  .scene-live .scene { --scene-h: 520vh; }
+  .scene-live .scene-glow { left: 50%; top: 24%; width: min(56vw, 28vh); }
+  /* Abertura acima do aviso, que fica na base da tela sem cobrir o botão */
+  .scene-live .scene-hero-text { top: auto; bottom: calc(max(20px, 3svh) + 60px); left: 16px; right: 16px; width: auto; translate: none; }
+  .scene-live .scene-hero h1 { font-size: 38px; }
+  /* Celular: a forma fica em cima; frase e até 2 linhas de texto embaixo, centralizadas */
+  /* Mesma especificidade da regra de lado do desktop ([data-side]), senão o texto ficaria espremido numa metade */
+  .scene-live .scene-phrase:is([data-side="r"], [data-side="l"]) .scene-copy { top: auto; bottom: max(32px, 6svh); left: 16px; right: 16px; translate: none; text-align: center; }
+  .scene-live .scene-phrase .scene-text { font-size: clamp(32px, 9.5vw, 50px); }
+  .scene-live .scene-sub { margin: 12px auto 0; font-size: 16px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+}
+
+/* Sem .scene-live a curva da banda fecha a cena; no palco, a esfera final volta antes de a página seguir */
+.scene-live .scene > .band-edge { display: none; }
+
 /* ── Mockup do produto: notebook e celular em CSS ── */
 .device-laptop { position: relative; }
 .device-laptop .screen {
   position: relative; overflow: hidden; aspect-ratio: 16 / 10;
-  border-radius: 14px 14px 4px 4px; border: 10px solid #0b1726; border-bottom-width: 14px; background: #0b1726;
-  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
+  border-radius: 14px 14px 4px 4px; border: 10px solid var(--device-frame); border-bottom-width: 14px; background: var(--device-frame);
+  box-shadow: var(--device-shadow);
 }
 .device-laptop .base {
   height: 12px; margin: 0 -6%; border-radius: 0 0 14px 14px;
-  background: linear-gradient(#cfd8e3, #9aa8b8); box-shadow: 0 12px 24px -12px rgb(0 0 0 / 0.5);
+  background: var(--device-base); box-shadow: var(--device-shadow);
 }
-.device-laptop .base::before { content: ""; display: block; width: 18%; height: 5px; margin: 0 auto; border-radius: 0 0 8px 8px; background: #8593a4; }
+.device-laptop .base::before { content: ""; display: block; width: 18%; height: 5px; margin: 0 auto; border-radius: 0 0 8px 8px; background: var(--device-notch); }
 .device-phone {
   overflow: hidden; aspect-ratio: 390 / 844;
-  border-radius: 34px; border: 8px solid #0b1726; background: #0b1726;
-  box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.65);
+  border-radius: 34px; border: 8px solid var(--device-frame); background: var(--device-frame);
+  box-shadow: var(--device-shadow);
 }
-.device-phone::before { content: ""; position: absolute; top: 6px; left: 50%; z-index: 2; width: 34%; height: 16px; translate: -50% 0; border-radius: 999px; background: #0b1726; }
+.device-phone::before { content: ""; position: absolute; top: 6px; left: 50%; z-index: 2; width: 34%; height: 16px; translate: -50% 0; border-radius: 999px; background: var(--device-frame); }
 /* A tela acompanha o tema escolhido no site (claro/escuro), não o do sistema */
 .shot-dark { display: none; }
 [data-theme="dark"] .shot-dark { display: block; }
@@ -87,15 +208,14 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .float-card {
   position: absolute; z-index: 3; display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; border-radius: 16px; font-size: 0.875rem; font-weight: 600; white-space: nowrap;
-  background: #ffffff; color: #0b2440; box-shadow: 0 16px 36px -16px rgb(0 0 0 / 0.55);
+  background: var(--float-bg); color: var(--float-ink); box-shadow: var(--float-shadow);
 }
-[data-theme="dark"] .float-card { background: #103a45; color: #ecf8f9; }
 
 /* ── Faixa em movimento (marquee): conteúdo duplicado, translateX infinito, bordas dissolvidas ── */
 .marquee {
   overflow: hidden; padding-block: 12px;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, currentColor 7%, currentColor 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, currentColor 7%, currentColor 93%, transparent);
 }
 .marquee-track { display: flex; width: max-content; animation: marquee var(--marquee-dur, 50s) linear infinite; }
 .marquee[data-reverse] .marquee-track { animation-direction: reverse; }
@@ -107,17 +227,20 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 .marquee:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 12px; }
 
-/* ── Entrada ao rolar ── */
+/* ── Entrada ao rolar: a mesma linguagem da cena (desliza de lado + fade) ── */
 .motion-ok [data-reveal] {
+  --side: -1;
   transition: opacity 560ms var(--ease-out), translate 560ms var(--ease-out);
-  transition-delay: calc(min(var(--i, 0), 5) * 70ms);
+  transition-delay: calc(min(var(--i, 0), 5) * 60ms);
 }
+/* Cartões em grade e o lado do texto nas seções de imagem entram pela direita, alternando */
+.motion-ok [data-reveal][data-side="r"], .motion-ok li:nth-child(even)[data-reveal] { --side: 1; }
 .motion-ok [data-reveal="card"] { transition-timing-function: var(--ease-out), var(--ease-pop); }
-.motion-ok [data-reveal]:not(.is-in) { opacity: 0; translate: 0 24px; }
+.motion-ok [data-reveal]:not(.is-in) { opacity: 0; translate: calc(var(--side) * 32px) 0; }
 
-/* Abertura em sequência: selo, título, texto, botões, mockup */
-@keyframes rise { from { opacity: 0; translate: 0 24px; } }
-.motion-ok .hero-seq > * { animation: rise 600ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 90ms); }
+/* Abertura em sequência: selo, título, texto, botões */
+@keyframes site-rise { from { opacity: 0; translate: 0 24px; } }
+.motion-ok .hero-seq > * { animation: site-rise 600ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 90ms); }
 /* Título e frase só deslizam, sem começar transparentes: são o maior conteúdo da primeira tela (LCP) */
 @keyframes rise-move { from { translate: 0 18px; } }
 .motion-ok .hero-seq > .hero-lcp { animation-name: rise-move; }
@@ -125,11 +248,6 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .motion-ok .float-card { animation: bob 3.2s ease-in-out infinite alternate; }
 .motion-ok .float-card:nth-of-type(2) { animation-delay: -1.1s; }
 .motion-ok .float-card:nth-of-type(3) { animation-delay: -2.2s; }
-/* Parallax bem leve do mockup, só onde há scroll-driven animation (sem listener de rolagem) */
-@supports (animation-timeline: scroll()) {
-  @keyframes drift { to { transform: translateY(-48px); } }
-  .motion-ok .parallax { animation: drift linear both; animation-timeline: scroll(root); animation-range: 0 700px; }
-}
 
 /* Como funciona: linha que se desenha ao entrar na tela */
 .steps-line line { stroke-dasharray: 1; stroke-dashoffset: 0; }
@@ -155,7 +273,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .site .btn { transition: transform 200ms var(--ease-out), opacity 200ms; position: relative; }
 .site .btn::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.18), transparent 60%); opacity: 0; transition: opacity 200ms var(--ease-out);
+  background: linear-gradient(180deg, var(--band-soft), transparent 60%); opacity: 0; transition: opacity 200ms var(--ease-out);
 }
 .btn-arrow { transition: transform 200ms var(--ease-out); }
 @media (hover: hover) and (pointer: fine) {
@@ -172,16 +290,14 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .faq-item .faq-chevron { transition: transform 280ms var(--ease-out); }
 .faq-item[data-open] .faq-chevron { transform: rotate(180deg); }
 
-/* Abas do "Veja o sistema por dentro": troca com fade curto */
-.tour-panel { animation: fade-in 260ms var(--ease-out); }
-@keyframes fade-in { from { opacity: 0; } }
-
-/* Menos movimento: nada contínuo; a faixa vira linha rolável à mão e sem a cópia duplicada */
+/* Menos movimento: nada contínuo, nenhum palco preso; a faixa vira linha rolável à mão e sem a cópia duplicada */
 @media (prefers-reduced-motion: reduce) {
+  .scene { height: auto !important; }
+  .scene-sticky { position: static !important; height: auto !important; }
   .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
   .marquee-track { animation: none; }
   .marquee-list[aria-hidden] { display: none; }
-  .float-card, .parallax, .tour-panel { animation: none; }
+  .float-card, .hint-arrow, .scene-hint { animation: none !important; }
   .lift, .lift::after, .site .btn, .btn-arrow, .faq-body, .faq-chevron, .site-header, .site-header::after { transition: none; }
   .lift:hover, .lift:focus-visible, .lift:has(:focus-visible), .lift:active { transform: none; }
 }

@@ -7,6 +7,7 @@ import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { api } from "@/lib/api";
 import { fmtRelative } from "@/lib/time";
 import { Sheet } from "./lazy-sheet";
+import { leave, usePresence } from "@/lib/motion";
 import { useAction } from "./providers";
 import { Button, cx } from "./ui";
 
@@ -46,7 +47,7 @@ function NoteList({ onPick, onDismiss }: { onPick: (n: Note) => void; onDismiss:
       </div>
     );
   return (
-    <ul className="flex flex-col">
+    <ul className="stagger flex flex-col">
       {data.items.map((n) => {
         const Icon = ICONS[n.type] ?? Bell;
         return (
@@ -63,7 +64,7 @@ function NoteList({ onPick, onDismiss }: { onPick: (n: Note) => void; onDismiss:
               {!n.readAt && <span role="img" aria-label="Não lida" className="mt-2 size-2 shrink-0 rounded-full bg-accent" />}
             </button>
             {/* Ícone pequeno, alvo de 44px: distinto do X de fechar o painel, que fica no cabeçalho */}
-            <button type="button" onClick={() => onDismiss(n)} aria-label="Apagar notificação" title="Apagar notificação"
+            <button type="button" onClick={(e) => leave(e.currentTarget, () => onDismiss(n))} aria-label="Apagar notificação" title="Apagar notificação"
               className="mt-1.5 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:text-ink">
               <X strokeWidth={1.75} className="size-3.5" />
             </button>
@@ -93,7 +94,7 @@ function NoteActions() {
   );
 }
 
-function Popover({ onClose, anchor, children }: { onClose: () => void; anchor: DOMRect; children: ReactNode }) {
+function Popover({ onClose, anchor, closing, children }: { onClose: () => void; anchor: DOMRect; closing: boolean; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -108,10 +109,10 @@ function Popover({ onClose, anchor, children }: { onClose: () => void; anchor: D
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/15" onClick={onClose} aria-hidden />
+      <div className={cx("absolute inset-0 bg-scrim/15", closing ? "fade-out" : "fade-in")} onClick={onClose} aria-hidden />
       <div ref={panel} role="dialog" aria-modal="true" aria-label="Notificações" tabIndex={-1}
         style={{ left: anchor.right + 12, bottom: Math.max(16, window.innerHeight - anchor.bottom) }}
-        className="pop-in absolute flex max-h-[min(640px,calc(100dvh-32px))] w-[420px] flex-col rounded-2xl border border-line-strong bg-surface shadow-2xl outline-none">
+        className={cx(closing ? "panel-out" : "panel-in", "absolute flex max-h-[min(640px,calc(100dvh-32px))] w-[420px] flex-col rounded-2xl border border-line-strong bg-surface shadow-2xl outline-none")}>
         <header className="flex items-center justify-between px-5 pt-4 pb-2">
           <h2 className="font-display text-2xl">Notificações</h2>
           <button type="button" onClick={onClose} aria-label="Fechar notificações" className="-mr-2 flex size-11 items-center justify-center rounded-full text-ink-2"><X strokeWidth={1.5} className="size-5" /></button>
@@ -125,6 +126,8 @@ function Popover({ onClose, anchor, children }: { onClose: () => void; anchor: D
 /** Popover opaco ancorado ao sino no desktop; bottom sheet opaco no mobile. */
 export function NotificationPanel({ open, anchor, onClose }: { open: boolean; anchor: DOMRect | null; onClose: () => void }) {
   const router = useRouter();
+  // Desktop: o popover fica montado durante a saída (150 ms); no celular o Sheet cuida disso
+  const { present, closing } = usePresence(open && !!anchor);
   const pick = useAction({
     run: (n: Note) => api("/notifications/read", { body: { id: n.id } }),
     optimistic: {
@@ -150,9 +153,9 @@ export function NotificationPanel({ open, anchor, onClose }: { open: boolean; an
   const body = <NoteList onPick={onPick} onDismiss={(n) => dismiss.mutate(n)} />;
   // anchor só existe quando o sino clicado é o da sidebar
   if (anchor) {
-    if (!open) return null;
+    if (!present) return null;
     return (
-      <Popover onClose={onClose} anchor={anchor}>
+      <Popover onClose={onClose} anchor={anchor} closing={closing}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">{body}</div>
         <div className="p-4 empty:hidden"><NoteActions /></div>
       </Popover>

@@ -201,7 +201,7 @@ export function AgendaDesk({ initial, day: firstDay, serverAt, fixedUnit, google
             {error && <ErrorState error={error} retry={refetch} />}
             {data && !rows.length && <div className="card"><Empty title="Nada por aqui" body="Nenhuma sessão com estes filtros." /></div>}
             {!!rows.length && (
-              <ul className="card divide-y divide-line overflow-hidden">
+              <ul className="stagger card divide-y divide-line overflow-hidden">
                 {rows.map((s) => <Row key={s.id} s={s} selected={s.id === selectedId} onSelect={select} />)}
               </ul>
             )}

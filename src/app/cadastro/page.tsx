@@ -61,7 +61,7 @@ export default function CadastroPage() {
       {/* Etapa de dados fica montada (só escondida): "Trocar e-mail" volta sem perder o que foi digitado */}
       <div hidden={step !== "dados"}>
         <AuthFrame title="Vamos começar" subtitle="Só precisamos do seu CPF e e-mail, e de alguns dados para cuidar bem de você.">
-          <PatientForm submitLabel="Continuar" consentLabel={CONSENT} cpfHint="Ambiente de demonstração: use um CPF de gerador, não o seu" emailNote={EMAIL_NOTE} onSubmit={async (data) => {
+          <PatientForm submitLabel="Continuar" consentLabel={CONSENT} emailNote={EMAIL_NOTE} onSubmit={async (data) => {
             const r = await api<{ verificationId: string }>("/auth/register/start", { body: data });
             sent(r.verificationId); setEmail(String(data.email)); setError(null); setStep("codigo");
           }} />

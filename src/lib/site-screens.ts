@@ -3,41 +3,21 @@ export const SITE_SCREENS = {
   "paciente-celular-claro": {
     "width": 780,
     "height": 1688,
-    "blur": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4IIQAAABQBACdASoMABoAPu1mqk2ppaQiMAgBMB2JbACdOUE6UAweQl7h2DcWHPUAAP7npwWHRTfqaYDznvGfZPSEvenvx267ivNAeBMOWit2hdoDp6ZC7JK1tP9Z6zPnjexa/fxigkIKeQxbvx+OHw0M80BJk4/csNAoJSRbJnY6vlVSC9ugwAA="
+    "blur": "data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAABQBACdASoMABoAPu1iqk2ppaQiMAgBMB2JZACdMoADT5wdaZ3lFthjc8RwAP6ZiB14VgWunBRWiFER/zznPjRgAPx5uUsW5qzI0Esv51Bp9dIpnOijFMiON4S1Xqjn4ZPwv1L22VP07ZJgKK4CXqdUHDw83y14VjwPdlB8owFvD46cSI5pP8cD2rQAAA=="
   },
   "paciente-celular-escuro": {
     "width": 780,
     "height": 1688,
-    "blur": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAAAwBACdASoMABoAPu1iqU2ppaOiMAgBMB2JYgCdMoADUpejdYZKCTYFQUAA/tmcYkxNrhPolHTamSP+wstm++GQbXiCN/KhMBnGxoGFtrGSxHgAcVq0vGB9DAt98o9pLfejUzLXyRrMLiRToMAAAA=="
+    "blur": "data:image/webp;base64,UklGRn4AAABXRUJQVlA4IHIAAACwAwCdASoMABoAPu1mqk2ppaQiMAgBMB2JYgCdMoAEZwRydddgAAD+7lTzYAUHMgtxOypZwr6wZ4qkyBJgdJpSfHUYmvBxcrbgYDv1Xa4/GMhJHtYJc2+uciTvoVUZrhJXc2TfwuW+E05vDZgjK35guAA="
   },
   "paciente-desktop-claro": {
     "width": 1600,
     "height": 1000,
-    "blur": "data:image/webp;base64,UklGRkgAAABXRUJQVlA4IDwAAADwAQCdASoMAAcAA4BaJZgCdAEUuGRCmQAA/u44IKg/8L11YjvpboVs93A2jlYwYpOf1rCCvPDoikAwQAA="
+    "blur": "data:image/webp;base64,UklGRkwAAABXRUJQVlA4IEAAAADwAQCdASoMAAcAA4BaJaACdAEQKRJ3wgAA/th8N7PiwQZRW7CZ5ARb2myTPl9mQ5ZJ+3VJuUBBTc+zS/kYGAAA"
   },
   "paciente-desktop-escuro": {
     "width": 1600,
     "height": 1000,
-    "blur": "data:image/webp;base64,UklGRj4AAABXRUJQVlA4IDIAAADQAQCdASoMAAcAA4BaJZACdAELXPuxgAD+8Xk6snHfzD2FXw+FnlStlgeDlmcK8+AAAA=="
-  },
-  "recepcao-desktop-claro": {
-    "width": 1600,
-    "height": 1000,
-    "blur": "data:image/webp;base64,UklGRjQAAABXRUJQVlA4ICgAAACwAQCdASoMAAcAA4BaJZQAAqsLywagAP7ziILf5zNIZYJ6F/gQMWAA"
-  },
-  "recepcao-desktop-escuro": {
-    "width": 1600,
-    "height": 1000,
-    "blur": "data:image/webp;base64,UklGRjoAAABXRUJQVlA4IC4AAAAQAgCdASoMAAcAA4BaJYgCdAED/PdVzLegAP7xcPhMtZj5RD5xN2He9y1STgAA"
-  },
-  "fisio-desktop-claro": {
-    "width": 1600,
-    "height": 1000,
-    "blur": "data:image/webp;base64,UklGRjoAAABXRUJQVlA4IC4AAACwAQCdASoMAAcAA4BaJYwCdAEOUZmIAP7zrQ4KswKmZzyEVj9fsgC+pEl3AAAA"
-  },
-  "fisio-desktop-escuro": {
-    "width": 1600,
-    "height": 1000,
-    "blur": "data:image/webp;base64,UklGRj4AAABXRUJQVlA4IDIAAADwAQCdASoMAAcAA4BaJYgCdAELZSkfA8AA/vMvD2ctkdB4OjZULFEcuwQFhygBTzIAAA=="
+    "blur": "data:image/webp;base64,UklGRkYAAABXRUJQVlA4IDoAAADwAQCdASoMAAcAA4BaJagCdAD8Ls2mxgAA/vE7nV0d+0T7j8KlQ9dgonOhq5e+UFwfrj12nyP5r8AA"
   }
 } as const;

@@ -54,7 +54,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <div className="grid items-start gap-4 md:grid-cols-[300px_1fr]">
           <Card className="flex flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- QR gerado no servidor em data URI */}
-            <img src={p.qr!} alt="QR Code do PIX" width={260} height={260} className="rounded-xl bg-white p-2" />
+            <img src={p.qr!} alt="QR Code do PIX" width={260} height={260} className="rounded-xl bg-[var(--qr-bg)] p-2" />
             <p className="text-center text-sm text-ink-2">Abra o app do banco e escaneie, ou copie o código ao lado.</p>
           </Card>
           <Card className="flex flex-col gap-4">

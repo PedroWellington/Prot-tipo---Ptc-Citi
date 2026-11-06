@@ -12,7 +12,11 @@ export const metadata: Metadata = {
   title: { default: "Movimento", template: "%s · Movimento" },
   description: "Acompanhe seu tratamento de fisioterapia na Clínica Movimento.",
   appleWebApp: { capable: true, title: "Movimento", statusBarStyle: "black-translucent" },
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-192.png" },
+  // Monograma da marca (gerado por npm run icons a partir de src/lib/marca.ts)
+  icons: {
+    icon: [{ url: "/icons/marca.svg", type: "image/svg+xml" }, { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
+    apple: "/icons/apple-180.png",
+  },
 };
 
 export const viewport: Viewport = {

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CalendarClock, CalendarPlus, ChartColumn, ClipboardList, Ellipsis, FileClock, HeartPulse, Home, Hourglass, Lock, LogOut, MapPin, MessageCircle, PanelLeftClose, QrCode, Repeat, Settings, ShieldCheck, SlidersHorizontal, TrendingUp, Type, User, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, ViewTransition, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { q } from "@/lib/queries";
 import { toggleSidebar } from "@/lib/theme";
@@ -70,7 +70,10 @@ export async function logout() {
   await api("/auth/logout", { body: {} });
   // Aparelho compartilhado: não deixa dados de saúde no cache offline
   await window.caches?.delete("mv-data").catch(() => {});
-  location.href = "/login";
+  // Termina na página inicial com navegação completa: nada da área logada (estado do React, cache das consultas,
+  // atributos de animação em <html>) sobrevive à troca, e o script inline da página pública roda de novo
+  delete document.documentElement.dataset.sideAnim;
+  location.replace("/");
 }
 
 const isActive = (path: string, href: string) => path === href || (href.split("/").length > 2 && path.startsWith(href));
@@ -87,12 +90,17 @@ function useMobilityLocked(role: string) {
   return role === "PACIENTE" && !!data;
 }
 
+/** Um único destaque que desliza (transform) até a aba ativa, em vez de pular de um item para o outro. */
+const indicator = (index: number) => ({ "--ind": Math.max(0, index) }) as CSSProperties;
+
 const SideNav = memo(function SideNav({ items, path, locked }: { items: Item[]; path: string; locked: boolean }) {
+  const active = items.findIndex((i) => isActive(path, i.href));
   return (
-    <nav aria-label="Principal" className="side-nav flex flex-1 flex-col gap-0.5 overflow-y-auto">
+    <nav aria-label="Principal" className="side-nav relative flex flex-1 flex-col gap-0.5 overflow-y-auto">
+      <span aria-hidden className="nav-ind" data-on={active >= 0 || undefined} style={indicator(active)} />
       {items.map((i) => (
         <Link key={i.href} href={i.href} prefetch aria-label={locked && i.href === MOBILITY ? LOCK_LABEL : i.label} aria-current={isActive(path, i.href) ? "page" : undefined}
-          className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] pl-[13px] text-[15px]", isActive(path, i.href) ? "border-accent bg-nav-active font-semibold text-nav-active-ink" : "row-hover border-transparent text-nav-ink")}>
+          className={cx("nav-link relative flex min-h-11 items-center gap-3 rounded-xl border-l-[3px] border-transparent pl-[13px] text-[15px]", isActive(path, i.href) ? "font-semibold text-nav-active-ink" : "row-hover text-nav-ink")}>
           <span className="relative shrink-0"><i.icon strokeWidth={1.5} className="size-5" />{locked && i.href === MOBILITY && <LockDot />}</span>
           <span className="nav-label truncate">{i.label}</span>
           <span aria-hidden className="nav-tip">{i.label}</span>
@@ -104,7 +112,7 @@ const SideNav = memo(function SideNav({ items, path, locked }: { items: Item[]; 
 
 // No máximo 5 itens no celular, sem rolagem lateral: o resto vai para "Mais"
 const MAX_TABS = 5;
-const tabClass = (on: boolean) => cx("mx-0.5 my-1 flex min-h-12 w-[calc(100%-4px)] flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] transition-transform active:scale-95", on ? "bg-tab-active font-semibold text-tab-active-ink" : "text-tab-ink");
+const tabClass = (on: boolean) => cx("relative mx-0.5 my-1 flex min-h-12 w-[calc(100%-4px)] flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] transition-transform active:scale-[0.98]", on ? "font-semibold text-tab-active-ink" : "text-tab-ink");
 
 const Tabs = memo(function Tabs({ items, path, locked }: { items: Item[]; path: string; locked: boolean }) {
   // Guardar a rota: navegar fecha a folha sozinho
@@ -113,8 +121,12 @@ const Tabs = memo(function Tabs({ items, path, locked }: { items: Item[]; path: 
   const shown = overflow ? items.slice(0, MAX_TABS - 1) : items;
   const rest = overflow ? items.slice(MAX_TABS - 1) : [];
   const restActive = rest.some((i) => isActive(path, i.href));
+  const active = restActive ? shown.length : shown.findIndex((i) => isActive(path, i.href));
+  const count = shown.length + (overflow ? 1 : 0);
   return (
     <nav aria-label="Abas" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="relative">
+      <span aria-hidden className="tab-ind" data-on={active >= 0 || undefined} style={{ ...indicator(active), width: `${100 / count}%` }} />
       <ul className="flex">
         {shown.map((i) => (
           <li key={i.href} className="min-w-0 flex-1">
@@ -133,6 +145,7 @@ const Tabs = memo(function Tabs({ items, path, locked }: { items: Item[]; path: 
           </li>
         )}
       </ul>
+      </div>
       {overflow && (
         <Sheet open={moreAt === path} onClose={() => setMoreAt(null)} title="Mais">
           <ul className="flex flex-col gap-1">
@@ -218,7 +231,7 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
         <div className="side-inner">
           <div className="mb-5 flex min-h-11 items-center">
             <button type="button" onClick={onLogo} aria-label="Movimento: início ou expandir menu" className="flex min-h-11 items-center rounded-xl pl-3.5">
-              <span data-logo-mark className="inline-block"><LogoMark className="h-8 w-6" /></span>
+              <span data-logo-mark className="inline-block"><LogoMark className="size-8" /></span>
               <span aria-hidden className="nav-label font-display text-2xl leading-none text-ink">ovimento</span>
             </button>
           </div>
@@ -251,7 +264,10 @@ export function AppShell({ role, name, deskless, children }: { role: string; nam
             )}
           </div>
         </header>
-        <main className={cx("mx-auto w-full max-w-[1760px] px-4 pt-6 sm:px-6 lg:px-8 lg:pt-8", analyst ? "pb-[calc(148px+env(safe-area-inset-bottom))] lg:pb-24" : "pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-10")}>{children}</main>
+        <main className={cx("mx-auto w-full max-w-[1760px] px-4 pt-6 sm:px-6 lg:px-8 lg:pt-8", analyst ? "pb-[calc(148px+env(safe-area-inset-bottom))] lg:pb-24" : "pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-10")}>
+          {/* Troca de rota: a tela sai em fade curto e a nova entra com leve deslocamento (View Transitions; sem suporte, troca direto) */}
+          <ViewTransition key={path} enter="page-in" exit="page-out" default="none">{children}</ViewTransition>
+        </main>
       </div>
 
       <Tabs items={items} path={path} locked={locked} />

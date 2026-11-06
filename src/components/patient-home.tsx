@@ -269,7 +269,7 @@ export function Exercises({ items }: { items: Full["treatment"]["guidances"] }) 
     <Card>
       <SectionTitle icon={<PlayCircle />} tone="info" aside={!!items.length && <Badge tone={done === items.length ? "ok" : "neutral"}>{done}/{items.length} feitos</Badge>}>Exercícios da semana</SectionTitle>
       {!items.length && <p className="text-ink-2">Quando sua fisioterapeuta enviar exercícios para casa, eles aparecem aqui.</p>}
-      <ul className="flex flex-col gap-2">
+      <ul className="stagger flex flex-col gap-2">
         {items.map((g) => (
           <li key={g.id} className={cx("flex gap-3 rounded-2xl border border-line p-3 transition-opacity", g.doneAt && "opacity-70")}>
             <input type="checkbox" checked={!!g.doneAt} onChange={(e) => toggle.mutate({ id: g.id, done: e.target.checked })}
@@ -479,7 +479,7 @@ function AwaitingView({ a, name, expiredPayment }: { a: Awaiting; name: string; 
         {valid ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element -- QR gerado no servidor em data URI */}
-            <img src={a.qr!} alt="QR Code do PIX" width={220} height={220} className="self-center rounded-xl bg-white p-2" />
+            <img src={a.qr!} alt="QR Code do PIX" width={220} height={220} className="self-center rounded-xl bg-[var(--qr-bg)] p-2" />
             <CopyCode code={a.pixCode!} />
           </>
         ) : <p className="text-sm text-ink-2">O prazo da reserva acabou. Esta tela atualiza sozinha em instantes.</p>}

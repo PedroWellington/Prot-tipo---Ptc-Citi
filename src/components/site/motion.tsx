@@ -1,12 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 
-/**
- * Roda antes da primeira pintura (script inline no topo da página): só esconde o que vai entrar ao rolar
- * quando há JavaScript, IntersectionObserver e movimento permitido. Se o observer não subir em 4 s, mostra tudo.
+/*
+ * Classes de movimento em <html>:
+ *   motion-ok   há JS, IntersectionObserver e movimento permitido: as seções podem entrar animadas ao rolar;
+ *   scene-live  além disso há WebGL2: a abertura vira o palco de partículas (sem ela, blocos estáticos).
+ * O script inline liga as duas antes da primeira pintura. Navegando pelo próprio site (do app de volta para "/")
+ * o script inline não roda de novo, então applyMotionClasses() roda também ao montar a página. Era esse o
+ * "hero quebrado" depois de sair da conta: sem as classes, a cena caía no modo estático no meio do palco.
  */
-export const MOTION_SCRIPT = `(function(){var d=document.documentElement;if(!("IntersectionObserver"in window)||matchMedia("(prefers-reduced-motion: reduce)").matches)return;d.classList.add("motion-ok");setTimeout(function(){if(!window.__siteMotion)d.classList.remove("motion-ok")},4000)})()`;
+const MOTION_TEST = `"IntersectionObserver"in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches`;
+
+export const MOTION_SCRIPT = `(function(){var d=document.documentElement;if(!(${MOTION_TEST}))return;d.classList.add("motion-ok");if("WebGL2RenderingContext"in window)d.classList.add("scene-live");try{if(!sessionStorage.getItem("mv-intro")){sessionStorage.setItem("mv-intro","1");d.classList.add("scene-intro")}}catch(e){}setTimeout(function(){if(!window.__siteMotion)d.classList.remove("motion-ok","scene-live")},4000)})()`;
+
+/** Mesmo teste do script inline; devolve se o movimento está ligado. */
+export function applyMotionClasses(): boolean {
+  const d = document.documentElement;
+  const ok = "IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  d.classList.toggle("motion-ok", ok);
+  d.classList.toggle("scene-live", ok && "WebGL2RenderingContext" in window);
+  return ok;
+}
 
 const COUNT_MS = 1000;
 
@@ -29,9 +44,13 @@ function countUp(el: HTMLElement) {
  * [data-top-sentinel] liga o cabeçalho compacto. Nenhum listener de rolagem.
  */
 export function SiteMotion() {
+  // Antes da pintura: na navegação do cliente a página chega sem as classes do script inline
+  useLayoutEffect(() => {
+    (window as { __siteMotion?: boolean }).__siteMotion = true;
+    applyMotionClasses();
+  }, []);
   useEffect(() => {
     const root = document.documentElement;
-    (window as { __siteMotion?: boolean }).__siteMotion = true;
     const motion = root.classList.contains("motion-ok");
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) {
@@ -48,7 +67,8 @@ export function SiteMotion() {
     document.querySelectorAll("[data-reveal], .steps-line, .marquee, [data-top-sentinel], [data-count-group]").forEach((el) => io.observe(el));
     return () => {
       io.disconnect();
-      root.classList.remove("is-scrolled", "motion-ok");
+      // As classes de movimento ficam: valem para a próxima visita a "/" (e o Strict Mode do dev remonta o efeito)
+      root.classList.remove("is-scrolled");
     };
   }, []);
   return null;

@@ -5,6 +5,8 @@ import { useEffect, useId, useRef, useState, type ComponentProps, type CSSProper
 import { AlertCircle, Info, Search, WifiOff, X } from "lucide-react";
 import type { Tone } from "@/lib/labels";
 import { ApiError } from "@/lib/api";
+import { useCountTo } from "@/lib/motion";
+import { MarcaMovimento } from "./marca";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -12,8 +14,9 @@ type Variant = "primary" | "brand" | "ghost" | "line" | "danger";
 
 export function Button({ variant = "primary", className, loading, children, ...p }: ComponentProps<"button"> & { variant?: Variant; loading?: boolean }) {
   return (
-    <button type="button" {...p} disabled={p.disabled || loading} className={cx("btn", `btn-${variant}`, className)}>
-      {children}
+    <button type="button" {...p} disabled={p.disabled || loading} aria-busy={loading || undefined} className={cx("btn", `btn-${variant}`, className)}>
+      {/* Carregando: o rótulo fica (invisível) e segura a largura; o indicador entra por cima, sem mudar o tamanho */}
+      {loading ? <><span className="inline-flex items-center gap-2 opacity-0">{children}</span><span aria-hidden className="btn-spinner" /></> : children}
     </button>
   );
 }
@@ -186,23 +189,16 @@ export function PageTitle({ eyebrow, title, action }: { eyebrow?: string; title:
   );
 }
 
+/** O "M" da marca (MarcaMovimento, variante padrão). */
 export function LogoMark({ className, style }: { className?: string; style?: CSSProperties }) {
-  const id = useId(); // o shell renderiza dois logos, um deles oculto
-  return (
-    <svg viewBox="0 0 24 32" aria-hidden className={className} style={style}>
-      <defs>
-        <linearGradient id={id} x1="0" x2="1"><stop stopColor="var(--ring-a)" /><stop offset="1" stopColor="var(--ring-b)" /></linearGradient>
-      </defs>
-      <path d="M3 25V8l9 11 9-11v17" fill="none" stroke={`url(#${id})`} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <MarcaMovimento className={className} style={style} />;
 }
 
 /** Wordmark único: o M é o logo e a palavra continua em "ovimento". */
 export function Logo({ size = 24 }: { size?: number }) {
   return (
     <span role="img" aria-label="Movimento" className="inline-flex items-center text-ink">
-      <LogoMark style={{ height: size * 1.34, width: size }} />
+      <LogoMark style={{ height: size * 1.3, width: size * 1.3, marginRight: size * -0.08 }} />
       <span aria-hidden className="font-display leading-none" style={{ fontSize: size }}>ovimento</span>
     </span>
   );
@@ -233,8 +229,16 @@ export function Stat({ label, value, hint, icon, tone }: { label: string; value:
     <div data-tone={tone} className={cx("card p-4 sm:p-5", !!icon && "stripe")}>
       {icon && <Tile tone={tone} className="mb-3">{icon}</Tile>}
       <p className="text-sm text-ink-2">{label}</p>
-      <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{value}</p>
+      <p className="mt-1 font-display text-[34px] leading-none tabular-nums">{typeof value === "number" ? <CountTo value={value} /> : value}</p>
       {hint && <p className="mt-2 text-sm text-ink-3">{hint}</p>}
     </div>
   );
+}
+
+/** Número que anima do valor anterior para o novo; no HTML do servidor já vem o valor final. */
+export function CountTo({ value }: { value: number }) {
+  const ref = useCountTo(value);
+  // O React só escreve o primeiro valor; daí em diante o texto é do hook (evita disputar o mesmo nó de texto)
+  const [first] = useState(value);
+  return <span ref={ref}>{first.toLocaleString("pt-BR")}</span>;
 }

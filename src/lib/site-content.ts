@@ -11,6 +11,20 @@ export const SITE_FIELDS: SiteField[] = [
   f("Abertura", "hero.titulo", "Título", "Cuidado em fisioterapia, do primeiro dia à alta"),
   f("Abertura", "hero.texto", "Frase", "Avaliação sem pressa, sessões no seu ritmo e acompanhamento até a alta combinada, em Boa Viagem e Casa Forte.", true),
 
+  // Aviso na base da primeira tela, para quem não percebe que a página rola
+  f("Cena de abertura", "cena.dica", "Aviso para rolar (computador)", "Role para ver"),
+  f("Cena de abertura", "cena.dica.celular", "Aviso para rolar (celular)", "Deslize para ver"),
+  // Cada frase aparece ao lado de uma forma feita de partículas, nesta ordem, com um texto curto embaixo
+  ...([
+    ["Menos faltas.", "coluna vertebral", "Você recebe um lembrete antes de cada sessão e confirma a presença com um toque, pelo celular. Se o horário apertar, troca sem precisar ligar."],
+    ["Mais sessões concluídas!", "figura em movimento", "Cada sessão realizada aparece no seu painel, junto com a fase do tratamento. Você vê o caminho que já fez e o que ainda falta."],
+    ["Cuidado que acompanha você.", "articulação do joelho", "Entre uma sessão e outra, os exercícios para casa ficam no seu painel, com vídeo ou explicação. A fisioterapeuta acompanha o que você registrou e ajusta o plano."],
+    ["Tratamento até o fim.", "anel de progresso", "A dor costuma melhorar antes de a recuperação terminar. Seguir até a última sessão, com a alta combinada com a sua fisioterapeuta, ajuda a evitar que ela volte."],
+  ] as const).flatMap(([v, forma, sub], i) => [
+    f("Cena de abertura", `cena.${i + 1}`, `Frase ${i + 1}, ao lado da ${forma} (curta, de 2 a 5 palavras)`, v),
+    f("Cena de abertura", `cena.${i + 1}.sub`, `Frase ${i + 1}: texto embaixo (2 ou 3 frases curtas)`, sub, true),
+  ]),
+
   f("A clínica", "clinica.titulo", "Título", "Uma clínica feita para você chegar até o fim"),
   f("A clínica", "clinica.p1", "Parágrafo 1", "A Movimento nasceu de uma ideia simples: a fisioterapia funciona melhor quando você entende o próprio tratamento. Cada plano começa com uma avaliação cuidadosa e segue com metas claras, revistas a cada fase.", true),
   f("A clínica", "clinica.p2", "Parágrafo 2", "Você acompanha as sessões pelo celular, confirma presença com um toque e troca de horário sem fila no telefone. A equipe cuida da parte burocrática, como o convênio, para você cuidar da recuperação.", true),
@@ -67,10 +81,8 @@ export const SITE_FIELDS: SiteField[] = [
   f("Faixa em movimento", "faixa.especialidades", "Especialidades e tratamentos (um por linha)", "Coluna e postura\nOmbros\nJoelhos e quadril\nReabilitação pós-operatória\nMobilidade\nPrevenção de dores recorrentes\nExercícios em casa\nAcompanhamento por sessão\nAlta combinada", true),
 
   f("Sistema por dentro", "tour.titulo", "Título", "Veja o sistema por dentro"),
-  f("Sistema por dentro", "tour.sub", "Subtítulo", "O mesmo sistema conecta quem trata, quem organiza e quem se cuida.", true),
-  f("Sistema por dentro", "tour.paciente", "Paciente (um tópico por linha)", "Acompanha cada sessão e a fase do tratamento pelo celular.\nConfirma presença ou troca o horário com um toque.\nVê os exercícios para casa e marca o que já fez.", true),
-  f("Sistema por dentro", "tour.recepcao", "Recepção (um tópico por linha)", "Vê a agenda do dia, da semana e do mês por unidade.\nConfirma pagamentos e autoriza trocas de horário.\nAcompanha as renovações do convênio antes de vencerem.", true),
-  f("Sistema por dentro", "tour.fisio", "Fisioterapeuta (um tópico por linha)", "Abre a própria agenda e marca a sessão como realizada.\nRegistra a dor do paciente e a evolução por sessão.\nEnvia exercícios para casa com vídeo ou arquivo.", true),
+  f("Sistema por dentro", "tour.sub", "Subtítulo", "O sistema acompanha cada sessão do seu tratamento, do primeiro dia à alta.", true),
+  f("Sistema por dentro", "tour.paciente", "O que você faz no sistema (um tópico por linha)", "Acompanhe cada sessão e a fase do tratamento pelo celular.\nConfirme presença ou troque o horário com um toque.\nVeja os exercícios para casa e marque o que já fez.", true),
 
   f("Subtítulos das seções", "sub.especialidades", "Especialidades", "Planos para as dores mais comuns, com exercícios que você entende e repete em casa.", true),
   f("Subtítulos das seções", "sub.como", "Como funciona", "Um caminho claro, com metas revistas a cada fase.", true),

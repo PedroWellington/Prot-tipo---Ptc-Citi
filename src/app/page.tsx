@@ -3,7 +3,6 @@ import {
   Navigation, Phone, ShieldCheck, Sparkles, Stethoscope, UserRound, Wallet, type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
@@ -12,15 +11,14 @@ import { SiteHeader } from "@/components/site/header";
 import { ClinicLine, SPECIALTY_ICON } from "@/components/site/illustrations";
 import { LazyMap } from "@/components/site/lazy-map";
 import { Marquee, type MarqueeItem } from "@/components/site/marquee";
-import { HeroMockup } from "@/components/site/mockup";
 import { MOTION_SCRIPT, SiteMotion } from "@/components/site/motion";
+import { SystemTour } from "@/components/site/product-tour";
+import { Scene } from "@/components/site/scene";
+import { SceneDriver } from "@/components/site/scene-driver";
 import { lines, mergeContent } from "@/lib/site-content";
 import { SITE_IMAGES } from "@/lib/site-images";
 import { NOTA_ENDERECO } from "@/lib/unidades";
 import { siteData, type SiteData } from "@/server/services/site";
-
-// Abaixo da dobra: o código das abas vem num pedaço separado
-const ProductTour = dynamic(() => import("@/components/site/product-tour"));
 
 // Estática, regenerada a cada 5 minutos (e na hora quando o admin salva um texto)
 export const revalidate = 300;
@@ -85,8 +83,8 @@ function Photo({ name, alt, sizes }: { name: keyof typeof SITE_IMAGES; alt: stri
 function Feature({ media, icon, title, text, more, reverse }: { media: ReactNode; icon: ReactNode; title: string; text: string; more: string; reverse?: boolean }) {
   return (
     <div className="grid items-center gap-8 md:grid-cols-12 md:gap-12">
-      <div data-reveal className={`aspect-[4/3] overflow-hidden rounded-[28px] shadow-[var(--shadow)] md:col-span-6 ${reverse ? "md:order-2" : ""}`}>{media}</div>
-      <div data-reveal className="md:col-span-6">
+      <div data-reveal data-side={reverse ? "r" : undefined} className={`aspect-[4/3] overflow-hidden rounded-[28px] shadow-[var(--shadow)] md:col-span-6 ${reverse ? "md:order-2" : ""}`}>{media}</div>
+      <div data-reveal data-side={reverse ? undefined : "r"} className="md:col-span-6">
         <span aria-hidden className="tile mb-4 bg-accent-soft text-accent">{icon}</span>
         <h3 className="font-display text-[30px] leading-tight sm:text-[38px]">{title}</h3>
         <p className="mt-3 text-lg leading-relaxed text-ink-2">{text}</p>
@@ -114,12 +112,6 @@ export default async function HomePage() {
     { value: n.closeHour, prefix: `${n.openHour}h–`, suffix: "h", label: n.saturday ? "de segunda a sábado" : "de segunda a sexta" },
   ];
 
-  const tour = [
-    { id: "paciente", label: "Paciente", screen: "paciente-desktop", phone: "paciente-celular", alt: "Painel do paciente: progresso, próxima sessão, fases e exercícios", points: lines(c["tour.paciente"]) },
-    { id: "recepcao", label: "Recepção", screen: "recepcao-desktop", alt: "Agenda da recepção com as sessões do dia por fisioterapeuta", points: lines(c["tour.recepcao"]) },
-    { id: "fisio", label: "Fisioterapeuta", screen: "fisio-desktop", alt: "Agenda da fisioterapeuta com botões para marcar a sessão como realizada", points: lines(c["tour.fisio"]) },
-  ] as const;
-
   return (
     <div className="site">
       {/* Antes da primeira pintura: decide se o conteúdo entra animado (com JS e sem "menos movimento") */}
@@ -127,41 +119,35 @@ export default async function HomePage() {
       <span data-top-sentinel aria-hidden className="absolute top-0 left-0 h-px w-px" />
       <SiteHeader />
       <SiteMotion />
+      <SceneDriver />
       <main id="conteudo" tabIndex={-1} className="outline-none">
-        {/* 1. Abertura: banda escura com o mockup do próprio sistema */}
-        <section id="inicio" aria-labelledby="inicio-t" className="site-section site-dark overflow-hidden">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pt-12 pb-10 sm:px-6 sm:pt-20 lg:grid-cols-12">
-            <div className="hero-seq lg:col-span-6">
-              <span style={stagger(0)} className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent"><Sparkles className="size-4" />Fisioterapia em Recife</span>
-              <h1 id="inicio-t" style={stagger(1)} className="hero-lcp mt-5 font-display text-[44px] leading-[1.02] sm:text-[60px]">{c["hero.titulo"]}</h1>
-              <p style={stagger(2)} className="hero-lcp mt-5 max-w-xl text-lg leading-relaxed text-ink-2">{c["hero.texto"]}</p>
-              <div style={stagger(3)} className="mt-8 flex flex-wrap gap-3">
-                <Link href={AGENDAR} prefetch={false} className="btn btn-brand min-h-12 px-6 text-base">Agendar tratamento<ArrowRight strokeWidth={2} className="btn-arrow size-4" /></Link>
-                <a href="#sistema" className="btn btn-line min-h-12 px-6 text-base">Ver o sistema</a>
-              </div>
-            </div>
-            <div className="hero-seq lg:col-span-6">
-              <div style={stagger(4)}><HeroMockup /></div>
-            </div>
-          </div>
-          {/* Faixa 1: equipe */}
-          <div className="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
-            <Marquee items={teamStrip} label="Equipe de fisioterapeutas" seconds={48} />
-          </div>
-          <Edge fill="var(--page-bg)" />
-        </section>
+        {/* 1. Abertura: cena rolada com a esfera da marca (sem JS ou com menos movimento, blocos em sequência) */}
+        <Scene
+          hero={[
+            { node: <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent"><Sparkles className="size-4" />Fisioterapia em Recife</span> },
+            { lcp: true, node: <h1 id="inicio-t" className="mt-5 font-display text-[44px] leading-[1.02] sm:text-[60px]">{c["hero.titulo"]}</h1> },
+            { lcp: true, node: <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-2">{c["hero.texto"]}</p> },
+            // Um botão só: o secundário levava direto à seção do sistema e pulava a animação inteira
+            { node: <Link href={AGENDAR} prefetch={false} className="btn btn-brand mt-8 min-h-12 px-6 text-base">Agendar tratamento<ArrowRight strokeWidth={2} className="btn-arrow size-4" /></Link> },
+          ]}
+          phrases={[1, 2, 3, 4].map((i) => ({ title: c[`cena.${i}`], sub: c[`cena.${i}.sub`] }))}
+          hint={{ desktop: c["cena.dica"], mobile: c["cena.dica.celular"] }}
+          edge={<Edge fill="var(--page-bg)" />}
+        />
 
         {/* 2. A clínica */}
         <Section id="clinica">
           <div className="grid items-center gap-10 md:grid-cols-12 md:gap-14">
             <div data-reveal className="md:col-span-6"><ClinicLine className="w-full" /></div>
-            <div data-reveal className="md:col-span-6">
+            <div data-reveal data-side="r" className="md:col-span-6">
               <p className="eyebrow">A clínica</p>
               <h2 id="clinica-t" className="mt-2 font-display text-[36px] leading-[1.05] sm:text-[48px]">{c["clinica.titulo"]}</h2>
               <p className="mt-4 text-lg leading-relaxed text-ink-2">{c["clinica.p1"]}</p>
               <p className="mt-3 text-lg leading-relaxed text-ink-2">{c["clinica.p2"]}</p>
             </div>
           </div>
+          {/* Faixa 1: equipe */}
+          <div data-reveal className="mt-14"><Marquee items={teamStrip} label="Equipe de fisioterapeutas" seconds={48} /></div>
         </Section>
 
         {/* 3. Indicadores, em cor forte (do cadastro; nada inventado) */}
@@ -233,12 +219,12 @@ export default async function HomePage() {
           </p>
         </Section>
 
-        {/* 7. Veja o sistema por dentro (banda escura) */}
+        {/* 7. Veja o sistema por dentro: só a visão do paciente (banda escura) */}
         <section id="sistema" aria-labelledby="sistema-t" className="site-section site-dark overflow-x-clip">
           <Edge fill="var(--alt-bg)" flip />
           <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
             <Heading id="sistema" eyebrow="O sistema" title={c["tour.titulo"]} sub={c["tour.sub"]} />
-            <div data-reveal><ProductTour tabs={tour.map((t) => ({ ...t }))} /></div>
+            <div data-reveal><SystemTour points={lines(c["tour.paciente"])} /></div>
           </div>
           <Edge fill="var(--page-bg)" />
         </section>

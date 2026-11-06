@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import { useState } from "react";
 import { useAction } from "@/components/providers";
+import { leave } from "@/lib/motion";
 import { Badge, Button, Empty, ErrorState, Input, ListSkeleton, PageTitle } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { formatPhone } from "@/lib/labels";
@@ -50,7 +51,7 @@ export default function Page() {
       {error && <ErrorState error={error} retry={refetch} />}
       {data && !data.length && <div className="card"><Empty title="Nada pendente" body="Pagamentos aguardando confirmação aparecem aqui." /></div>}
       {!!data?.length && (
-        <ul className="card divide-y divide-line overflow-hidden">
+        <ul className="stagger card divide-y divide-line overflow-hidden">
           {data.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center gap-3 p-4">
               <div className="min-w-0 flex-1 basis-48">
@@ -61,9 +62,9 @@ export default function Page() {
               <span className="font-display text-2xl tabular-nums">{brl(p.amountCents)}</span>
               <Badge tone="warn">Reservado até {fmtTime(p.expiresAt)}</Badge>
               <Button variant="line" onClick={() => setRejecting(rejecting === p.id ? null : p.id)} aria-expanded={rejecting === p.id}>Recusar pagamento</Button>
-              <Button onClick={() => confirm.mutate(p.id, {
+              <Button onClick={(e) => leave(e.currentTarget, () => confirm.mutate(p.id, {
                 onError: (e) => { if (e instanceof ApiError && e.code === "PAGAMENTO_EXPIRADO") setExpired({ id: p.id, name: p.patient.user.name, message: e.message }); },
-              })}>Confirmar pagamento</Button>
+              }))}>Confirmar pagamento</Button>
               {rejecting === p.id && (
                 <form className="flex w-full flex-wrap items-end gap-2" onSubmit={(e) => {
                   e.preventDefault();

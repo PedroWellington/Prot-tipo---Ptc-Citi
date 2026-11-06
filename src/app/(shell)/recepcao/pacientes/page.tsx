@@ -27,7 +27,7 @@ export default function Page() {
       {error && <ErrorState error={error} retry={refetch} />}
       {rows && !rows.length && <div className="card"><Empty title="Ninguém encontrado" /></div>}
       {!!rows?.length && (
-        <ul className="card grid overflow-hidden md:grid-cols-2 2xl:grid-cols-3">
+        <ul className="stagger card grid overflow-hidden md:grid-cols-2 2xl:grid-cols-3">
           {rows.map((p) => {
             const t = p.treatments[0];
             return (

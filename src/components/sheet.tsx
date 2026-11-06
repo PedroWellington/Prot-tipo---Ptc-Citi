@@ -39,7 +39,7 @@ export default function Sheet({ open, onClose, title, children }: { open: boolea
       <AnimatePresence>
         {open && (
           <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-            <m.div className="absolute inset-0 bg-black/40" onClick={onClose}
+            <m.div className="absolute inset-0 bg-scrim/40" onClick={onClose}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} />
             <m.div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
               className="relative flex max-h-[88dvh] w-full flex-col rounded-t-[20px] border border-line-strong bg-surface shadow-2xl outline-none sm:max-w-lg sm:rounded-b-[20px]"
