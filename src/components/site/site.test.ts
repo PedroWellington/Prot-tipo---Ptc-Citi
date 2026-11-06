@@ -139,10 +139,12 @@ describe("Sem rolagem lateral no celular", () => {
 });
 
 describe("Abertura com partículas", () => {
-  const phrases = ["Menos faltas", "Mais sessões concluídas", "Cuidado que acompanha você", "Tratamento até o fim"];
+  const phrases = ["Menos faltas.", "Mais sessões concluídas!", "Cuidado que acompanha você.", "Tratamento até o fim."];
+  const subs = phrases.map((p) => `Texto embaixo de ${p}`);
   const html = renderToStaticMarkup(createElement(Scene, {
     hero: [{ node: createElement("h1", { id: "inicio-t" }, "Título da abertura"), lcp: true }, { node: createElement("p", null, "Frase da abertura"), lcp: true }],
-    phrases,
+    phrases: phrases.map((title, i) => ({ title, sub: subs[i] })),
+    hint: { desktop: "Role para ver", mobile: "Deslize para ver" },
   }));
   const text = html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
   const live = all.filter((r) => /scene/.test(r.selector) && r.selector.includes(".scene-live"));
@@ -228,7 +230,7 @@ describe("Abertura com partículas", () => {
   it("palavras: frase editável quebrada em palavras, sem perder nenhuma", () => {
     expect(splitWords("  Cuidado   que acompanha você ")).toEqual(["Cuidado", "que", "acompanha", "você"]);
     for (let i = 1; i <= 4; i++) expect(SITE_FIELDS.some((f) => f.key === `cena.${i}` && f.section === "Cena de abertura")).toBe(true);
-    expect(read("src/app/page.tsx")).toContain("phrases={[1, 2, 3, 4].map((i) => c[`cena.${i}`])}");
+    expect(read("src/app/page.tsx")).toContain("phrases={[1, 2, 3, 4].map((i) => ({ title: c[`cena.${i}`], sub: c[`cena.${i}.sub`] }))}");
   });
 
   it("as formas geradas existem e o arquivo de pontos é pequeno", () => {
@@ -277,5 +279,117 @@ describe("Veja o sistema por dentro: só o paciente", () => {
     expect(SITE_FIELDS.some((f) => /tour\.(recepcao|fisio)/.test(f.key))).toBe(false);
     expect(readdirSync(path.join(root, "public/site")).filter((f) => /tela-(recepcao|fisio)/.test(f))).toEqual([]);
     expect(read("src/lib/site-screens.ts")).not.toMatch(/recepcao|fisio/);
+  });
+});
+
+describe("Rodada 3: aviso, cabeçalho da cena, subtextos e atalhos", () => {
+  const phrases = SITE_FIELDS.filter((f) => /^cena\.\d$/.test(f.key));
+  const subs = SITE_FIELDS.filter((f) => /^cena\.\d\.sub$/.test(f.key));
+  const html = renderToStaticMarkup(createElement(Scene, {
+    hero: [{ node: createElement("h1", { id: "inicio-t" }, "Título") }, { node: createElement("a", { href: "/login" }, "Agendar tratamento") }],
+    phrases: phrases.map((p, i) => ({ title: p.value, sub: subs[i].value })),
+    hint: { desktop: "Role para ver", mobile: "Deslize para ver" },
+  }));
+  const header = read("src/components/site/header.tsx");
+  const driver = read("src/components/site/scene-driver.tsx");
+
+  it("frases com pontuação e um texto curto embaixo de cada uma, editáveis em Admin > Textos", () => {
+    expect(phrases.map((p) => p.value)).toEqual(["Menos faltas.", "Mais sessões concluídas!", "Cuidado que acompanha você.", "Tratamento até o fim."]);
+    expect(subs).toHaveLength(4);
+    for (const s of subs) {
+      const frases = s.value.split(/(?<=[.!?])\s+/).filter(Boolean);
+      expect(frases.length).toBeGreaterThanOrEqual(2);
+      expect(frases.length).toBeLessThanOrEqual(3);
+      expect(html).toContain(s.value);
+      // Nada de número, prazo, estatística ou promessa médica
+      expect(s.value).not.toMatch(/\d|%|cura|garant|depoiment|empresa/i);
+    }
+    // Cada subtexto entra depois do título (atraso = palavras × 60 ms + 100 ms) e sai junto com o quadro
+    const sub = all.find((r) => r.selector === ".scene-live .scene-sub" && r.body.includes("transition-delay"));
+    expect(sub?.body).toContain("calc(var(--n, 1) * 60ms + 100ms)");
+    expect(all.find((r) => r.selector === ".scene-live .scene-frame:not(.is-on) .scene-sub")?.body).toContain("opacity: 0");
+  });
+
+  it("aviso \"Role para ver\": na primeira tela, editável, some depois de ~40 px e volta no topo", () => {
+    expect(SITE_FIELDS.find((f) => f.key === "cena.dica")?.value).toBe("Role para ver");
+    expect(SITE_FIELDS.find((f) => f.key === "cena.dica.celular")?.value).toBe("Deslize para ver");
+    expect(html).toMatch(/<a href="#cena-1" class="scene-hint" data-scene-hint="true">/);
+    expect(html).toContain("Role para ver");
+    expect(html).toContain("Deslize para ver");
+    expect(html).toContain('id="cena-1"');
+    const live = all.find((r) => r.selector === ".scene-live .scene-hint");
+    expect(live?.body).toMatch(/bottom: max\(20px, 3svh\)/);
+    expect(live?.body).toMatch(/animation: hint-in 300ms[^;]* 300ms/);
+    expect(all.find((r) => r.selector === ".hint-arrow")?.body).toContain("animation: hint-pulse 1.6s");
+    expect(css).toMatch(/@keyframes hint-pulse \{[^}]*transform[^}]*opacity/);
+    expect(driver).toContain("scrollY <= 40");
+    expect(driver).toContain("FIRST_SHAPE");
+    // Menos movimento: sem pulso
+    const reduced = all.filter((r) => r.media.some((m) => m.includes("prefers-reduced-motion: reduce")));
+    expect(reduced.find((r) => r.selector.includes(".hint-arrow"))?.body).toContain("animation: none");
+  });
+
+  it("o hero não tem \"Ver o sistema\" nem nenhuma âncora que pule a cena", () => {
+    const page = read("src/app/page.tsx");
+    // "<Scene" seguido de quebra de linha: o componente da cena, não o <SceneDriver />
+    const sceneBlock = page.slice(page.search(/<Scene\s*\r?\n/), page.indexOf("/>", page.indexOf("hint={{")));
+    expect(sceneBlock).not.toContain("Ver o sistema");
+    expect(sceneBlock).not.toMatch(/href="#(?!cena-1)/);
+    expect(page).not.toContain('href="#sistema" className="btn');
+    expect(html).not.toMatch(/href="#(?!cena-1)/);
+  });
+
+  it("cabeçalho durante a cena: só logo, tema e Entrar; seções e menu ficam inert e escondidos", () => {
+    expect(header).toContain('inert={scene}');
+    expect(header.match(/inert=\{scene\}/g)!.length).toBeGreaterThanOrEqual(3);
+    const cena = all.find((r) => r.selector.includes('.scene-live .site-header:not([data-mode="completo"]) :is(.header-sections, .header-extra)'));
+    expect(cena?.body).toMatch(/visibility: hidden/);
+    expect(all.find((r) => r.selector === '.scene-live .site-header:not([data-mode="completo"]) .header-menu')?.body).toContain("display: none");
+    // Transparente, sem borda nem sombra, texto claro da banda
+    expect(all.find((r) => r.selector === '.scene-live .site-header:not([data-mode="completo"])::before')?.body).toMatch(/translateY\(-100%\); opacity: 0/);
+    expect(all.find((r) => r.selector === '.scene-live .site-header:not([data-mode="completo"])::after')?.body).toContain("opacity: 0");
+    expect(all.find((r) => r.selector === '.scene-live .site-header:not([data-mode="completo"])')?.body).toContain("--ink: var(--hero-ink)");
+    // O palco começa atrás do cabeçalho: a tela tem uma cor só
+    expect(all.find((r) => r.selector === ".scene-live .scene")?.body).toContain("margin-top: -64px");
+    // Pular para o conteúdo continua
+    expect(header).toContain('href="#conteudo"');
+  });
+
+  it("o menu completo desce no fim do palco e sobe ao voltar: um IntersectionObserver no marcador", () => {
+    expect(html).toMatch(/class="scene-end" data-scene-end="true"/);
+    expect(header.match(/new IntersectionObserver/g)).toHaveLength(2); // seção ativa + fim do palco
+    expect(header).toMatch(/querySelector\("\[data-scene-end\]"\)/);
+    expect(header).toMatch(/e\.isIntersecting \|\| e\.boundingClientRect\.top < 0 \? "completo" : "cena"/);
+    const desce = all.find((r) => r.selector === ".site-header::before");
+    expect(desce?.body).toMatch(/transition: transform 320ms[^;]*opacity 320ms/);
+    expect(header).not.toMatch(/addEventListener\("scroll"/);
+  });
+
+  it("sem palco (menos movimento, sem JS ou abrindo por âncora): menu completo sempre", () => {
+    // O visual de cena só existe sob .scene-live, que o script não liga com prefers-reduced-motion
+    const cenaRules = all.filter((r) => r.selector.includes('site-header:not([data-mode="completo"])'));
+    expect(cenaRules.length).toBeGreaterThan(0);
+    for (const r of cenaRules) expect(r.selector.trim()).toMatch(/^\.scene-live/);
+    expect(MOTION_SCRIPT).toMatch(/prefers-reduced-motion: reduce/);
+    // O HTML do servidor não marca nada como inert (o modo começa indefinido); com âncora, completo
+    expect(header).toMatch(/useState<"cena" \| "completo" \| null>\(null\)/);
+    expect(header).toMatch(/if \(!end \|\| !live \|\| location\.hash\)/);
+  });
+
+  it("formas ~12% maiores sem sair da tela nem invadir o texto", () => {
+    const w = 1366, h = 860;
+    const d = placements(w, h, false);
+    for (const [x, y, s] of d) {
+      expect(x - s * 0.8).toBeGreaterThan(0);
+      expect(x + s * 0.8).toBeLessThan(w);
+      expect(y - s).toBeGreaterThan(64);
+      expect(y + s).toBeLessThan(h);
+    }
+    // Forma à esquerda não passa do começo do texto (54% da largura)
+    expect(d[1][0] + d[1][2] * 0.7).toBeLessThan(w * 0.54);
+    for (const [cw, ch] of [[390, 844], [360, 640]]) {
+      const m = placements(cw, ch, true, ch * 0.55);
+      for (const [x, , s] of m.slice(1)) { expect(x - s * 0.7).toBeGreaterThan(0); expect(x + s * 0.7).toBeLessThan(cw); }
+    }
   });
 });

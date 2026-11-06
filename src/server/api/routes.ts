@@ -1,7 +1,7 @@
 import type { Role } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { isValidCpf, onlyDigits } from "@/lib/cpf";
+import { CPF_INCOMPLETO, hasCpfFormat, onlyDigits } from "@/lib/cpf";
 import { YOUTUBE_URL } from "@/lib/exercicios";
 import { PASSWORD_MAX, PASSWORD_RULES } from "@/lib/password";
 import { BOOKING_SIZES } from "@/lib/schedule";
@@ -64,7 +64,8 @@ const password = z.string().max(PASSWORD_MAX, `Use no máximo ${PASSWORD_MAX} ca
   });
 const sameConfirm = { path: ["confirm"], message: "As senhas não coincidem" };
 const matches = (v: { password: string; confirm: string }) => v.password === v.confirm;
-const cpf = z.string().transform(onlyDigits).refine(isValidCpf, "CPF inválido");
+// Só o formato: qualquer número de 11 dígitos (protótipo). O CPF único por conta é conferido no serviço
+const cpf = z.string().transform(onlyDigits).refine(hasCpfFormat, CPF_INCOMPLETO);
 const phone = z.string().transform(onlyDigits).refine((v) => v.length >= 10 && v.length <= 13, "Telefone inválido");
 const optPhone = z.string().optional().transform((v) => (v ? onlyDigits(v) : undefined)).refine((v) => !v || v.length >= 10, "Telefone inválido");
 const text = (max: number) => z.string().trim().min(1, "Obrigatório").max(max);

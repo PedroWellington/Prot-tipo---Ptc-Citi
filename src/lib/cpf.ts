@@ -1,16 +1,13 @@
 export const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
-export function isValidCpf(input: string): boolean {
-  const cpf = onlyDigits(input);
-  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
-  const check = (len: number) => {
-    let sum = 0;
-    for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
-    const rest = (sum * 10) % 11;
-    return rest === 10 ? 0 : rest;
-  };
-  return check(9) === Number(cpf[9]) && check(10) === Number(cpf[10]);
-}
+/**
+ * Protótipo de demonstração: aceita qualquer número de 11 dígitos (sem dígitos verificadores nem a regra de
+ * sequências repetidas), para ninguém precisar de um CPF real. A mesma regra vale no formulário e na API.
+ */
+export const CPF_LEN = 11;
+export const hasCpfFormat = (input: string) => onlyDigits(input).length === CPF_LEN;
+export const CPF_INCOMPLETO = "Digite os 11 números do CPF";
+export const CPF_AJUDA = "Protótipo de demonstração: use qualquer número de 11 dígitos. Não informe dados pessoais reais.";
 
 /** ***.123.456-** */
 export function maskCpf(input: string): string {

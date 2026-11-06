@@ -6,6 +6,8 @@
  */
 export const SEGMENTS = 5;
 const END = 0.92;
+/** Progresso em que a primeira forma (coluna) está montada, com a frase 1 na tela. */
+export const FIRST_SHAPE = END / SEGMENTS;
 
 export function timeline(p: number): { seg: number; t: number } {
   if (p >= END) return { seg: SEGMENTS - 1, t: 1 };

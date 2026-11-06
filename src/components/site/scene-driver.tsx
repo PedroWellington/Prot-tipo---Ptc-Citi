@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect } from "react";
 import { applyMotionClasses } from "./motion";
-import { frameAt, timeline } from "./scene-timeline";
+import { FIRST_SHAPE, frameAt, timeline } from "./scene-timeline";
 import type { Stage, StageOptions } from "./particle-stage";
 
 const SKIP_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
@@ -66,9 +66,17 @@ export function SceneDriver() {
     ro.observe(scene);
 
     let target = 0, frame = 0;
+    // Aviso "Role para ver": some depois de ~40 px e volta no topo
+    const hint = scene.querySelector<HTMLAnchorElement>("[data-scene-hint]");
+    let hintOn = true;
     const update = () => {
       frame = 0;
-      sticky.style.setProperty("--p", target.toFixed(4));
+      const on = scrollY <= 40;
+      if (on !== hintOn) {
+        hintOn = on;
+        scene.dataset.hint = on ? "on" : "off";
+        if (hint) hint.inert = !on;
+      }
       const k = frameAt(target);
       show(k, k === -1 ? timeline(target).seg + 1 : k);
       stage?.setProgress(target);
@@ -79,6 +87,12 @@ export function SceneDriver() {
     };
     addEventListener("scroll", onScroll, { passive: true });
     onScroll();
+    // Clicar no aviso rola suave até a primeira forma montada (no meio do primeiro quadro de frase)
+    const toFirstShape = (e: MouseEvent) => {
+      e.preventDefault();
+      scrollTo({ top: top + range * FIRST_SHAPE, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    };
+    hint?.addEventListener("click", toFirstShape);
 
     // Abertura (primeira visita da sessão): as partículas se juntam no "M"; qualquer interação pula
     const skip = () => { root.classList.remove("scene-intro"); stage?.skipIntro(); };
@@ -117,6 +131,7 @@ export function SceneDriver() {
       (globalThis.cancelIdleCallback ?? clearTimeout)(idleId as number);
       cancelAnimationFrame(frame);
       removeEventListener("scroll", onScroll);
+      hint?.removeEventListener("click", toFirstShape);
       SKIP_EVENTS.forEach((e) => removeEventListener(e, skip));
       ro.disconnect();
       themeObs.disconnect();

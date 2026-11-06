@@ -46,6 +46,8 @@ Nenhuma senha fica no repositório. Copie `.env.example` para `.env` e defina `A
 | Fisioterapeutas | fisio1 a fisio3 (BV), fisio4 e fisio5 (CF) @exemplo.test | `DEMO_PASSWORD` |
 | Pacientes | paciente01 a paciente25 @exemplo.test | `DEMO_PASSWORD` |
 
+CPF no cadastro: protótipo de demonstração, aceita qualquer número de 11 dígitos (sem dígitos verificadores); a regra de um CPF por conta continua. Não informe dados reais.
+
 Pontos de partida: `paciente01` (onboarding, particular), `paciente04` (convênio na 3ª sessão), `paciente06` (convênio com troca em andamento), `paciente09` (lista de espera).
 
 Os telefones do seed começam com `81 00000`: assinantes iniciados em 0 não existem no plano de numeração, então nenhum número pertence a alguém. O seed cria também 160 pacientes históricos para o dashboard ter 6 meses de dados.
@@ -177,6 +179,8 @@ A abertura é um palco de partículas ([src/components/site/scene.tsx](src/compo
 - O motor e os pontos só baixam depois da primeira pintura: o título da abertura é o LCP.
 - Sem JavaScript, sem WebGL2 ou com `prefers-reduced-motion`: sem palco, cada frase em bloco normal com o desenho estático (SVG) da forma.
 - As classes `motion-ok`/`scene-live` são ligadas antes da primeira pintura e de novo ao montar a página (navegação do cliente, por exemplo depois de sair da conta). `npm run e2e` confere o hero depois de entrar e sair em todos os perfis.
+- Cada frase tem um texto curto embaixo (Admin > Textos > Cena de abertura). Na base da primeira tela, o aviso "Role para ver" ("Deslize para ver" no celular) leva até a primeira forma e some depois de ~40 px de rolagem.
+- Durante a cena o cabeçalho fica transparente, só com logo, tema e Entrar; os links de seção ficam `inert`. Quando o palco termina (um `IntersectionObserver` no marcador do fim), o menu completo desce. Sem palco ou abrindo por âncora, o menu completo fica sempre.
 
 ### Paleta única e fluidez no sistema
 

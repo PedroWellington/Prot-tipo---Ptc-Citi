@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCpfInput, isValidCpf, maskCpf } from "./cpf";
+import { formatCpfInput, hasCpfFormat, maskCpf } from "./cpf";
 import { computeSessionMetrics, type MetricRow } from "./metrics";
 import { attendance, phaseLabel, pickMessage, progressOf, stageOf } from "./progress";
 import { freePhysiosAt, haversineKm, hourBand, hoursForDay, isPeakHour, planSessions, rescheduleBlock } from "./schedule";
@@ -7,18 +7,22 @@ import { UNIDADES } from "./unidades";
 import { atRecife, dayKey, fmtRelative, HOUR, recifeParts } from "./time";
 
 describe("CPF", () => {
-  it("aceita CPF válido com e sem máscara", () => {
-    expect(isValidCpf("529.982.247-25")).toBe(true);
-    expect(isValidCpf("52998224725")).toBe(true);
+  it("protótipo: aceita qualquer número de 11 dígitos, com ou sem máscara, mesmo com dígitos verificadores inválidos", () => {
+    expect(hasCpfFormat("529.982.247-25")).toBe(true);
+    expect(hasCpfFormat("529.982.247-24")).toBe(true);
+    expect(hasCpfFormat("111.111.111-11")).toBe(true);
+    expect(hasCpfFormat("12345678900")).toBe(true);
   });
-  it("rejeita dígitos errados, repetidos e tamanho incorreto", () => {
-    expect(isValidCpf("529.982.247-24")).toBe(false);
-    expect(isValidCpf("111.111.111-11")).toBe(false);
-    expect(isValidCpf("123")).toBe(false);
+  it("rejeita só o formato incompleto ou com dígitos a mais", () => {
+    expect(hasCpfFormat("123")).toBe(false);
+    expect(hasCpfFormat("529.982.247-2")).toBe(false);
+    expect(hasCpfFormat("529982247251")).toBe(false);
+    expect(hasCpfFormat("")).toBe(false);
   });
   it("mascara no formato da interface e formata a digitação", () => {
     expect(maskCpf("52998224725")).toBe("***.982.247-**");
     expect(formatCpfInput("52998224725")).toBe("529.982.247-25");
+    expect(formatCpfInput("1234567890123")).toBe("123.456.789-01");
   });
 });
 

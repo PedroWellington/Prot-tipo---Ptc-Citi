@@ -38,15 +38,17 @@ const hex = (h: string): [number, number, number] => {
  * final volta ao centro. Celular (ou tela em pé): tudo centralizado na metade de cima, o texto fica embaixo.
  */
 export function placements(w: number, h: number, mobile: boolean, heroTop = h * 0.5): [number, number, number][] {
+  // Formas ~12% maiores que na rodada anterior, ainda dentro da tela e longe do texto
+  const G = 1.12;
   if (mobile) {
-    const s = Math.min(w * 0.42, h * 0.22);
+    const s = Math.min(w * 0.42, h * 0.22) * G;
     // Abaixo do cabeçalho (64 px) e acima do título, com folga, sem cobrir texto nem botões
     const free = Math.max(80, heroTop - 64 - 28);
-    const r0 = Math.min(w * 0.3, free * 0.46);
-    return [[w * 0.5, 64 + 14 + free / 2, r0], [w * 0.5, h * 0.36, s], [w * 0.5, h * 0.36, s], [w * 0.5, h * 0.36, s], [w * 0.5, h * 0.36, s * 0.9], [w * 0.5, h * 0.4, Math.min(w * 0.3, h * 0.17)]];
+    const r0 = Math.min(w * 0.33, free * 0.5);
+    return [[w * 0.5, 64 + 14 + free / 2, r0], [w * 0.5, h * 0.35, s], [w * 0.5, h * 0.35, s], [w * 0.5, h * 0.35, s], [w * 0.5, h * 0.35, s * 0.9], [w * 0.5, h * 0.38, Math.min(w * 0.33, h * 0.19)]];
   }
-  const s = h * 0.34;
-  return [[w * 0.74, h * 0.54, Math.min(w * 0.2, h * 0.32)], [w * 0.28, h * 0.55, s], [w * 0.72, h * 0.55, s], [w * 0.28, h * 0.55, s], [w * 0.72, h * 0.55, s * 0.92], [w * 0.5, h * 0.55, Math.min(w * 0.16, h * 0.27)]];
+  const s = h * 0.34 * G;
+  return [[w * 0.74, h * 0.54, Math.min(w * 0.2, h * 0.32) * G], [w * 0.28, h * 0.55, s], [w * 0.72, h * 0.55, s], [w * 0.28, h * 0.55, s], [w * 0.72, h * 0.55, s * 0.92], [w * 0.5, h * 0.55, Math.min(w * 0.16, h * 0.27) * G]];
 }
 
 const VERT = `#version 300 es

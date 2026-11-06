@@ -21,8 +21,32 @@
 /* Rótulo pequeno em caixa-alta acima dos títulos */
 .eyebrow { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
 
-/* ── Cabeçalho: encolhe e ganha sombra ao rolar (só transform/opacity) ── */
+/* ── Cabeçalho ──
+ * Normal: fundo da superfície (pseudo-elemento ::before), borda fina e sombra ao rolar; encolhe um pouco.
+ * Durante a cena (.scene-live sem data-mode="completo"): transparente, sem borda nem sombra, texto claro da banda,
+ * só logo, tema e Entrar. No fim do palco o fundo e o menu descem de cima (translateY -100% → 0 com fade, 320 ms);
+ * a cor do texto troca com transição curta. Altura fixa (64 px) nas duas versões. */
 .site-header { transition: translate 260ms var(--ease-out); }
+.site-header::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out);
+}
+.site-header :is(a, button, span) { transition-property: color, background-color, border-color, opacity, transform, visibility; transition-duration: 300ms; }
+.header-sections, .header-extra { transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out), visibility 0s; }
+.scene-live .site-header:not([data-mode="completo"]) {
+  --ink: var(--hero-ink); --ink-2: var(--hero-ink-2); --line: transparent; --accent: var(--hero-badge-ink);
+  --btn-line-border: var(--hero-badge-ink); color: var(--hero-ink);
+}
+.scene-live .site-header:not([data-mode="completo"])::before { transform: translateY(-100%); opacity: 0; }
+.scene-live .site-header:not([data-mode="completo"])::after { opacity: 0 !important; }
+.scene-live .site-header:not([data-mode="completo"]) :is(.header-sections, .header-extra) {
+  opacity: 0; visibility: hidden; transform: translateY(-100%);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out), visibility 0s 200ms;
+}
+.scene-live .site-header:not([data-mode="completo"]) .header-menu { display: none; }
+/* Fim do palco: marcador que o cabeçalho observa */
+.scene-end { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; pointer-events: none; }
 .site-header::after {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   box-shadow: var(--header-shadow); opacity: 0; transition: opacity 260ms var(--ease-out);
@@ -36,24 +60,47 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
  * Sem .scene-live (sem JS, sem WebGL2 ou com menos movimento): blocos normais, um embaixo do outro, cada frase com
  * o desenho estático da sua forma e todo o texto visível. Com .scene-live: palco de ~620vh (520vh no celular) com
  * um quadro preso de 100svh; o canvas (decorativo, sem clique) desenha as partículas e scene-driver.tsx troca as
- * frases. Só transform e opacity animam no HTML; --p (escrita pelo driver) só apaga a dica "Role para ver". */
+ * frases. Só transform e opacity animam no HTML. */
 .scene { position: relative; }
 .scene-sticky { display: flex; flex-direction: column; gap: 56px; max-width: 72rem; margin: 0 auto; padding: 48px 16px 32px; }
 @media (min-width: 640px) { .scene-sticky { padding-inline: 24px; } }
-.scene-canvas, .scene-glow, .scene-hint { display: none; }
+.scene-canvas, .scene-glow { display: none; }
 .scene-shape { display: block; width: min(320px, 72vw); height: auto; aspect-ratio: 1; margin-inline: auto; }
 .scene-hero { display: grid; gap: 32px; align-items: center; }
 .scene-hero-text { max-width: 40rem; }
-.scene-phrase { display: grid; gap: 16px; align-items: center; }
-.scene-text { margin: 0; text-align: center; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; }
+.scene-phrase { display: grid; gap: 16px; align-items: center; order: 2; }
+.scene-copy { text-align: center; }
+.scene-text { margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; }
+/* Texto curto embaixo da frase grande: corpo menor, cor secundária (AA sobre a banda), até ~46 caracteres por linha */
+.scene-sub { max-width: 46ch; margin: 16px auto 0; font-size: clamp(16px, 1.25vw, 18px); line-height: 1.55; color: var(--ink-2); }
 @media (min-width: 768px) {
   .scene-hero { grid-template-columns: 1fr 1fr; }
   .scene-phrase { grid-template-columns: 1fr 1fr; }
-  .scene-phrase .scene-text { text-align: left; }
+  .scene-phrase .scene-copy { text-align: left; }
+  .scene-phrase .scene-sub { margin-inline: 0; }
   .scene-phrase[data-side="l"] .scene-shape { order: 2; }
 }
 
-.scene-live .scene { --scene-h: 620vh; height: var(--scene-h); }
+/* Aviso "Role para ver": pílula com borda turquesa clara, texto branco (AA sobre a banda) e seta que pulsa.
+   Sem palco (blocos estáticos) fica logo abaixo da abertura; no palco, na base da primeira tela (100svh) */
+.scene-hint {
+  order: 1; align-self: center; display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  border: 2px solid var(--hero-badge-ink); border-radius: 999px; background: var(--hero-badge-bg);
+  color: var(--hero-ink); font-size: 16px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  box-shadow: 0 0 0 6px var(--hero-badge-bg);
+}
+.scene-hint:focus-visible { outline: 2px solid var(--hero-badge-ink); outline-offset: 3px; }
+.hint-mob { display: none; }
+@media (hover: none), (pointer: coarse) {
+  .hint-desk { display: none; }
+  span.hint-mob { display: inline; }
+  svg.hint-mob { display: block; }
+}
+@keyframes hint-pulse { 0%, 100% { transform: translateY(0); opacity: 0.7; } 50% { transform: translateY(5px); opacity: 1; } }
+.hint-arrow { animation: hint-pulse 1.6s ease-in-out infinite; }
+
+/* O palco começa atrás do cabeçalho (64 px): durante a cena o cabeçalho é transparente e a tela tem uma cor só */
+.scene-live .scene { --scene-h: 620vh; height: var(--scene-h); margin-top: -64px; }
 .scene-live .scene-sticky {
   position: sticky; top: 0; display: block; height: 100svh; max-width: none; margin: 0; padding: 0; overflow: hidden;
 }
@@ -66,7 +113,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 /* Lugar da esfera enquanto as partículas carregam: brilho e o "M" (centro em 74% × 54%, como no palco) */
 .scene-live .scene-glow {
   display: grid; place-items: center; position: absolute; z-index: 0; left: 74%; top: 54%;
-  width: min(40vw, 64vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  width: min(44vw, 70vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, var(--particle-glow), transparent); transition: opacity 500ms var(--ease-out);
 }
 .scene-glow-mark { width: 30%; height: auto; opacity: 0.85; }
@@ -79,18 +126,26 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .scene-live .scene-hero-text {
   position: absolute; top: 50%; left: max(16px, calc(50% - 552px)); width: min(560px, 46vw); max-width: none; translate: 0 -50%;
 }
+.scene-live .scene-copy { position: absolute; top: 50%; translate: 0 -50%; text-align: left; }
 .scene-live .scene-text {
-  position: absolute; top: 50%; translate: 0 -50%; text-align: left; line-height: 1.02;
+  line-height: 1.02;
   /* Limitada também pela altura e quebrando palavra longa: uma frase comprida salva no Admin não estoura o quadro */
   font-size: clamp(36px, min(5.6vw, 9vh), 88px); overflow-wrap: anywhere;
 }
+.scene-live .scene-sub { margin: 20px 0 0; }
 /* A frase fica do lado oposto à forma: forma à esquerda (r) → texto à direita */
 .scene-live .scene-phrase[data-side="r"] { --side: 1; }
 .scene-live .scene-phrase[data-side="l"] { --side: -1; }
-.scene-live .scene-phrase[data-side="r"] .scene-text { left: 54%; right: max(16px, calc(50% - 552px)); }
-.scene-live .scene-phrase[data-side="l"] .scene-text { left: max(16px, calc(50% - 552px)); right: 54%; }
+.scene-live .scene-phrase[data-side="r"] .scene-copy { left: 54%; right: max(16px, calc(50% - 552px)); }
+.scene-live .scene-phrase[data-side="l"] .scene-copy { left: max(16px, calc(50% - 552px)); right: 54%; }
 .scene-live .scene-word { display: inline-block; }
-.scene-live .scene-hint { display: flex; position: absolute; z-index: 2; left: 50%; bottom: 20px; translate: -50% 0; opacity: calc(1 - min(1, var(--p, 0) * 30)); }
+.scene-live .scene-hint {
+  position: absolute; z-index: 3; left: 50%; bottom: max(20px, 3svh); translate: -50% 0;
+  animation: hint-in 300ms var(--ease-out) 300ms both;
+  transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+}
+@keyframes hint-in { from { opacity: 0; } }
+.scene-live .scene[data-hint="off"] .scene-hint { opacity: 0; transform: translateY(8px); pointer-events: none; }
 
 /* Entrada e saída de lado, escalonadas: antes do quadro esperam do lado de entrada; depois saem pelo contrário */
 .scene-live .scene-item, .scene-live .scene-word {
@@ -100,17 +155,27 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
 .scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word) { opacity: 0; }
 .scene-live .scene-frame:not(.is-on, .is-past) :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * 40vw)); }
 .scene-live .scene-frame.is-past :is(.scene-item, .scene-word) { transform: translateX(calc(var(--side) * -40vw)); }
+/* O texto embaixo entra ~100 ms depois da última palavra, com fade e deslocamento curto; sai junto com o quadro */
+.scene-live .scene-sub {
+  transition: transform 600ms var(--ease-out), opacity 450ms var(--ease-out);
+  transition-delay: calc(var(--n, 1) * 60ms + 100ms);
+}
+.scene-live .scene-frame:not(.is-on) .scene-sub { opacity: 0; transform: translateY(12px); transition-delay: 0ms; }
+.scene-live .scene-frame.is-past .scene-sub { transform: translateY(-8px); }
 /* Teclado: um link focado num quadro que já saiu volta a aparecer */
 .scene-live .scene-frame:focus-within .scene-item { opacity: 1; transform: none; }
 
 @media (max-width: 767px), (orientation: portrait) {
   .scene-live .scene { --scene-h: 520vh; }
-  .scene-live .scene-glow { left: 50%; top: 24%; width: min(52vw, 26vh); }
-  .scene-live .scene-hero-text { top: auto; bottom: max(24px, 5svh); left: 16px; right: 16px; width: auto; translate: none; }
+  .scene-live .scene-glow { left: 50%; top: 24%; width: min(56vw, 28vh); }
+  /* Abertura acima do aviso, que fica na base da tela sem cobrir o botão */
+  .scene-live .scene-hero-text { top: auto; bottom: calc(max(20px, 3svh) + 60px); left: 16px; right: 16px; width: auto; translate: none; }
   .scene-live .scene-hero h1 { font-size: 38px; }
-  .scene-live .scene-hint { display: none; }
-  /* Celular: a forma fica em cima, a frase embaixo e centralizada */
-  .scene-live .scene-phrase .scene-text { top: auto; bottom: max(40px, 9svh); left: 16px; right: 16px; translate: none; text-align: center; font-size: clamp(34px, 10vw, 52px); }
+  /* Celular: a forma fica em cima; frase e até 2 linhas de texto embaixo, centralizadas */
+  /* Mesma especificidade da regra de lado do desktop ([data-side]), senão o texto ficaria espremido numa metade */
+  .scene-live .scene-phrase:is([data-side="r"], [data-side="l"]) .scene-copy { top: auto; bottom: max(32px, 6svh); left: 16px; right: 16px; translate: none; text-align: center; }
+  .scene-live .scene-phrase .scene-text { font-size: clamp(32px, 9.5vw, 50px); }
+  .scene-live .scene-sub { margin: 12px auto 0; font-size: 16px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 }
 
 /* Sem .scene-live a curva da banda fecha a cena; no palco, a esfera final volta antes de a página seguir */
@@ -232,7 +297,7 @@ html.is-scrolled .site-header .logo-shrink { scale: 0.9; }
   .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
   .marquee-track { animation: none; }
   .marquee-list[aria-hidden] { display: none; }
-  .float-card { animation: none; }
+  .float-card, .hint-arrow, .scene-hint { animation: none !important; }
   .lift, .lift::after, .site .btn, .btn-arrow, .faq-body, .faq-chevron, .site-header, .site-header::after { transition: none; }
   .lift:hover, .lift:focus-visible, .lift:has(:focus-visible), .lift:active { transform: none; }
 }

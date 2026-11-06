@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { ApiError } from "@/lib/api";
 import { q } from "@/lib/queries";
-import { formatCpfInput } from "@/lib/cpf";
+import { CPF_AJUDA, CPF_INCOMPLETO, formatCpfInput, hasCpfFormat } from "@/lib/cpf";
 import { BairroInput } from "./bairro-input";
 import { Button, Input, Segmented, Select } from "./ui";
 
@@ -30,6 +30,8 @@ export function PatientForm({ submitLabel, consentLabel, cpfHint, emailNote, onS
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = Object.fromEntries(new FormData(e.currentTarget));
+    // Mesma regra da API: só o formato (11 números); qualquer número serve neste protótipo
+    if (!hasCpfFormat(String(fd.cpf ?? ""))) { setErrors({ cpf: CPF_INCOMPLETO }); setGeneral(""); return; }
     setBusy(true); setErrors({}); setGeneral("");
     try {
       await onSubmit({ ...fd, type, consent: fd.consent === "on", whatsappOptIn: fd.whatsappOptIn === "on", preferredUnitId: fd.preferredUnitId || undefined });
@@ -43,7 +45,7 @@ export function PatientForm({ submitLabel, consentLabel, cpfHint, emailNote, onS
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-      <Input label="CPF" name="cpf" inputMode="numeric" value={cpf} onChange={(e) => setCpf(formatCpfInput(e.target.value))} placeholder="000.000.000-00" hint={cpfHint} error={errors.cpf} required />
+      <Input label="CPF" name="cpf" inputMode="numeric" value={cpf} onChange={(e) => setCpf(formatCpfInput(e.target.value))} placeholder="000.000.000-00" hint={cpfHint ?? CPF_AJUDA} error={errors.cpf} required />
       <Input label="E-mail" name="email" type="email" inputMode="email" autoComplete="email" hint={emailNote ? undefined : "É por aqui que enviamos seus avisos."} note={emailNote} error={errors.email} required />
       <Input label="Nome completo" name="name" autoComplete="name" error={errors.name} required />
       <Input label="Telefone / WhatsApp" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="(81) 90000-0000" error={errors.phone} required />

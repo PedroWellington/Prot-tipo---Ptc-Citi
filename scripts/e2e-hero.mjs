@@ -33,6 +33,9 @@ async function heroIntegro(page, onde) {
       canvas: visivel(canvas) && getComputedStyle(canvas).opacity === "1",
       h1: !!h1 && visivel(h1) && h1.getBoundingClientRect().top < innerHeight,
       botoes: [...scene.querySelectorAll(".scene-hero a")].filter(visivel).length,
+      cabecalho: document.querySelector(".site-header")?.dataset.mode,
+      secoesInert: !!document.querySelector(".site-header .header-sections")?.inert,
+      aviso: visivel(scene.querySelector("[data-scene-hint]")),
       ativos: [...scene.querySelectorAll(".scene-frame.is-on")].map((f) => f.dataset.frame),
       formasEstaticas: [...scene.querySelectorAll(".scene-shape")].filter(visivel).length,
       frasesVisiveis: [...scene.querySelectorAll(".scene-phrase .scene-word")].filter((w) => getComputedStyle(w).opacity !== "0").length,
@@ -44,7 +47,10 @@ async function heroIntegro(page, onde) {
   assert.equal(s.sticky, "sticky", msg);
   assert.ok(s.canvas, msg);
   assert.ok(s.h1, msg);
-  assert.equal(s.botoes, 2, msg);
+  assert.equal(s.botoes, 1, msg); // só "Agendar tratamento": nada no hero pula a cena
+  assert.equal(s.cabecalho, "cena", msg);
+  assert.ok(s.secoesInert, msg);
+  assert.ok(s.aviso, msg);
   assert.deepEqual(s.ativos, ["0"], msg);
   assert.equal(s.formasEstaticas, 0, msg);
   assert.equal(s.frasesVisiveis, 0, msg);
@@ -89,6 +95,11 @@ try {
           // 4. Recarregar
           await page.reload();
           await heroIntegro(page, `${caso} · recarregar`);
+          // 5. Fim do palco: o menu completo desce; voltando ao topo, some de novo
+          await page.evaluate(() => { const s = document.querySelector("[data-scene]"); scrollTo(0, s.getBoundingClientRect().bottom + scrollY); });
+          await page.waitForFunction(() => document.querySelector(".site-header")?.dataset.mode === "completo", null, { timeout: 5000 });
+          await page.evaluate(() => scrollTo(0, 0));
+          await page.waitForFunction(() => document.querySelector(".site-header")?.dataset.mode === "cena", null, { timeout: 5000 });
           console.log(`✓ ${caso}`);
         } catch (e) {
           falhas++;

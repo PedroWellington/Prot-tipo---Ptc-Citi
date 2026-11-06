@@ -127,14 +127,11 @@ export default async function HomePage() {
             { node: <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent"><Sparkles className="size-4" />Fisioterapia em Recife</span> },
             { lcp: true, node: <h1 id="inicio-t" className="mt-5 font-display text-[44px] leading-[1.02] sm:text-[60px]">{c["hero.titulo"]}</h1> },
             { lcp: true, node: <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-2">{c["hero.texto"]}</p> },
-            { node: (
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link href={AGENDAR} prefetch={false} className="btn btn-brand min-h-12 px-6 text-base">Agendar tratamento<ArrowRight strokeWidth={2} className="btn-arrow size-4" /></Link>
-                <a href="#sistema" className="btn btn-line min-h-12 px-6 text-base">Ver o sistema</a>
-              </div>
-            ) },
+            // Um botão só: o secundário levava direto à seção do sistema e pulava a animação inteira
+            { node: <Link href={AGENDAR} prefetch={false} className="btn btn-brand mt-8 min-h-12 px-6 text-base">Agendar tratamento<ArrowRight strokeWidth={2} className="btn-arrow size-4" /></Link> },
           ]}
-          phrases={[1, 2, 3, 4].map((i) => c[`cena.${i}`])}
+          phrases={[1, 2, 3, 4].map((i) => ({ title: c[`cena.${i}`], sub: c[`cena.${i}.sub`] }))}
+          hint={{ desktop: c["cena.dica"], mobile: c["cena.dica.celular"] }}
           edge={<Edge fill="var(--page-bg)" />}
         />
 
