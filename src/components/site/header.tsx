@@ -90,7 +90,7 @@ export function SiteHeader() {
   const close = () => setOpen(false);
 
   return (
-    <header className="site-header sticky top-0 z-40" data-mode={mode ?? undefined}>
+    <header className="site-header" data-mode={mode ?? undefined}>
       <a href="#conteudo" className="sr-only rounded-lg bg-accent-fill px-4 py-2 text-on-accent focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50">Pular para o conteúdo</a>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <a href="#inicio" className="logo-shrink shrink-0"><Logo size={22} /></a>

@@ -16,13 +16,13 @@ export const SITE_FIELDS: SiteField[] = [
   f("Cena de abertura", "cena.dica.celular", "Aviso para rolar (celular)", "Deslize para ver"),
   // Cada frase aparece ao lado de uma forma feita de partículas, nesta ordem, com um texto curto embaixo
   ...([
-    ["Menos faltas.", "coluna vertebral", "Você recebe um lembrete antes de cada sessão e confirma a presença com um toque, pelo celular. Se o horário apertar, troca sem precisar ligar."],
-    ["Mais sessões concluídas!", "figura em movimento", "Cada sessão realizada aparece no seu painel, junto com a fase do tratamento. Você vê o caminho que já fez e o que ainda falta."],
-    ["Cuidado que acompanha você.", "articulação do joelho", "Entre uma sessão e outra, os exercícios para casa ficam no seu painel, com vídeo ou explicação. A fisioterapeuta acompanha o que você registrou e ajusta o plano."],
-    ["Tratamento até o fim.", "anel de progresso", "A dor costuma melhorar antes de a recuperação terminar. Seguir até a última sessão, com a alta combinada com a sua fisioterapeuta, ajuda a evitar que ela volte."],
+    ["Menos faltas.", "coluna vertebral", "Um lembrete chega antes de cada sessão e você confirma com um toque. Se o horário apertar, troca pelo celular."],
+    ["Mais sessões concluídas!", "figura em movimento", "Cada sessão feita aparece no seu painel, com a fase do tratamento. Você vê o que já fez e o que falta."],
+    ["Cuidado que acompanha você.", "articulação do joelho", "Os exercícios para casa ficam no seu painel, com vídeo ou explicação. A fisioterapeuta acompanha e ajusta o plano."],
+    ["Tratamento até o fim.", "anel de progresso", "A dor costuma passar antes de a recuperação terminar. Ir até a alta combinada ajuda a evitar que ela volte."],
   ] as const).flatMap(([v, forma, sub], i) => [
     f("Cena de abertura", `cena.${i + 1}`, `Frase ${i + 1}, ao lado da ${forma} (curta, de 2 a 5 palavras)`, v),
-    f("Cena de abertura", `cena.${i + 1}.sub`, `Frase ${i + 1}: texto embaixo (2 ou 3 frases curtas)`, sub, true),
+    f("Cena de abertura", `cena.${i + 1}.sub`, `Frase ${i + 1}: texto embaixo (2 frases curtas; no celular cabe em 3 a 4 linhas)`, sub, true),
   ]),
 
   f("A clínica", "clinica.titulo", "Título", "Uma clínica feita para você chegar até o fim"),

@@ -10,7 +10,7 @@ import { Marquee } from "./marquee";
 import { MOTION_SCRIPT } from "./motion";
 import { caminhos, VARIANTES } from "@/lib/marca";
 import { MarcaMovimento } from "../marca";
-import { placements } from "./particle-stage";
+import { EXTENTS, placements } from "./particle-stage";
 import { SystemTour } from "./product-tour";
 import { FORMAS_DIR, Scene, SHAPES, splitWords } from "./scene";
 import { frameAt, timeline } from "./scene-timeline";
@@ -223,7 +223,7 @@ describe("Abertura com partículas", () => {
     expect([d[1][0] < 683, d[2][0] > 683, d[3][0] < 683, d[4][0] > 683]).toEqual([true, true, true, true]);
     expect(html.match(/data-side="(r|l)"/g)).toEqual(['data-side="r"', 'data-side="l"', 'data-side="r"', 'data-side="l"']);
     // Celular: a esfera inicial fica acima do título
-    const m = placements(360, 640, true, 260);
+    const m = placements(360, 640, true, { top: 64, heroTop: 260, copyTops: [460, 460, 460, 460], bottom: 616 });
     expect(m[0][1] + m[0][2]).toBeLessThan(260);
   });
 
@@ -306,7 +306,7 @@ describe("Rodada 3: aviso, cabeçalho da cena, subtextos e atalhos", () => {
     }
     // Cada subtexto entra depois do título (atraso = palavras × 60 ms + 100 ms) e sai junto com o quadro
     const sub = all.find((r) => r.selector === ".scene-live .scene-sub" && r.body.includes("transition-delay"));
-    expect(sub?.body).toContain("calc(var(--n, 1) * 60ms + 100ms)");
+    expect(sub?.body).toContain("calc(var(--enter) + var(--n, 1) * 60ms + 100ms)");
     expect(all.find((r) => r.selector === ".scene-live .scene-frame:not(.is-on) .scene-sub")?.body).toContain("opacity: 0");
   });
 
@@ -350,7 +350,7 @@ describe("Rodada 3: aviso, cabeçalho da cena, subtextos e atalhos", () => {
     expect(all.find((r) => r.selector === '.scene-live .site-header:not([data-mode="completo"])::after')?.body).toContain("opacity: 0");
     expect(all.find((r) => r.selector === '.scene-live .site-header:not([data-mode="completo"])')?.body).toContain("--ink: var(--hero-ink)");
     // O palco começa atrás do cabeçalho: a tela tem uma cor só
-    expect(all.find((r) => r.selector === ".scene-live .scene")?.body).toContain("margin-top: -64px");
+    expect(all.find((r) => r.selector === ".scene-live .scene")?.body).toContain("margin-top: calc(var(--header-h) * -1)");
     // Pular para o conteúdo continua
     expect(header).toContain('href="#conteudo"');
   });
@@ -388,8 +388,73 @@ describe("Rodada 3: aviso, cabeçalho da cena, subtextos e atalhos", () => {
     // Forma à esquerda não passa do começo do texto (54% da largura)
     expect(d[1][0] + d[1][2] * 0.7).toBeLessThan(w * 0.54);
     for (const [cw, ch] of [[390, 844], [360, 640]]) {
-      const m = placements(cw, ch, true, ch * 0.55);
+      const m = placements(cw, ch, true, { top: 64, heroTop: ch * 0.55, copyTops: [ch * 0.7, ch * 0.7, ch * 0.7, ch * 0.7], bottom: ch - 24 });
       for (const [x, , s] of m.slice(1)) { expect(x - s * 0.7).toBeGreaterThan(0); expect(x + s * 0.7).toBeLessThan(cw); }
     }
+  });
+});
+
+describe("Celular: enquadramento, cabeçalho fixo e quadros sem sobreposição", () => {
+  // Mais de uma regra pode ter o mesmo seletor: junta todas
+  const live = (sel: string) => all.filter((r) => r.selector === sel && !r.media.length).map((r) => r.body).join(" ");
+  const mobile = all.filter((r) => r.media.some((m) => m.includes("max-width: 767px")));
+
+  it.each([[320, 568], [360, 640], [390, 664], [392, 740], [412, 839], [430, 932], [430, 560]])(
+    "%ix%i: cada forma cabe inteira entre o cabeçalho e o texto, com 16 px de margem lateral", (w, h) => {
+      const top = 64, heroTop = h * 0.5, copy = h * 0.62;
+      const lay = { top, heroTop, copyTops: [copy, copy, copy, copy], bottom: h - 24 };
+      const m = placements(w, h, true, lay);
+      const limite = [heroTop, copy, copy, copy, copy, h - 24];
+      m.forEach(([x, y, s], k) => {
+        const [ex, ey] = EXTENTS[k];
+        expect(x - s * ex).toBeGreaterThanOrEqual(16 - 0.01);
+        expect(x + s * ex).toBeLessThanOrEqual(w - 16 + 0.01);
+        expect(y - s * ey).toBeGreaterThanOrEqual(top);
+        expect(y + s * ey).toBeLessThanOrEqual(limite[k]);
+        expect(s).toBeLessThanOrEqual(Math.min(w, h) * 0.36 + 0.01);
+      });
+    });
+
+  it("o desktop continua igual (não depende das medidas do celular)", () => {
+    expect(placements(1366, 860, false)).toEqual(placements(1366, 860, false, { top: 0, heroTop: 0, copyTops: [0, 0, 0, 0], bottom: 0 }));
+  });
+
+  it("cabeçalho fixo, acima do palco, com a área segura, e sem recuo ao rolar", () => {
+    expect(live(".site-header")).toMatch(/position: fixed; inset: 0 0 auto; z-index: 50; padding-top: env\(safe-area-inset-top/);
+    expect(css).not.toMatch(/html\.is-scrolled \.site-header \{ translate/);
+    expect(read("src/components/site/header.tsx")).not.toMatch(/className="site-header sticky/);
+    // O corte horizontal fica no invólucro (no <body> ele vazaria para a janela e o Android alargaria a página)
+    expect(live(".site")).toContain("overflow-x: clip");
+    expect(live(".scene-live .scene")).toContain("margin-top: calc(var(--header-h) * -1)");
+  });
+
+  it("subtextos inteiros (sem line-clamp nem reticências) e curtos o bastante para o celular", () => {
+    expect(css).not.toMatch(/line-clamp/);
+    expect(css).not.toMatch(/text-overflow:\s*ellipsis/);
+    for (const f of SITE_FIELDS.filter((x) => /^cena\.\d\.sub$/.test(x.key))) expect(f.value.length).toBeLessThanOrEqual(120);
+  });
+
+  it("quem sai some em 200 ms sem espera; quem entra espera a saída (pausa) antes de aparecer", () => {
+    expect(live('.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word, .scene-sub)')).toMatch(/transition-duration: 200ms, 200ms; transition-delay: 0ms/);
+    expect(live(".scene-live .scene-item, .scene-live .scene-word")).toContain("transition-delay: calc(var(--enter) + var(--i, 0) * 60ms)");
+    expect(live(".scene-live .scene-frame")).toMatch(/--enter: 260ms/);
+    // Quadro ativo sempre no lugar: em p = 0 o hero fica sem deslocamento nem transparência (pelo CSS)
+    expect(live(".scene-live .scene-frame.is-on :is(.scene-item, .scene-word, .scene-sub)")).toMatch(/transform: none; opacity: 1/);
+    // Celular: deslocamento lateral curto
+    expect(mobile.filter((r) => r.selector === ".scene-live .scene-frame").map((r) => r.body).join(" ")).toContain("--slide: 32px");
+  });
+
+  it("botão e aviso no celular: mesma largura e altura (48 px), 24 px entre eles, 16 px + área segura até a base", () => {
+    const hero = mobile.find((r) => r.selector === ".scene-live .scene-hero-text")?.body ?? "";
+    expect(hero).toContain("bottom: calc(var(--hint-bottom) + 48px + 24px)");
+    expect(mobile.filter((r) => r.selector === ".scene-live .scene").map((r) => r.body).join(" ")).toContain("--hint-bottom: calc(16px + env(safe-area-inset-bottom");
+    expect(mobile.find((r) => r.selector === ".scene-live .scene-hero .btn-brand")?.body).toMatch(/width: 100%; min-height: 48px; white-space: nowrap/);
+    expect(mobile.find((r) => r.selector === ".scene-live .scene-hint")?.body).toMatch(/left: 16px; right: 16px; bottom: var\(--hint-bottom\)[^;]*;[^]*min-height: 48px/);
+  });
+
+  it("a barra do navegador não recria o canvas: só a altura mudando menos de 150 px", () => {
+    const engine = read("src/components/site/particle-stage.ts");
+    expect(engine).toMatch(/const onlyBar = w > 0 && nw === w && nd === dpr && Math\.abs\(nh - h\) < 150;/);
+    expect(engine).toMatch(/if \(!onlyBar \|\| canvas\.width === 0\)/);
   });
 });
