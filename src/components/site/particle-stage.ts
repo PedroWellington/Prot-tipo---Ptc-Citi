@@ -11,9 +11,13 @@
  */
 import { SEGMENTS, timeline } from "./scene-timeline";
 
-/** heroTop: no celular, onde o texto da abertura começa (px do palco); a esfera inicial cabe no espaço acima dele. */
-export type StageOptions = { mobile: boolean; intro: boolean; palette: [string, string, string, string]; pointer: boolean; heroTop?: () => number };
-export type Stage = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; destroy(): void; kind: "webgl" | "2d" };
+/**
+ * Medidas reais do celular, em px do palco: onde o cabeçalho termina, onde começa o texto da abertura e onde
+ * começa o bloco de texto de cada quadro. Cada forma cabe inteira no espaço entre o cabeçalho e o seu texto.
+ */
+export type MobileLayout = { top: number; heroTop: number; copyTops: number[]; bottom: number };
+export type StageOptions = { mobile: boolean; intro: boolean; palette: [string, string, string, string]; pointer: boolean; layout?: () => MobileLayout };
+export type Stage = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; relayout(): void; destroy(): void; kind: "webgl" | "2d" };
 
 const DATA_VERSION = 1;
 type Data = { esfera: Int8Array; formas: Int8Array[] };
@@ -34,18 +38,31 @@ const hex = (h: string): [number, number, number] => {
 };
 
 /**
- * Onde cada forma fica, em px do palco: [x, y, escala]. Desktop: as formas alternam direita/esquerda e a esfera
- * final volta ao centro. Celular (ou tela em pé): tudo centralizado na metade de cima, o texto fica embaixo.
+ * Meia largura e meia altura de cada forma em unidades da forma (esfera com o "respirar" de 2,5%), para caber inteira:
+ * 0 esfera, 1 coluna, 2 figura, 3 joelho, 4 anel, 5 esfera.
  */
-export function placements(w: number, h: number, mobile: boolean, heroTop = h * 0.5): [number, number, number][] {
-  // Formas ~12% maiores que na rodada anterior, ainda dentro da tela e longe do texto
+export const EXTENTS: [number, number][] = [[1.05, 1.05], [0.62, 1], [0.7, 1], [0.45, 1], [0.9, 0.9], [1.05, 1.05]];
+const MARGIN = 16;
+
+/**
+ * Onde cada forma fica, em px do palco: [x, y, escala]. Desktop: as formas alternam direita/esquerda e a esfera
+ * final volta ao centro (como antes). Celular (ou tela em pé): cada forma centralizada na área útil entre o fim do
+ * cabeçalho e o seu bloco de texto, com 16 px de margem lateral, tamanho por min(largura, altura útil) com piso e teto.
+ */
+export function placements(w: number, h: number, mobile: boolean, L?: MobileLayout): [number, number, number][] {
+  // Formas ~12% maiores no desktop, como na rodada anterior
   const G = 1.12;
   if (mobile) {
-    const s = Math.min(w * 0.42, h * 0.22) * G;
-    // Abaixo do cabeçalho (64 px) e acima do título, com folga, sem cobrir texto nem botões
-    const free = Math.max(80, heroTop - 64 - 28);
-    const r0 = Math.min(w * 0.33, free * 0.5);
-    return [[w * 0.5, 64 + 14 + free / 2, r0], [w * 0.5, h * 0.35, s], [w * 0.5, h * 0.35, s], [w * 0.5, h * 0.35, s], [w * 0.5, h * 0.35, s * 0.9], [w * 0.5, h * 0.38, Math.min(w * 0.33, h * 0.19)]];
+    const lay = L ?? { top: 64, heroTop: h * 0.55, copyTops: [h * 0.7, h * 0.7, h * 0.7, h * 0.7], bottom: h - 24 };
+    const cap = Math.min(w, h) * 0.36;
+    const fit = (k: number, bottomEdge: number): [number, number, number] => {
+      const top = lay.top + 12, bottom = bottomEdge - 16;
+      const availH = Math.max(40, bottom - top), availW = w - MARGIN * 2;
+      const [ex, ey] = EXTENTS[k];
+      const s = Math.max(20, Math.min(availW / (2 * ex), availH / (2 * ey), cap));
+      return [w / 2, top + availH / 2, s];
+    };
+    return [fit(0, lay.heroTop), fit(1, lay.copyTops[0]), fit(2, lay.copyTops[1]), fit(3, lay.copyTops[2]), fit(4, lay.copyTops[3]), fit(5, lay.bottom)];
   }
   const s = h * 0.34 * G;
   return [[w * 0.74, h * 0.54, Math.min(w * 0.2, h * 0.32) * G], [w * 0.28, h * 0.55, s], [w * 0.72, h * 0.55, s], [w * 0.28, h * 0.55, s], [w * 0.72, h * 0.55, s * 0.92], [w * 0.5, h * 0.55, Math.min(w * 0.16, h * 0.27) * G]];
@@ -153,7 +170,7 @@ function seeds(n: number) {
   return out;
 }
 
-type Loop = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; destroy(): void };
+type Loop = { setProgress(p: number): void; setPalette(p: StageOptions["palette"]): void; skipIntro(): void; relayout(): void; destroy(): void };
 
 /** Ciclo comum aos dois motores: progresso suavizado, visibilidade, resize com debounce, FPS adaptativo. */
 function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: number; h: number; dpr: number; time: number; p: number; intro: number; pointer: [number, number, number] }) => void,
@@ -162,8 +179,12 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
   let w = 0, h = 0, dpr = 1;
   const resize = () => {
     const r = canvas.getBoundingClientRect();
-    w = Math.max(1, r.width); h = Math.max(1, r.height); dpr = Math.min(maxDpr, devicePixelRatio || 1);
-    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    const nw = Math.max(1, r.width), nh = Math.max(1, r.height), nd = Math.min(maxDpr, devicePixelRatio || 1);
+    // Barra do navegador recolhendo/abrindo: só a altura muda, e pouco. Não recria o canvas nem reinicia nada;
+    // só refaz o enquadramento (as formas deslizam para a posição nova pela própria interpolação)
+    const onlyBar = w > 0 && nw === w && nd === dpr && Math.abs(nh - h) < 150;
+    w = nw; h = nh; dpr = nd;
+    if (!onlyBar || canvas.width === 0) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
     onResize(w, h, dpr);
   };
   resize();
@@ -210,6 +231,7 @@ function runLoop(canvas: HTMLCanvasElement, opts: StageOptions, draw: (s: { w: n
     setProgress(v) { target = Math.max(0, Math.min(1, v)); play(); },
     setPalette() { /* trocado pelo motor */ },
     skipIntro() { intro = 0; },
+    relayout() { onResize(w, h, dpr); },
     destroy() {
       cancelAnimationFrame(frame); frame = 0; visible = false;
       io.disconnect();
@@ -288,7 +310,7 @@ function startWebGL(canvas: HTMLCanvasElement, data: Data, n: number, opts: Stag
     gl.bindVertexArray(vao);
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 3, count);
     gl.bindVertexArray(null);
-  }, (w, h) => { place = new Float32Array(placements(w, h, opts.mobile, opts.heroTop?.()).flat()); }, () => {
+  }, (w, h) => { place = new Float32Array(placements(w, h, opts.mobile, opts.layout?.()).flat()); }, () => {
     if (count <= 1200) return false;
     count = Math.max(1200, Math.floor(count * 0.6));
     return true;
@@ -341,7 +363,7 @@ function start2D(canvas: HTMLCanvasElement, data: Data, opts: StageOptions): Sta
       for (let v = 0; v < 3; v++) { const a = ang + 1.5708 + v * 2.0944; ctx[v ? "lineTo" : "moveTo"](x + Math.cos(a) * size, y + Math.sin(a) * size); }
       ctx.fill();
     }
-  }, (w, h) => { place = placements(w, h, opts.mobile, opts.heroTop?.()); }, () => false, () => {});
+  }, (w, h) => { place = placements(w, h, opts.mobile, opts.layout?.()); }, () => false, () => {});
   return { ...loop, setPalette: (p) => { pal = p; }, kind: "2d" };
 }
 

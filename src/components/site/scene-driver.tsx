@@ -41,6 +41,19 @@ export function SceneDriver() {
     const canvas = scene.querySelector<HTMLCanvasElement>("[data-scene-canvas]")!;
     const frames = [...scene.querySelectorAll<HTMLElement>(".scene-frame")];
     const heroText = scene.querySelector<HTMLElement>(".scene-hero-text");
+    const copies = [...scene.querySelectorAll<HTMLElement>(".scene-phrase .scene-copy")];
+    const header = document.querySelector<HTMLElement>(".site-header");
+    // Área útil do celular, medida de verdade (px do palco): do fim do cabeçalho até o começo de cada bloco de texto
+    const layout = () => {
+      const base = sticky.getBoundingClientRect().top;
+      const top = Math.max(0, (header?.getBoundingClientRect().bottom ?? 64) - base);
+      const rel = (el: Element | null | undefined, fb: number) => (el ? el.getBoundingClientRect().top - base : fb);
+      const h = sticky.clientHeight;
+      return { top, heroTop: rel(heroText, h * 0.55), copyTops: copies.map((c) => rel(c, h * 0.7)), bottom: h - 24 };
+    };
+    // Texto mudou de tamanho (fonte chegou, rotação, frase editada): refaz o enquadramento das formas
+    const textRo = new ResizeObserver(() => stage?.relayout());
+    [heroText, ...copies].forEach((el) => el && textRo.observe(el));
     let alive = true;
     let stage: Stage | null = null;
 
@@ -111,7 +124,7 @@ export function SceneDriver() {
         const s = await startParticleStage(canvas, {
           mobile, intro: root.classList.contains("scene-intro"), palette: palette(),
           pointer: matchMedia("(hover: hover) and (pointer: fine)").matches,
-          heroTop: () => (heroText?.getBoundingClientRect().top ?? 0) - sticky.getBoundingClientRect().top,
+          layout,
         });
         if (!alive) { s?.destroy(); return; }
         if (!s) throw new Error("sem canvas");
@@ -134,6 +147,7 @@ export function SceneDriver() {
       hint?.removeEventListener("click", toFirstShape);
       SKIP_EVENTS.forEach((e) => removeEventListener(e, skip));
       ro.disconnect();
+      textRo.disconnect();
       themeObs.disconnect();
       stage?.destroy();
       stage = null;
