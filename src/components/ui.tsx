@@ -124,7 +124,7 @@ export function Toggle({ label, hint, checked, onChange }: { label: string; hint
       </span>
       <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
       <span aria-hidden className={cx("relative h-7 w-12 shrink-0 rounded-full transition-opacity peer-focus-visible:outline-2 peer-focus-visible:outline-accent", checked ? "bg-accent-fill" : "bg-surface-2 ring-1 ring-line-strong")}>
-        <span className={cx("absolute top-0.5 left-0.5 size-6 rounded-full transition-transform duration-200", checked ? "translate-x-5 bg-on-accent" : "bg-ink-3")} />
+        <span className={cx("toggle-knob absolute top-0.5 left-0.5 size-6 rounded-full", checked ? "translate-x-5 bg-on-accent" : "bg-ink-3")} />
       </span>
     </label>
   );

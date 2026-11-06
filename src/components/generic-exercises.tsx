@@ -77,7 +77,7 @@ export function GenericExercises({ items, collapsed, className }: { items: Gener
   if (!items.length) return null;
   const done = items.filter((e) => e.doneAt).length;
   const badge = <Badge tone={done === items.length ? "ok" : "neutral"}>{done}/{items.length} feitos</Badge>;
-  const list = <div className="@container"><ul className="mt-4 grid gap-3 @2xl:grid-cols-2">{items.map((e) => <Card key={e.id} e={e} />)}</ul></div>;
+  const list = <div className="@container"><ul className="stagger mt-4 grid gap-3 @2xl:grid-cols-2">{items.map((e) => <Card key={e.id} e={e} />)}</ul></div>;
   if (collapsed)
     return (
       <details className={cx("card group p-5 sm:p-6", className)}>

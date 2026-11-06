@@ -26,7 +26,8 @@ export function splitWords(text: string): string[] {
  * partículas à direita. Quadros 1–4: uma frase de cada lado, oposta à forma. O canvas é decorativo (aria-hidden) e
  * nunca recebe clique. Sem .scene-live (sem JS, sem WebGL2 ou com menos movimento) tudo vira blocos normais.
  */
-export type Phrase = { title: string; sub: string };
+/** Quadro de frase: rótulo em caixa-alta, frase grande, texto de 2 a 3 frases e até 3 tópicos (só no computador). */
+export type Phrase = { label?: string; title: string; sub: string; points?: string[] };
 
 /**
  * Aviso "Role para ver": pílula na base da primeira tela. É um link para a primeira forma (funciona sem JS);
@@ -58,15 +59,21 @@ export function Scene({ hero, phrases, hint, edge }: { hero: { node: ReactNode; 
           {/* eslint-disable-next-line @next/next/no-img-element -- SVG vetorial estático: não passa pelo otimizador de imagens */}
           <img aria-hidden alt="" src={`${FORMAS_DIR}/esfera.svg`} width={400} height={400} loading="lazy" decoding="async" className="scene-shape" />
         </div>
-        {phrases.map(({ title, sub }, k) => (
+        {phrases.map(({ label, title, sub, points = [] }, k) => (
           <div key={k} id={`cena-${k + 1}`} className="scene-frame scene-phrase" data-frame={k + 1} data-side={k % 2 === 0 ? "r" : "l"}>
             {/* eslint-disable-next-line @next/next/no-img-element -- SVG vetorial estático: não passa pelo otimizador de imagens */}
             <img alt="" src={`${FORMAS_DIR}/${SHAPES[k].key}.svg`} width={400} height={400} loading="lazy" decoding="async" className="scene-shape" data-forma={SHAPES[k].key} />
             <div className="scene-copy" style={vars({ "--n": splitWords(title).length })}>
+              {label && <p className="scene-label">{label}</p>}
               <p className="scene-text font-display">
                 {splitWords(title).map((w, i) => <span key={i}><span className="scene-word" style={vars({ "--i": i })}>{w}</span>{" "}</span>)}
               </p>
               {sub && <p className="scene-sub">{sub}</p>}
+              {!!points.length && (
+                <ul className="scene-points">
+                  {points.map((p, i) => <li key={i} style={vars({ "--j": i })}>{p}</li>)}
+                </ul>
+              )}
             </div>
           </div>
         ))}

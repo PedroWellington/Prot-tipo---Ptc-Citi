@@ -120,7 +120,7 @@ export default function Page() {
       {error && <ErrorState error={error} retry={refetch} />}
       {data && (
         <div className="flex flex-col gap-4">
-          <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <div className="stagger grid items-stretch gap-4 lg:grid-cols-2">
             <Card className="flex flex-col gap-3">
               <div>
                 <h2 className="flex items-center gap-3 font-semibold"><Tile tone="warn"><LocateFixed /></Tile>Qual unidade fica mais perto?</h2>
@@ -148,7 +148,7 @@ export default function Page() {
             </Card>
             <div className="card overflow-hidden"><UnitMap units={data} me={origem} /></div>
           </div>
-          <div className="grid items-start gap-4 md:grid-cols-2">
+          <div className="stagger grid items-start gap-4 md:grid-cols-2">
             {ranked.map((u, i) => <UnitCard key={u.id} u={u} km={u.km} nearest={!!origem && i === 0} />)}
           </div>
         </div>

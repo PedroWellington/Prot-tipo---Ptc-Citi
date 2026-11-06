@@ -10,7 +10,7 @@ import { q } from "@/lib/queries";
 import { toggleSidebar } from "@/lib/theme";
 import { AssistantButton } from "./assistant/button";
 import { entryActive, entryReady, playExit, resumeEntry } from "./entry-transition";
-import { GreetContext, type GreetTexts } from "./motion";
+import { GreetContext, useMotionBudget, type GreetTexts } from "./motion";
 import { Sheet } from "./lazy-sheet";
 import { BellButton, NotificationPanel } from "./notifications";
 import { ThemeToggle } from "./theme-toggle";
@@ -226,6 +226,7 @@ export function AppShell({ role, name, deskless, greet = {}, children }: { role:
   const onLogo = () => (document.documentElement.dataset.sidebar === "collapsed" ? toggleSidebar() : router.push(items[0].href));
   usePreloadData(role, path);
   useEntry();
+  useMotionBudget(path);
   const [greetValue] = useState(() => ({ name, texts: greet }));
   const locked = useMobilityLocked(role);
 
@@ -268,7 +269,7 @@ export function AppShell({ role, name, deskless, greet = {}, children }: { role:
             <p className="nav-label truncate px-4 pb-1 text-sm text-ink-2">{name}</p>
             <div className="side-foot flex pl-1">
               <BellButton onOpen={openFromSidebar} buttonRef={sideBell} />
-              <ThemeToggle reveal />
+              <ThemeToggle />
               <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>
             </div>
           </div>
@@ -280,7 +281,7 @@ export function AppShell({ role, name, deskless, greet = {}, children }: { role:
           <Link href={items[0].href} aria-label="Início"><Logo size={22} /></Link>
           <div className="flex items-center">
             <Link href="/" prefetch={false} aria-label="Voltar à página inicial" title="Voltar à página inicial" className="flex size-11 items-center justify-center rounded-full text-ink-2"><Home strokeWidth={1.5} className="size-5" /></Link>
-            <ThemeToggle reveal />
+            <ThemeToggle />
             <BellButton onOpen={openFromHeader} />
             {role !== "PACIENTE" && (
               <button type="button" onClick={logout} aria-label="Sair" className="flex size-11 items-center justify-center rounded-full text-ink-2"><LogOut strokeWidth={1.5} className="size-5" /></button>

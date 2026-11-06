@@ -40,7 +40,7 @@ export default function Page() {
       {data && !data.messages.length && (
         <div className="card"><Empty art={<MessageCircle strokeWidth={1.2} className="size-10 text-ink-3" />} title="Nenhuma mensagem" body="Marque um paciente como atrasado na Agenda para ver o fluxo." /></div>
       )}
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="stagger grid grid-cols-1 items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {data?.messages.map((m: Message) => (
           <Card key={m.id}>
             <div className="flex items-start justify-between gap-3">

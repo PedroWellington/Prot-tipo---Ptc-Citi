@@ -94,38 +94,57 @@ describe("Transição de entrada", () => {
   });
 });
 
-describe("Troca de tema por revelação circular", () => {
-  it("o tema muda dentro do callback e fica salvo, com ou sem View Transitions", async () => {
+describe("Troca de tema por revelação circular (um utilitário para todas as telas)", () => {
+  it("o círculo nasce do botão e cobre a tela; o tema muda dentro do callback e fica salvo", async () => {
     const { dataset, doc } = fakeBrowser();
     dataset.theme = "light";
-    const { toggleTheme } = await import("@/lib/theme");
-    // Navegador com a API: o callback roda (mesmo quando a transição é pulada) e o círculo nasce do botão
+    const { trocarTema, coverRadius } = await import("@/lib/theme");
     let ready: () => void = () => {};
     const vt = { finished: Promise.resolve(), ready: new Promise<void>((r) => { ready = r; }) };
     Object.assign(doc, { startViewTransition: (cb: () => void) => { cb(); return vt; } });
-    toggleTheme({ x: 10, y: 20 });
+    trocarTema(10, 20);
     expect(dataset.theme).toBe("dark");
     expect(localStorage.getItem("mv-tema")).toBe("dark");
     ready();
     await vt.ready;
     await Promise.resolve();
+    const r = coverRadius(10, 20, 1280, 800);
+    expect(r).toBeCloseTo(Math.hypot(1270, 780));
     expect(doc.documentElement.animate).toHaveBeenCalledWith(
-      { clipPath: ["circle(0px at 10px 20px)", expect.stringMatching(/^circle\([\d.]+px at 10px 20px\)$/)] },
-      expect.objectContaining({ pseudoElement: "::view-transition-new(root)" }),
+      { clipPath: ["circle(0px at 10px 20px)", `circle(${r}px at 10px 20px)`] },
+      expect.objectContaining({ pseudoElement: "::view-transition-new(root)", duration: expect.any(Number) }),
     );
     await vt.finished;
     expect(dataset.vt).toBeUndefined();
-    // API quebrada: troca direto, nunca fica no tema errado
+  });
+
+  it("API que falha, navegador sem a API e menos movimento: nunca fica o tema errado", async () => {
+    const { dataset, doc } = fakeBrowser();
+    dataset.theme = "light";
+    const { trocarTema } = await import("@/lib/theme");
     Object.assign(doc, { startViewTransition: () => { throw new Error("InvalidStateError"); } });
-    toggleTheme({ x: 0, y: 0 });
-    expect(dataset.theme).toBe("light");
+    trocarTema(0, 0);
+    expect(dataset.theme).toBe("dark");
     expect(dataset.vt).toBeUndefined();
-    // Sem origem (página pública, login): troca direto, sem transição
+    // Sem a API: véu com o fundo antigo some em fade (250 ms)
+    const veil = { style: {} as Record<string, string>, setAttribute: vi.fn(), remove: vi.fn(), animate: vi.fn(() => ({ finished: Promise.resolve() })) };
+    Object.assign(doc, { startViewTransition: undefined, createElement: () => veil, body: { append: vi.fn() } });
+    trocarTema(5, 5);
+    expect(dataset.theme).toBe("light");
+    expect(veil.animate).toHaveBeenCalledWith([{ opacity: 1 }, { opacity: 0 }], expect.objectContaining({ duration: 250 }));
+    await Promise.resolve(); await Promise.resolve();
+    expect(veil.remove).toHaveBeenCalled();
+  });
+
+  it("menos movimento: troca na hora, sem transição", async () => {
+    const { dataset, doc } = fakeBrowser({ reduce: true });
+    dataset.theme = "dark";
+    const { trocarTema } = await import("@/lib/theme");
     const spy = vi.fn();
     Object.assign(doc, { startViewTransition: spy });
-    toggleTheme();
+    trocarTema(1, 1);
     expect(spy).not.toHaveBeenCalled();
-    expect(dataset.theme).toBe("dark");
+    expect(dataset.theme).toBe("light");
   });
 });
 
@@ -134,19 +153,21 @@ describe("Nada fica invisível sem JavaScript ou com menos movimento", () => {
   const keyframes = (name: string) => css.match(new RegExp(`@keyframes ${name} \\{([^\\n]*)\\}`))?.[1] ?? "";
 
   it("as entradas só têm o quadro inicial: terminam no estado normal do elemento (visível)", () => {
-    // .tab-in usa vt-in / vt-in-blur
-    for (const k of ["enter", "fade", "bar", "bar-h", "ring-in", "vt-in", "vt-in-blur", "pop"]) {
+    for (const k of ["enter", "enter-blur", "fade", "bar", "bar-h", "ring-in", "vt-in", "pop"]) {
       const body = keyframes(k);
       expect(body, k).toMatch(/^\s*from \{/);
       expect(body, k).not.toMatch(/\bto \{/);
     }
     // Entradas com "backwards" (nunca "forwards" segurando opacidade 0)
-    for (const sel of [".reveal", ".stagger > *", ".greet-in"]) expect(css).toMatch(new RegExp(`${sel.replace(/[.*>]/g, "\\$&")} \\{ animation: enter [^;]*backwards`));
+    for (const sel of ["main > :not(.stagger), .reveal", ".stagger > *", ".greet-in", ".tab-in", "main form > *"])
+      expect(css).toMatch(new RegExp(`${sel.replace(/[.*>():]/g, "\\$&")} \\{ [^}]*animation: enter(-blur)? [^;]*backwards`));
+    // O desfoque só existe durante a animação: nenhuma regra de conteúdo deixa filter fixo
+    expect(css).not.toMatch(/^\s*(main|\.stagger|\.reveal)[^{]*\{[^}]*\bfilter:/m);
   });
 
-  it("menos movimento desliga entradas, contagens visuais e o véu", () => {
+  it("menos movimento troca desfoque, deslocamento e contagem por fade curto, e some com o véu", () => {
     const rm = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
-    expect(rm).toContain(".stagger > *, .reveal, .greet-in, .tab-in { animation: none !important; }");
+    expect(rm).toContain('main > *, .stagger > *, .reveal, .greet-in, .tab-in, main form > *, main [role="alert"] { animation: fade 150ms ease-out backwards !important; }');
     expect(rm).toContain(".entry-veil { display: none !important; }");
     expect(rm).toContain(".bar, .bar-h, .ring-arc { animation: none !important; }");
   });
@@ -181,5 +202,28 @@ describe("Saudação", () => {
     const { SITE_FIELDS } = await import("@/lib/site-content");
     const keys = SITE_FIELDS.filter((f) => f.key.startsWith("saudacao.")).map((f) => f.key);
     expect(keys).toEqual(["saudacao.manha", "saudacao.tarde", "saudacao.noite", "saudacao.paciente", "saudacao.paciente.sem", "saudacao.recepcao", "saudacao.fisio", "saudacao.admin"]);
+  });
+});
+
+describe("Rodada 2: contagem, atraso do bloco, monitor de FPS e raio do círculo", () => {
+  it("easeOutExpo: corre no começo, assenta no fim e termina exatamente em 1", async () => {
+    const { easeOutExpo, toMs, countText } = await import("@/lib/motion");
+    expect(easeOutExpo(0)).toBe(0);
+    expect(easeOutExpo(1)).toBe(1);
+    expect(easeOutExpo(0.3)).toBeGreaterThan(0.8);
+    expect(countText("", "7,1 dias", easeOutExpo(1))).toBe("7,1 dias");
+    expect(toMs("0.21s")).toBe(210);
+    expect(toMs("140ms")).toBe(140);
+    expect(toMs("")).toBe(0);
+  });
+  it("monitor de FPS: abaixo de 50 liga o modo leve", async () => {
+    const { fpsOf, LITE_FPS } = await import("./motion");
+    expect(fpsOf(Array(30).fill(16.7))).toBeGreaterThan(LITE_FPS);
+    expect(fpsOf(Array(30).fill(25))).toBeLessThan(LITE_FPS);
+  });
+  it("o círculo do tema cobre a tela a partir de qualquer ponto", async () => {
+    const { coverRadius } = await import("@/lib/theme");
+    expect(coverRadius(0, 0, 300, 400)).toBe(500);
+    expect(coverRadius(150, 200, 300, 400)).toBe(250);
   });
 });

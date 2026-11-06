@@ -31,12 +31,41 @@ export function leave(from: EventTarget | Element | null, then: () => void) {
   const el = from instanceof Element ? from.closest("li, [data-leave]") : null;
   if (!el || reducedMotion()) return then();
   el.classList.add("is-leaving");
+  closeGap(el);
   setTimeout(then, LEAVE_MS);
 }
 
-/** Duração da contagem dos indicadores. */
-export const COUNT_MS = 800;
-export const easeOutCubic = (p: number) => 1 - (1 - p) ** 3;
+/**
+ * A lista fecha o espaço (FLIP, só transform): guarda onde os itens de baixo estão; quando o item sai do DOM,
+ * eles começam na posição antiga e deslizam com mola até a nova. Sem animar altura.
+ */
+function closeGap(el: Element) {
+  const parent = el.parentElement;
+  if (!parent) return;
+  const below: HTMLElement[] = [];
+  for (let n = el.nextElementSibling; n; n = n.nextElementSibling) if (n instanceof HTMLElement) below.push(n);
+  if (!below.length) return;
+  const before = below.map((n) => n.getBoundingClientRect().top);
+  const mo = new MutationObserver(() => {
+    if (el.isConnected) return;
+    mo.disconnect();
+    below.forEach((n, i) => {
+      if (!n.isConnected) return;
+      const dy = before[i] - n.getBoundingClientRect().top;
+      if (Math.abs(dy) > 0.5) n.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 600, easing: getComputedStyle(n).getPropertyValue("--spring") || "ease-out" });
+    });
+  });
+  mo.observe(parent, { childList: true });
+  // A ação falhou e o item voltou: nada a fazer
+  setTimeout(() => mo.disconnect(), 4000);
+}
+
+/** Duração da contagem dos indicadores (igual a --dur-count em globals.css: barras e anéis enchem junto). */
+export const COUNT_MS = 1300;
+/** Desaceleração forte no fim: o número corre no começo e assenta devagar no valor exato. */
+export const easeOutExpo = (p: number) => (p >= 1 ? 1 : 1 - 2 ** (-10 * p));
+/** "0.21s" ou "210ms" → 210. */
+export const toMs = (v: string) => { const n = parseFloat(v); return !Number.isFinite(n) ? 0 : v.trim().endsWith("ms") ? n : n * 1000; };
 
 // Número em pt-BR: "10.897", "21,6", "7". O ponto é sempre milhar; a vírgula, decimal.
 const NUM = /\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?/g;

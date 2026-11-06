@@ -45,7 +45,7 @@ export default function Page() {
       {isLoading && <ListSkeleton />}
       {error && <ErrorState error={error} retry={refetch} />}
       {!!data?.length && (
-        <ul className="card grid overflow-hidden lg:grid-cols-2">
+        <ul className="stagger card grid overflow-hidden lg:grid-cols-2">
           {data.map((u) => (
             <li key={u.id} className={`flex flex-wrap items-center gap-3 border-b border-line p-4 ${u.deletedAt ? "opacity-60" : ""}`}>
               <div className="min-w-0 flex-1 basis-48">

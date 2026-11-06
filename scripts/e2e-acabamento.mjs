@@ -11,9 +11,19 @@ import { chromium, devices } from "playwright-core";
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const OUT = process.env.OUT ?? ".playwright-mcp/acabamento";
 const ONLY_MEASURE = process.env.SO === "medir";
+const ONLY_R2 = process.env.SO === "rodada2";
 const DEMO = process.env.DEMO_PASSWORD;
-const ADMIN = { email: process.env.ADMIN_EMAIL ?? "admin@exemplo.test", password: process.env.ADMIN_PASSWORD };
-assert.ok(DEMO && ADMIN.password, "defina DEMO_PASSWORD e ADMIN_PASSWORD (node --env-file=.env)");
+// Admin: E2E_ADMIN_* (.env.local) quando entram neste servidor; no banco local, o admin de demonstração do .env.
+// Credenciais só em memória: nunca impressas, nem em capturas.
+const ADMIN = await (async () => {
+  for (const [email, password] of [[process.env.E2E_ADMIN_EMAIL, process.env.E2E_ADMIN_PASSWORD], [process.env.ADMIN_EMAIL, process.env.ADMIN_PASSWORD]]) {
+    if (!email || !password) continue;
+    const r = await fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) }).catch(() => null);
+    if (r?.ok) return { email, password };
+  }
+  return {};
+})();
+assert.ok(DEMO && ADMIN.password, "defina DEMO_PASSWORD e E2E_ADMIN_* ou ADMIN_* (node --env-file=.env --env-file=.env.local)");
 mkdirSync(OUT, { recursive: true });
 
 const PERFIS = {
@@ -95,7 +105,7 @@ let falhas = 0;
 const caso = async (nome, fn) => { try { await fn(); ok(nome); } catch (e) { falhas++; console.error(`✗ ${nome}\n  ${e.message.split("\n").slice(0, 3).join("\n  ")}`); } };
 
 try {
-  if (!ONLY_MEASURE) {
+  if (!ONLY_MEASURE && !ONLY_R2) {
     // 1. Entrada nos 4 perfis: desktop claro e celular escuro (com vídeo), e o contrário para os prints
     for (const [nome, perfil] of Object.entries(PERFIS)) {
       for (const [aparelho, dev, tema] of [["desktop", DESKTOP, "light"], ["celular", CELULAR, "dark"]]) {
@@ -107,7 +117,7 @@ try {
           const ms = await entrar(page, perfil, { frames: `entrada-${nome}-${aparelho}-${tema}` });
           const quadrosSeg = await fpsP;
           assert.ok(ms < 4500, `entrada demorou ${ms} ms`);
-          await page.waitForTimeout(1200);
+          await page.waitForTimeout(2200);
           assert.deepEqual(await numerosExatos(page), []);
           assert.deepEqual(await invisiveis(page), []);
           await page.screenshot({ path: `${OUT}/tela-${nome}-${aparelho}-${tema}.png` });
@@ -131,7 +141,7 @@ try {
           // Sem capturas no meio (elas atrasam a animação): esta é a duração real
           const ms = await entrar(page, perfil);
           medidas.push({ caso: `entrada ${nome} ${aparelho} (sem capturas)`, "duração até o fim (ms)": ms });
-          await page.waitForTimeout(1200);
+          await page.waitForTimeout(2200);
           assert.deepEqual(await invisiveis(page), []);
           await page.screenshot({ path: `${OUT}/tela-${nome}-${aparelho}-${tema}.png` });
           await ctx.close();
@@ -231,11 +241,11 @@ try {
         await page.waitForTimeout(1000);
         await perf(page);
         await page.getByRole("tab", { name: "Financeiro" }).click();
-        await quadros(page, `abas-admin-${aparelho}-${tema}`, [0, 60, 140, 260, 420]);
+        await quadros(page, `abas-admin-${aparelho}-${tema}`, [0, 90, 200, 350, 550, 900]);
         await page.getByRole("tab", { name: "Faltas" }).click();
-        await page.waitForTimeout(900);
+        await page.waitForTimeout(2200);
         await page.getByRole("radio", { name: "30 dias" }).click();
-        await quadros(page, `filtro-admin-${aparelho}-${tema}`, [0, 200, 450, 800, 1200]);
+        await quadros(page, `filtro-admin-${aparelho}-${tema}`, [0, 200, 450, 800, 1300, 1800]);
         assert.deepEqual(await numerosExatos(page), [], "número não terminou no valor exato");
         const antes = await page.evaluate(() => document.documentElement.dataset.theme);
         const botao = page.getByRole("button", { name: "Alternar tema claro e escuro" }).locator("visible=true").first();
@@ -254,7 +264,93 @@ try {
     }
   }
 
-  // 6. Medições comparáveis com a main (as mesmas interações, sem a entrada)
+  // 6. Rodada 2: tema por revelação circular em todas as telas, cena com mais texto, entrada borrado → nítido
+  if (!ONLY_MEASURE) {
+    /** Clica no botão de tema visível, captura quadros e confere: círculo aconteceu, tema trocou e ficou salvo. */
+    async function tema(page, nome) {
+      const antes = await page.evaluate(() => document.documentElement.dataset.theme);
+      await page.evaluate(() => {
+        window.__vt = false;
+        const orig = document.startViewTransition?.bind(document);
+        if (orig) document.startViewTransition = (cb) => { window.__vt = document.documentElement.dataset.vt === "theme"; return orig(cb); };
+      });
+      await page.locator('button[aria-label="Alternar tema claro e escuro"]').locator("visible=true").first().click();
+      await quadros(page, `tema-${nome}`, [0, 140, 300, 450, 700]);
+      const d = await page.evaluate(() => ({ t: document.documentElement.dataset.theme, vt: window.__vt, salvo: localStorage.getItem("mv-tema"), sobra: document.documentElement.dataset.vt ?? null }));
+      assert.notEqual(d.t, antes, `${nome}: tema não trocou`);
+      assert.equal(d.vt, true, `${nome}: sem revelação circular`);
+      assert.equal(d.salvo, d.t, `${nome}: tema não ficou salvo`);
+      assert.equal(d.sobra, null, `${nome}: transição presa`);
+    }
+    for (const [aparelho, dev, cor] of [["desktop", DESKTOP, "light"], ["celular", CELULAR, "dark"]]) {
+      await caso(`tema em todas as telas públicas (${aparelho} ${cor}), sem reiniciar a cena`, async () => {
+        const ctx = await contexto(browser, dev, cor, { video: true });
+        const page = await ctx.newPage();
+        await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+        await page.waitForFunction(() => document.querySelector("[data-scene]")?.classList.contains("is-ready"), null, { timeout: 30000 });
+        await tema(page, `publica-topo-${aparelho}`);
+        // No meio da cena (quadro de frase): a rolagem e o quadro ficam onde estavam, e o palco não é recriado
+        await page.evaluate(() => { const s = document.querySelector("[data-scene]"); scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * 0.37); });
+        await page.waitForTimeout(1800);
+        await page.evaluate(() => { window.__canvas = document.querySelector("[data-scene-canvas]"); });
+        const antes = await page.evaluate(() => ({ y: scrollY, q: document.querySelector(".scene-frame.is-on")?.dataset.frame }));
+        await tema(page, `publica-cena-${aparelho}`);
+        const depois = await page.evaluate(() => ({ y: scrollY, q: document.querySelector(".scene-frame.is-on")?.dataset.frame, mesmo: window.__canvas === document.querySelector("[data-scene-canvas]"), pronto: document.querySelector("[data-scene]").classList.contains("is-ready") }));
+        assert.equal(depois.y, antes.y, "a rolagem pulou");
+        assert.equal(depois.q, antes.q, "o quadro da cena mudou");
+        assert.ok(depois.mesmo && depois.pronto, "a cena reiniciou");
+        // Quadro ativo com rótulo, título, parágrafo e (no computador) tópicos, tudo visível e sem corte
+        const q = await page.evaluate(() => {
+          const f = document.querySelector(".scene-frame.is-on.scene-phrase");
+          if (!f) return null;
+          const vis = (el) => !!el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().height > 0;
+          const sub = f.querySelector(".scene-sub");
+          return { rotulo: vis(f.querySelector(".scene-label")), titulo: vis(f.querySelector(".scene-text")), texto: vis(sub), topicos: vis(f.querySelector(".scene-points")), cortado: sub.scrollHeight > sub.clientHeight + 1, fs: parseFloat(getComputedStyle(sub).fontSize) };
+        });
+        assert.ok(q, "nenhum quadro de frase ativo");
+        assert.ok(q.rotulo && q.titulo && q.texto && !q.cortado, `quadro incompleto ${JSON.stringify(q)}`);
+        if (aparelho === "desktop") { assert.ok(q.topicos, "tópicos ausentes no computador"); assert.ok(q.fs >= 17 && q.fs <= 20, `texto com ${q.fs}px`); }
+        else assert.ok(!q.topicos, "tópicos no celular");
+        await page.screenshot({ path: `${OUT}/cena-quadro-${aparelho}-${cor}.png` });
+        for (const rota of ["/login", "/cadastro", "/recuperar"]) {
+          await page.goto(`${BASE}${rota}`);
+          await page.waitForTimeout(600);
+          await tema(page, `${rota.slice(1)}-${aparelho}`);
+        }
+        await ctx.close();
+      });
+      await caso(`tema e entrada borrado → nítido nas telas logadas (${aparelho} ${cor})`, async () => {
+        const ctx = await contexto(browser, dev, cor, { video: true });
+        const page = await ctx.newPage();
+        await entrar(page, PERFIS.paciente);
+        await page.waitForTimeout(2200);
+        await tema(page, `paciente-${aparelho}`);
+        // Troca de tela pelo menu: os blocos entram borrados e ficam nítidos; os números contam junto
+        const nav = page.locator(aparelho === "desktop" ? 'nav[aria-label="Principal"] a' : 'nav[aria-label="Abas"] a');
+        await nav.nth(1).click();
+        await page.waitForURL(/mobilidade/);
+        await page.waitForTimeout(800);
+        await nav.nth(0).click();
+        await page.waitForURL((u) => u.pathname === "/app");
+        await quadros(page, `entrada-borrada-paciente-${aparelho}-${cor}`, [0, 120, 260, 420, 650, 1000, 1600]);
+        await page.waitForTimeout(800);
+        assert.deepEqual(await numerosExatos(page), []);
+        assert.deepEqual(await invisiveis(page), []);
+        const filtros = await page.evaluate(() => [...document.querySelectorAll("main *")].filter((el) => getComputedStyle(el).filter.includes("blur")).length);
+        assert.equal(filtros, 0, "desfoque ficou depois da entrada");
+        // Telas simples também entram em cascata e terminam visíveis
+        for (const rota of ["/app/perfil", "/app/unidades", "/app/agendar"]) {
+          await page.goto(`${BASE}${rota}`);
+          await page.waitForTimeout(2000);
+          assert.deepEqual(await invisiveis(page), [], rota);
+        }
+        await tema(page, `perfil-${aparelho}`);
+        await ctx.close();
+      });
+    }
+  }
+
+  // 7. Medições comparáveis com a main (as mesmas interações, sem a entrada)
   for (const [aparelho, dev] of [["desktop", DESKTOP], ["celular", CELULAR]]) {
     await caso(`medição ${aparelho}`, async () => {
       const ctx = await contexto(browser, dev, "light");
@@ -263,8 +359,8 @@ try {
       await entrar(page, PERFIS.admin);
       await page.waitForTimeout(1500);
       await perf(page);
-      for (const aba of ["Financeiro", "Previsões", "Faltas"]) { await page.getByRole("tab", { name: aba }).click(); await page.waitForTimeout(1200); }
-      for (const per of ["30 dias", "90 dias", "6 meses"]) { await page.getByRole("radio", { name: per }).click(); await page.waitForTimeout(1200); }
+      for (const aba of ["Financeiro", "Previsões", "Faltas"]) { await page.getByRole("tab", { name: aba }).click(); await page.waitForTimeout(1800); }
+      for (const per of ["30 dias", "90 dias", "6 meses"]) { await page.getByRole("radio", { name: per }).click(); await page.waitForTimeout(1800); }
       const p = await perf(page);
       const ev = p.events.map((e) => e.d).sort((a, b) => a - b);
       medidas.push({ caso: `${process.env.ROTULO ?? "branch"} ${aparelho}${dev === CELULAR ? " (CPU 4x)" : ""}`, "INP aprox. (ms)": ev.at(-1) ?? 0, "tarefas longas > 100 ms": p.long.filter((d) => d > 100).length, "maior tarefa (ms)": Math.max(0, ...p.long) });

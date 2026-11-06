@@ -74,7 +74,7 @@ export default function Page() {
       <PageTitle eyebrow="Administração" title="Unidades e feriados" />
       {units.isLoading && <ListSkeleton rows={2} />}
       {units.error && <ErrorState error={units.error} retry={units.refetch} />}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="stagger grid gap-4 lg:grid-cols-2">
         {units.data?.map((u) => <UnitForm key={u.id} u={u} />)}
       </div>
       <Card className="mt-4">

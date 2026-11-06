@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { dashboardQs, FaltasTab } from "@/components/analises/faltas";
-import { Greeting } from "@/components/motion";
+import { Greeting, useSwap } from "@/components/motion";
 import { FinanceSkeleton } from "@/components/analises/financeiro";
 import type { Filters } from "@/components/analises/shared";
 import { useUnits } from "@/components/patient-form";
@@ -23,6 +23,7 @@ function Analises() {
   const params = useSearchParams();
   const router = useRouter();
   const aba: Tab = TABS.some((t) => t.id === params.get("aba")) ? (params.get("aba") as Tab) : "faltas";
+  const tab = useSwap(aba);
   const [days, setDays] = useState("180");
   const [unit, setUnit] = useState("");
   const { data: units } = useUnits();
@@ -47,14 +48,14 @@ function Analises() {
           <Segmented label="Unidade" value={unit} onChange={setUnit} options={[{ value: "", label: "Todas" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
         </div>
       </div>
-      {/* Altura reservada: a aba nova não faz a página saltar enquanto carrega. A aba nova entra com fade, subida e
-          (com mouse) desfoque curto, só CSS. Uma View Transition aqui fotografava a página a cada troca e criava
-          tarefas longas no celular (medido): cortada */}
+      {/* Altura reservada: a aba nova não faz a página saltar enquanto carrega. A antiga sai em 180 ms (fade e leve
+          desfoque) e a nova entra borrado → nítido, só CSS. Uma View Transition aqui fotografava a página a cada troca
+          e criava tarefas longas no celular (medido na rodada 1): cortada */}
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === aba)!.label} className="min-h-[70vh]">
-        <div key={aba} className="tab-in">
-          {aba === "faltas" && <FaltasTab f={f} now={now} />}
-          {aba === "financeiro" && <FinanceiroTab f={f} />}
-          {aba === "previsoes" && <PrevisoesTab f={f} />}
+        <div key={tab.shown} className={tab.leaving ? "tab-out" : "tab-in"}>
+          {tab.shown === "faltas" && <FaltasTab f={f} now={now} />}
+          {tab.shown === "financeiro" && <FinanceiroTab f={f} />}
+          {tab.shown === "previsoes" && <PrevisoesTab f={f} />}
         </div>
       </div>
     </>

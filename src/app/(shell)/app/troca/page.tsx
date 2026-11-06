@@ -164,7 +164,7 @@ function Content() {
   const history = requests.data?.filter((r) => r.status !== "PENDENTE") ?? [];
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
+    <div className="stagger grid items-start gap-4 lg:grid-cols-2">
       <div className="flex flex-col gap-4">
       {lateOffers.data?.map((o) => (
         <Card key={o.id} className="border-accent/40">
@@ -199,7 +199,7 @@ function Content() {
         {!upcoming.length ? (
           <Card><Empty art={<CalendarClock strokeWidth={1.2} className="size-10 text-ink-3" />} title="Nenhuma sessão futura" body="Quando houver sessões agendadas, elas aparecem aqui." action={<LinkButton variant="ghost" href="/app/agendar">Agendar</LinkButton>} /></Card>
         ) : (
-          <ul className="card divide-y divide-line overflow-hidden">
+          <ul className="stagger card divide-y divide-line overflow-hidden">
             {upcoming.map((s) => (
               <li key={s.id}>
                 <button type="button" disabled={pendingIds.has(s.id)} onClick={() => setPicked(s.id)} className="row-hover flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left disabled:opacity-60">

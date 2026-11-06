@@ -230,7 +230,7 @@ describe("Abertura com partículas", () => {
   it("palavras: frase editável quebrada em palavras, sem perder nenhuma", () => {
     expect(splitWords("  Cuidado   que acompanha você ")).toEqual(["Cuidado", "que", "acompanha", "você"]);
     for (let i = 1; i <= 4; i++) expect(SITE_FIELDS.some((f) => f.key === `cena.${i}` && f.section === "Cena de abertura")).toBe(true);
-    expect(read("src/app/page.tsx")).toContain("phrases={[1, 2, 3, 4].map((i) => ({ title: c[`cena.${i}`], sub: c[`cena.${i}.sub`] }))}");
+    expect(read("src/app/page.tsx")).toContain("phrases={[1, 2, 3, 4].map((i) => ({ label: c[`cena.${i}.rotulo`], title: c[`cena.${i}`], sub: c[`cena.${i}.sub`], points: lines(c[`cena.${i}.topicos`]).slice(0, 3) }))}");
   });
 
   it("as formas geradas existem e o arquivo de pontos é pequeno", () => {
@@ -304,9 +304,10 @@ describe("Rodada 3: aviso, cabeçalho da cena, subtextos e atalhos", () => {
       // Nada de número, prazo, estatística ou promessa médica
       expect(s.value).not.toMatch(/\d|%|cura|garant|depoiment|empresa/i);
     }
-    // Cada subtexto entra depois do título (atraso = palavras × 60 ms + 100 ms) e sai junto com o quadro
+    // Cada subtexto entra depois do título (o título começa 100 ms depois do rótulo; o texto, 100 ms depois da
+    // última palavra) e sai junto com o quadro
     const sub = all.find((r) => r.selector === ".scene-live .scene-sub" && r.body.includes("transition-delay"));
-    expect(sub?.body).toContain("calc(var(--enter) + var(--n, 1) * 60ms + 100ms)");
+    expect(sub?.body).toContain("calc(var(--enter) + var(--n, 1) * 60ms + 200ms)");
     expect(all.find((r) => r.selector === ".scene-live .scene-frame:not(.is-on) .scene-sub")?.body).toContain("opacity: 0");
   });
 
@@ -434,12 +435,30 @@ describe("Celular: enquadramento, cabeçalho fixo e quadros sem sobreposição",
     for (const f of SITE_FIELDS.filter((x) => /^cena\.\d\.sub$/.test(x.key))) expect(f.value.length).toBeLessThanOrEqual(120);
   });
 
+  it("cada quadro tem rótulo, título, parágrafo e tópicos; no celular os tópicos saem e nada é truncado", () => {
+    for (const i of [1, 2, 3, 4]) {
+      const v = (k: string) => SITE_FIELDS.find((f) => f.key === k)?.value ?? "";
+      expect(v(`cena.${i}.rotulo`).length).toBeGreaterThan(0);
+      expect(v(`cena.${i}.rotulo`).split(" ").length).toBeLessThanOrEqual(3);
+      const topicos = v(`cena.${i}.topicos`).split("\n").filter(Boolean);
+      expect(topicos.length).toBeGreaterThanOrEqual(2);
+      expect(topicos.length).toBeLessThanOrEqual(3);
+      // Nada de número, prazo, estatística, depoimento, empresa ou promessa médica
+      for (const t of [v(`cena.${i}.rotulo`), ...topicos]) expect(t).not.toMatch(/\d|%|cura|garant|depoiment|empresa/i);
+    }
+    const scene = read("src/components/site/scene.tsx");
+    expect(scene).toContain('<p className="scene-label">{label}</p>');
+    expect(scene).toContain('<ul className="scene-points">');
+    expect(mobile.filter((r) => r.selector === ".scene-live .scene-points").map((r) => r.body).join(" ")).toContain("display: none");
+    expect(css).not.toMatch(/line-clamp/);
+  });
+
   it("quem sai some em 200 ms sem espera; quem entra espera a saída (pausa) antes de aparecer", () => {
-    expect(live('.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word, .scene-sub)')).toMatch(/transition-duration: 200ms, 200ms; transition-delay: 0ms/);
+    expect(live('.scene-live .scene-frame:not(.is-on) :is(.scene-item, .scene-word, .scene-sub, .scene-label, .scene-points li)')).toMatch(/transition-duration: 200ms, 200ms; transition-delay: 0ms/);
     expect(live(".scene-live .scene-item, .scene-live .scene-word")).toContain("transition-delay: calc(var(--enter) + var(--i, 0) * 60ms)");
     expect(live(".scene-live .scene-frame")).toMatch(/--enter: 260ms/);
     // Quadro ativo sempre no lugar: em p = 0 o hero fica sem deslocamento nem transparência (pelo CSS)
-    expect(live(".scene-live .scene-frame.is-on :is(.scene-item, .scene-word, .scene-sub)")).toMatch(/transform: none; opacity: 1/);
+    expect(live(".scene-live .scene-frame.is-on :is(.scene-item, .scene-word, .scene-sub, .scene-label, .scene-points li)")).toMatch(/transform: none; opacity: 1/);
     // Celular: deslocamento lateral curto
     expect(mobile.filter((r) => r.selector === ".scene-live .scene-frame").map((r) => r.body).join(" ")).toContain("--slide: 32px");
   });
